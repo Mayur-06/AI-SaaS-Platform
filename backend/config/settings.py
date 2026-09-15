@@ -9,10 +9,9 @@ env = environ.Env(
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-PARENT_DIR = BASE_DIR.parent
 
-if str(PARENT_DIR) not in sys.path:
-    sys.path.insert(0, str(PARENT_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="django-insecure-change-me-in-production")
 DEBUG = env("DEBUG", default=True)
@@ -114,9 +113,9 @@ AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.auth.CookieJWTAuthentication",
-        "accounts.auth.BearerJWTAuthentication",
-        "accounts.auth.APIKeyAuthentication",
+        "middleware.api_key_auth.CookieJWTAuthentication",
+        "middleware.api_key_auth.BearerJWTAuthentication",
+        "middleware.api_key_auth.APIKeyAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

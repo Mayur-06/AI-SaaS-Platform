@@ -12,7 +12,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_community.vectorstores import SupabaseVectorStore
  
 from app.supabase_client import get_service_client
-from app.rag.embedder import Embedder
+from rag.embedder import Embedder
 
 
 logger = logging.getLogger(__name__)

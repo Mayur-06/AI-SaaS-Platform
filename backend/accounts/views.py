@@ -3,7 +3,6 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -16,7 +15,6 @@ from accounts.serializers import (
     InvitationSerializer, AuthRegisterSerializer, AuthLoginSerializer, AuthRefreshSerializer,
     OrganizationCreateSerializer,
 )
-from accounts.auth import CookieJWTAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from common.core.permissions import (
     IsAuthenticatedAndActive, IsOrgOwner, IsAdminOrOwner, CanManageMembers,
