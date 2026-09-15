@@ -1,4 +1,4 @@
-from providers.base import BaseLLM
+from rag.providers.base import BaseLLM
 from openai import OpenAI
 
 

@@ -1,4 +1,4 @@
-from providers.base import BaseLLM
+from rag.providers.base import BaseLLM
 from anthropic import Anthropic  # Run: pip install anthropic
 
 
@@ -15,12 +15,12 @@ class ClaudeProvider(BaseLLM):
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.2,
+        max_tokens: int = 4096,
     ) -> str:
         """Generates text using the Anthropic Messages API."""
-        # Note: system prompt is a top-level argument, NOT inside messages
         response = self.client.messages.create(
             model=self.model_name,
-            max_tokens=4096,  # Anthropic requires max_tokens to be explicitly set
+            max_tokens=max_tokens,
             system=system_prompt,
             messages=[
                 {"role": "user", "content": user_prompt}

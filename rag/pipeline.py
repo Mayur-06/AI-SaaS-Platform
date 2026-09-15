@@ -1,28 +1,28 @@
-from app.rag.embedder import Embedder
-# from search_index import SearchIndex
-from app.rag.generator import Generator
-from app.rag.textchunker import TextChunker
+from rag.embedder import Embedder
+from rag.generator import Generator
+from rag.textchunker import TextChunker
+
 
 class RAGPipeline:
 
     def __init__(
         self,
         embedder,
-        faiss_manager,
+        document_store,
         generator,
         chunker,
     ):
 
         self.embedder = embedder
-        self.faiss_manager = faiss_manager
+        self.document_store = document_store
         self.chunker = chunker
         self.generator = generator
 
-    def ask(self, question:str, user_memories: list[str] | None = None):
+    def ask(self, question, organization_id=None):
 
         query_embedding = self.embedder.encode(question)
 
-        retrieved_chunks = self.faiss_manager.search(
+        retrieved_chunks = self.document_store.search(
             query_embedding,
             top_k=3,
         )
@@ -30,7 +30,6 @@ class RAGPipeline:
         context = "\n\n".join(
             chunk["text"] for chunk in retrieved_chunks
         )
-        memory_block = "\n".join(f"- {m}" for m in user_memories) if user_memories else "None known yet."
 
         system_prompt = f"""
 You are a helpful and conversational AI assistant.
@@ -60,9 +59,6 @@ Follow these rules:
    appropriate.
 
 6. Be conversational, concise, and helpful.
-
-Known facts about this user:
-{memory_block}
 """
 
         user_prompt = f"""
@@ -72,13 +68,17 @@ Known facts about this user:
     Question:
     {question}
     """
-        # generator = Generator(
-        #     provider,
-        #     api_key,
-        # )
+
         answer = self.generator.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
 
-        return answer
+        return {
+            "answer": answer,
+            "model": getattr(self.generator, "model_name", "unknown"),
+            "provider": getattr(self.generator, "provider", "unknown"),
+            "input_tokens": len(system_prompt.split()) + len(user_prompt.split()),
+            "output_tokens": len(answer.split()),
+            "latency_ms": 0,
+        }

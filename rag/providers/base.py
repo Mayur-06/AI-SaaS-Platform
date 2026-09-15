@@ -7,5 +7,6 @@ class BaseLLM(ABC):
         self,
         system_prompt,
         user_prompt,
+        temperature: float = 0.2,
     ):
         pass
