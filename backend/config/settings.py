@@ -13,6 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+environ.Env.read_env(BASE_DIR / ".env")
+
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="django-insecure-change-me-in-production")
 DEBUG = env("DEBUG", default=True)
 
@@ -156,3 +158,6 @@ CACHE_KEY_PREFIX = "saas"
 CACHE_TTL_FREE = 3600
 CACHE_TTL_PRO = 86400
 CACHE_TTL_ENTERPRISE = 604800
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
