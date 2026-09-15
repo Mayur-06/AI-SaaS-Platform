@@ -45,7 +45,7 @@ class AuthRegisterView(APIView):
 
 
 class AuthLoginView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = AuthLoginSerializer(data=request.data, context={"request": request})

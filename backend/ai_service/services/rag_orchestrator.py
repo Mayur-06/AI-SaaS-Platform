@@ -82,7 +82,7 @@ Question: {question}"""
                     "request_id": request_id,
                 }
 
-        chunks = self.document_store.search(query_embedding or self.embedder.encode(question), top_k=3)
+        chunks = self.document_store.search(query_embedding if query_embedding is not None else self.embedder.encode(question), top_k=3)
         system_prompt, user_prompt = self._build_prompt(question, chunks)
 
         llm_client = LLMClient(self.organization)
@@ -149,6 +149,6 @@ Question: {question}"""
 
     def query(self, question: str) -> Dict[str, Any]:
         try:
-            return asyncio.get_event_loop().run_in_executor(None, self._run_query_async, question)
+            return self._run_query_async(question)
         except RuntimeError:
             return self._run_query_async(question)

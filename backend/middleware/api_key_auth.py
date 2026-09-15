@@ -48,13 +48,11 @@ class APIKeyAuthentication:
         if len(auth) > 2:
             raise exceptions.AuthenticationFailed("Invalid API key header. Token string should not contain spaces.")
         raw_key = auth[1].decode()
-        organization = getattr(request, "organization", None)
-        if not organization:
-            return None
         from billing.models import APIKey
-        api_key = APIKey.verify_key(raw_key, organization)
+        api_key = APIKey.verify_key(raw_key, None)
         if not api_key:
             raise exceptions.AuthenticationFailed("Invalid or inactive API key.")
         request.api_key = api_key
+        request.organization = api_key.organization
         owner_membership = api_key.organization.memberships.filter(role="owner", is_active=True).first()
         return (owner_membership.user if owner_membership else None, api_key)

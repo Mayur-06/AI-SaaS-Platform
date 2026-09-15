@@ -28,12 +28,25 @@ class DocumentViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticatedAndActive]
 
-    def get_queryset(self):
+    def _get_org(self):
         org = getattr(self.request, "organization", None)
+        if org:
+            return org
+        user = getattr(self.request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def get_queryset(self):
+        org = self._get_org()
         return Document.objects.filter(organization=org) if org else Document.objects.none()
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "organization", None)
+        org = self._get_org()
+        if not org:
+            raise exceptions.ValidationError("No active organization.")
         serializer.save(organization=org, uploaded_by=self.request.user)
 
     @action(detail=True, methods=["post"])
@@ -67,10 +80,21 @@ class DocumentViewSet(viewsets.ModelViewSet):
 class AIQueryView(APIView):
     permission_classes = [IsAuthenticatedAndActive, CanUseAI]
 
-    def post(self, request):
+    def _get_org(self, request):
         org = getattr(request, "organization", None)
+        if org:
+            return org
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def post(self, request):
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         serializer = AIQueryRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
@@ -96,10 +120,21 @@ class AIQueryView(APIView):
 class AIHistoryView(APIView):
     permission_classes = [IsAuthenticatedAndActive, CanViewAI]
 
-    def get(self, request):
+    def _get_org(self, request):
         org = getattr(request, "organization", None)
+        if org:
+            return org
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def get(self, request):
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         limit = int(request.query_params.get("limit", 10))
         sort = request.query_params.get("sort", "date")
         qs = AIQuery.objects.filter(organization=org)
@@ -117,10 +152,21 @@ class AIHistoryView(APIView):
 class CacheStatsView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
-    def get(self, request):
+    def _get_org(self, request):
         org = getattr(request, "organization", None)
+        if org:
+            return org
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def get(self, request):
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         is_super = request.user.is_staff
         if not is_super:
             from ai_service.services.semantic_cache import get_cache_ttl
@@ -142,10 +188,21 @@ class CacheStatsView(APIView):
 class CacheClearView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
-    def delete(self, request):
+    def _get_org(self, request):
         org = getattr(request, "organization", None)
+        if org:
+            return org
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def delete(self, request):
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         cache = SemanticCache(org)
         cache.clear()
         return Response({"detail": "Cache cleared."}, status=status.HTTP_204_NO_CONTENT)
@@ -154,17 +211,28 @@ class CacheClearView(APIView):
 class CacheThresholdView(APIView):
     permission_classes = [IsAuthenticatedAndActive, IsAdminOrOwner]
 
-    def get(self, request):
+    def _get_org(self, request):
         org = getattr(request, "organization", None)
+        if org:
+            return org
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            membership = user.memberships.filter(is_active=True).select_related("organization").first()
+            if membership:
+                return membership.organization
+        return None
+
+    def get(self, request):
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         cache = SemanticCache(org)
         return Response({"threshold": cache.threshold})
 
     def patch(self, request):
-        org = getattr(request, "organization", None)
+        org = self._get_org(request)
         if not org:
-            return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         serializer = CacheThresholdSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from ai_service.models import CacheEntry

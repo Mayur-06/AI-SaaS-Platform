@@ -12,7 +12,7 @@ class Embedder:
 
         self.model = SentenceTransformer(model_name)
 
-        self.embedding_dim = self.model.get_embedding_dimension()
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
 
         print("Embedding model loaded successfully.")
         print(f"Embedding dimension: {self.embedding_dim}")
