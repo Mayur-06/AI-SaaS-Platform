@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from accounts.models import User, Organization, Membership, Invitation
+from billing.models import Plan
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -18,6 +19,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    plan = serializers.SlugRelatedField(
+        slug_field="name",
+        queryset=Plan.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = Organization
         fields = ["id", "name", "slug", "plan", "monthly_budget", "budget_alert_threshold", "is_active", "created_at"]

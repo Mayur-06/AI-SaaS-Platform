@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework.authentication import get_authorization_header
+from rest_framework.authentication import get_authorization_header, BaseAuthentication
 from rest_framework import exceptions
 import logging
 
@@ -33,10 +33,10 @@ class BearerJWTAuthentication(JWTAuthentication):
             return self.get_user(validated_token), validated_token
         except (InvalidToken, TokenError) as exc:
             logger.debug("Bearer JWT auth failed: %s", exc)
-            raise exceptions.AuthenticationFailed(str(exc)) from exc
+            return None
 
 
-class APIKeyAuthentication:
+class APIKeyAuthentication(BaseAuthentication):
     keyword = "ApiKey"
 
     def authenticate(self, request):

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from accounts.models import User, Organization, Membership, Invitation
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 class AuthRegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=AuthRegisterSerializer)
     def post(self, request):
         serializer = AuthRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -47,6 +49,7 @@ class AuthRegisterView(APIView):
 class AuthLoginView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=AuthLoginSerializer)
     def post(self, request):
         serializer = AuthLoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -73,8 +76,9 @@ class AuthRefreshView(TokenRefreshView):
 
 
 class AuthPasswordResetView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
 
+    @extend_schema(request={"type": "object", "properties": {"email": {"type": "string"}}, "required": ["email"]})
     def post(self, request):
         email = request.data.get("email")
         try:
@@ -86,8 +90,9 @@ class AuthPasswordResetView(APIView):
 
 
 class AuthPasswordResetConfirmView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
 
+    @extend_schema(request={"type": "object", "properties": {"token": {"type": "string"}, "password": {"type": "string"}}, "required": ["token", "password"]})
     def post(self, request):
         token = request.data.get("token")
         password = request.data.get("password")
@@ -115,6 +120,7 @@ class OrganizationView(APIView):
         serializer = OrganizationSerializer(membership.organization)
         return Response(serializer.data)
 
+    @extend_schema(request=OrganizationSerializer, responses=OrganizationSerializer)
     def put(self, request):
         membership = request.user.memberships.filter(is_active=True).first()
         if not membership:
@@ -122,7 +128,7 @@ class OrganizationView(APIView):
         org = membership.organization
         if membership.role not in ["owner", "admin"]:
             return Response({"detail": "Insufficient permissions."}, status=status.HTTP_403_FORBIDDEN)
-        serializer = OrganizationSerializer(org, data=request.data, partial=False)
+        serializer = OrganizationSerializer(org, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -132,6 +138,7 @@ class TransferOwnershipView(APIView):
     permission_classes = [IsAuthenticatedAndActive, IsOrgOwner]
 
     @transaction.atomic
+    @extend_schema(request={"type": "object", "properties": {"new_owner_id": {"type": "string"}}, "required": ["new_owner_id"]})
     def post(self, request):
         membership = request.user.memberships.filter(is_active=True, role="owner").first()
         if not membership:
@@ -198,3 +205,9 @@ class InvitationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         org = getattr(self.request, "organization", None)
         return Invitation.objects.filter(organization=org) if org else Invitation.objects.none()
+
+    def perform_create(self, serializer):
+        org = getattr(self.request, "organization", None)
+        if not org:
+            return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
+        serializer.save(organization=org)

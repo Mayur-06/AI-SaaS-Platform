@@ -152,6 +152,23 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Multi-tenant AI SaaS Platform with RAG",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SECURITY_SCHEMES": {
+        "Bearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        },
+        "ApiKey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "API key authentication. Format: ApiKey <your_key>",
+        },
+    },
+    "SECURITY": [
+        {"Bearer": []},
+        {"ApiKey": []},
+    ],
 }
 
 CACHE_KEY_PREFIX = "saas"

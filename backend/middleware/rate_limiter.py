@@ -52,7 +52,7 @@ class RateLimitMiddleware:
                 effective_limit,
             )
         except Exception as exc:
-            logger.warning("Rate limiter Redis error: %s", exc, exc_info=True)
+            logger.debug("Rate limiter Redis error: %s", exc)
             return self.get_response(request)
 
         response = self.get_response(request)

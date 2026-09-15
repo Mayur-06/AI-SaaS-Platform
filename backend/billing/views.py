@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.http import HttpResponse
 from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +33,7 @@ class BillingPlanView(APIView):
         serializer = PlanSerializer(org.plan)
         return Response(serializer.data)
 
+    @extend_schema(request={"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]}, responses=PlanSerializer)
     def post(self, request):
         org = getattr(request, "organization", None)
         if not org:
@@ -52,6 +54,7 @@ class BillingUpgradeView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
     @transaction.atomic
+    @extend_schema(request={"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]}, responses=PlanSerializer)
     def post(self, request):
         org = getattr(request, "organization", None)
         if not org:

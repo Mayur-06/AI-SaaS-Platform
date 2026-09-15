@@ -3,6 +3,7 @@ import time
 from django.utils import timezone
 from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -91,6 +92,7 @@ class AIQueryView(APIView):
                 return membership.organization
         return None
 
+    @extend_schema(request=AIQueryRequestSerializer, responses=AIQueryResponseSerializer)
     def post(self, request):
         org = self._get_org(request)
         if not org:
@@ -229,6 +231,7 @@ class CacheThresholdView(APIView):
         cache = SemanticCache(org)
         return Response({"threshold": cache.threshold})
 
+    @extend_schema(request=CacheThresholdSerializer, responses=CacheThresholdSerializer)
     def patch(self, request):
         org = self._get_org(request)
         if not org:
