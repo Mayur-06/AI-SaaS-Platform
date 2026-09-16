@@ -6,10 +6,20 @@ from accounts.models import Organization
 
 
 class DocumentSerializer(serializers.ModelSerializer):
+    filename = serializers.CharField(max_length=255, required=False)
+    file = serializers.FileField(write_only=True, required=False)
+
     class Meta:
         model = Document
-        fields = ["id", "filename", "status", "created_at"]
+        fields = ["id", "filename", "file", "status", "created_at"]
         read_only_fields = ["id", "status", "created_at"]
+
+    def validate(self, attrs):
+        if not attrs.get("filename") and not attrs.get("file"):
+            raise serializers.ValidationError("Either 'filename' or 'file' is required.")
+        if not attrs.get("filename") and attrs.get("file"):
+            attrs["filename"] = attrs["file"].name
+        return attrs
 
 
 class DocumentUploadSerializer(serializers.Serializer):

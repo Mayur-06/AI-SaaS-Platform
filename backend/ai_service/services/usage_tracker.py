@@ -23,7 +23,9 @@ def log_usage(
     api_key=None,
 ):
     try:
-        with transaction.atomic():
+            from decimal import Decimal
+            cost_dec = Decimal(str(round(float(estimated_cost or 0), 6)))
+
             log = UsageLog.objects.create(
                 organization=organization,
                 user=user,
@@ -33,7 +35,7 @@ def log_usage(
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 latency_ms=latency_ms,
-                estimated_cost=estimated_cost,
+                estimated_cost=cost_dec,
                 cache_hit=cache_hit,
                 request_id=request_id,
             )
@@ -44,13 +46,13 @@ def log_usage(
                 month=month_str,
                 defaults={"date": now.date()},
             )
-            agg.total_requests = UsageAggregate._meta.get_field("total_requests").value_from_object(agg) + 1
-            agg.input_tokens += input_tokens
-            agg.output_tokens += output_tokens
-            agg.total_cost += estimated_cost
+            agg.total_requests = (agg.total_requests or 0) + 1
+            agg.input_tokens = (agg.input_tokens or 0) + input_tokens
+            agg.output_tokens = (agg.output_tokens or 0) + output_tokens
+            agg.total_cost = (agg.total_cost or Decimal("0")) + cost_dec
             if cache_hit:
-                agg.cache_hits += 1
-                agg.cache_savings += estimated_cost
+                agg.cache_hits = (agg.cache_hits or 0) + 1
+                agg.cache_savings = (agg.cache_savings or Decimal("0")) + cost_dec
             agg.save()
             return log
     except Exception as exc:

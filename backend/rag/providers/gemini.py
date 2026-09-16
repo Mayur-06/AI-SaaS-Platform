@@ -8,16 +8,19 @@ class Gemini:
     Wrapper around Gemini for text generation.
     """
 
-    def __init__(self, model_name="gemini-3.6-flash"):
+    def __init__(self, model_name="gemini-2.5-flash", api_key=None):
 
         load_dotenv()
 
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = api_key or os.getenv("GEMINI_API_KEY")
 
         if not api_key:
             raise ValueError(
                 "GEMINI_API_KEY not found in .env"
             )
+
+        if model_name == "gemini-2.0-flash":
+            model_name = "gemini-2.5-flash"
 
         genai.configure(api_key=api_key)
 
