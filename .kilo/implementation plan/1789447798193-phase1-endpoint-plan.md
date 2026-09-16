@@ -13,7 +13,7 @@ Five Django apps per §2.1:
 - `billing`: plans, API keys, usage, invoices
 - `ai_service`: documents, query, history, cache, models, routing
 - `middleware`: org context, rate limit, request ID
-- `core`: shared permissions, exceptions, serializers, admin, health
+- `common/core`: shared permissions, exceptions, serializers, admin, health
 
 ## Endpoint Map & Implementation Pattern
 
@@ -26,8 +26,8 @@ Five Django apps per §2.1:
 
 **Standalone APIViews (explicit urlpatterns):**
 - `OrganizationView` → GET/PUT `/api/org/`
-- `TransferOwnershipView` → POST `/api/org/transfer-ownership/`
-- `OrganizationDeleteView` → DELETE `/api/org/`
+- `TransferOwnershipView` → POST `/api/org/transferownership/`
+- `OrganizationDeleteView` → DELETE `/api/org/` — soft delete via `is_active=False`
 - `AuthRegisterView` → POST `/api/auth/register/`
 - `AuthLoginView` → POST `/api/auth/login/`
 - `AuthRefreshView` → POST `/api/auth/refresh/`
@@ -46,7 +46,7 @@ Five Django apps per §2.1:
 **Standalone APIViews (explicit urlpatterns):**
 - `BillingPlanView` → GET `/api/billing/plan/`
 - `BillingUpgradeView` → POST `/api/billing/upgrade/`
-- `BillingUsageView` → GET `/api/billing/usage/`
+- `BillingUsageView` → GET `/api/billing/usage/` — includes budget remaining, projected spend, and emits `X-Usage-Warning` at 80% of monthly limit
 - `BillingUsageExportView` → GET `/api/billing/usage/export/`
 
 ### ai_service/
@@ -59,6 +59,7 @@ Five Django apps per §2.1:
 - `AIHistoryView` → GET `/api/ai/history/`
 - `CacheStatsView` → GET `/api/cache/stats/`
 - `CacheClearView` → DELETE `/api/cache/clear/`
+- `CacheThresholdView` → GET/PATCH `/api/cache/threshold/` — admin-only similarity threshold update
 
 ### core/
 
@@ -93,7 +94,7 @@ Each app exposes a `urls.py` that includes DRF router URLs plus explicit APIView
 2. **middleware** (org context, request ID, rate limit) — depends on accounts models
 3. **billing** (models → keys → billing views) — depends on accounts for org context
 4. **ai_service** (models → documents → cache → query) — depends on billing for quota and rate limit
-5. **core** (admin, health) — depends on all others for metrics
+5. **common/core** (admin, health) — depends on all others for metrics
 6. **Top-level URL wiring**, CORS, and OpenAPI schema
 
 ## Key Design Notes
@@ -101,7 +102,8 @@ Each app exposes a `urls.py` that includes DRF router URLs plus explicit APIView
 - All APIViews must enforce authentication and organization scoping manually
 - ViewSets inherit from `OrgScopedViewSet` which sets `queryset = Model.objects.filter(organization=request.organization)` and enforces ownership validation on writes
 - Rate limiting middleware wraps the entire API path
-- Monthly quota check happens in `AIQueryView` and `BillingUsageView`
+- Monthly quota is reserved atomically in `AIQueryView` before invoking the LLM, with row-level locking, and finalized after without double-counting
+- Circuit breaker skips models that have failed N times within a rolling window; timeout-triggered and breaker-triggered fallbacks are logged separately
 - The AI query endpoint and its middleware chain (rate-limit, org-context) run under ASGI (uvicorn) per §12 Fix #2; auth, org, and billing views may remain sync DRF
 
 ## Defaults for Unspecified Decisions
@@ -111,19 +113,19 @@ Each app exposes a `urls.py` that includes DRF router URLs plus explicit APIView
 - Development: run Django directly via `manage.py runserver`; Docker Compose for integration testing and deployment
 - LLM clients: official SDKs (`openai`, `google-generativeai`) with httpx transport for connection pooling
 - Embeddings: local `sentence-transformers` in web service
-- Django: 4.2.11 (latest patch in 4.2 series)
+- Django: 4.2+
 - DRF: 3.15.2
-- ASGI: run entire Django app under `uvicorn`; sync views handled automatically
+- ASGI: run AI query endpoint and its middleware chain (rate-limit, org-context) under uvicorn; auth, org, and billing views may remain sync DRF
 
 ## Dependencies
 
 ```
-Django==4.2.11
+Django>=4.2
 djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
 django-cors-headers==4.3.1
 django-environ==0.11.2
-psycopg2-binary==2.9.9
+psycopg2==2.9.9
 redis==5.0.1
 httpx==0.27.0
 sentence-transformers==2.7.0

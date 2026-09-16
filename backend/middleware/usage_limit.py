@@ -1,0 +1,71 @@
+import logging
+from django.http import JsonResponse
+from rest_framework import status
+from rest_framework.exceptions import APIException
+
+logger = logging.getLogger(__name__)
+
+
+class MonthlyLimitExceeded(APIException):
+    status_code = status.HTTP_402_PAYMENT_REQUIRED
+    default_detail = "Monthly request limit exceeded."
+    default_code = "monthly_limit_exceeded"
+
+
+class UsageLimitMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not request.path.startswith("/api/ai/"):
+            return self.get_response(request)
+
+        organization = getattr(request, "organization", None)
+        if not organization:
+            return self.get_response(request)
+
+        if organization.plan.name.lower() == "enterprise":
+            return self.get_response(request)
+
+        from billing.models import UsageAggregate
+        from django.utils import timezone
+        from django.db.models import F
+        from django.db import transaction
+
+        now = timezone.now()
+        month_str = now.strftime("%Y-%m")
+        monthly_limit = organization.plan.monthly_request_limit
+
+        try:
+            with transaction.atomic():
+                agg, _ = UsageAggregate.objects.select_for_update().get_or_create(
+                    organization=organization,
+                    month=month_str,
+                    defaults={"date": now.date(), "total_requests": 0},
+                )
+                if agg.total_requests >= monthly_limit:
+                    remaining = max(0, monthly_limit - agg.total_requests)
+                    response = JsonResponse(
+                        {
+                            "error": {
+                                "code": "MONTHLY_LIMIT_EXCEEDED",
+                                "message": f"Monthly limit of {monthly_limit} requests reached.",
+                                "monthly_limit": monthly_limit,
+                                "requests_used": agg.total_requests,
+                                "remaining": remaining,
+                                "request_id": getattr(request, "request_id", None),
+                            }
+                        },
+                        status=status.HTTP_402_PAYMENT_REQUIRED,
+                    )
+                    response["X-Usage-Warning"] = "limit_reached"
+                    return response
+                if agg.total_requests >= int(monthly_limit * 0.8):
+                    request.META["X-USAGE-WARNING"] = "approaching_limit"
+        except Exception as exc:
+            logger.warning("Usage limit check failed: %s", exc, exc_info=True)
+
+        response = self.get_response(request)
+        if getattr(request, "META", {}).get("X-USAGE-WARNING") == "approaching_limit":
+            response["X-Usage-Warning"] = "approaching_limit"
+        return response
