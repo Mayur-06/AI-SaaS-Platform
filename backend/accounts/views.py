@@ -9,13 +9,15 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from accounts.models import User, Organization, Membership, Invitation
 from accounts.serializers import (
-    UserSerializer, OrganizationSerializer, MembershipSerializer,
-    InvitationSerializer, AuthRegisterSerializer, AuthLoginSerializer, AuthRefreshSerializer,
-    OrganizationCreateSerializer,
+    UserSerializer, OrganizationSerializer, MembershipSerializer, MembershipCreateSerializer,
+    InvitationSerializer, InvitationCreateSerializer, AuthRegisterSerializer, AuthLoginSerializer, AuthRefreshSerializer,
+    OrganizationCreateSerializer, TransferOwnershipSerializer,
 )
+
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from common.core.permissions import (
     IsAuthenticatedAndActive, IsOrgOwner, IsAdminOrOwner, CanManageMembers,
@@ -37,8 +39,13 @@ class AuthRegisterView(APIView):
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
         refresh["user_id"] = str(user.id)
-        org = user.memberships.filter(is_active=True).first().organization
-        refresh["org_id"] = str(org.id) if org else None
+        membership = user.memberships.filter(is_active=True).first()
+        if membership:
+            refresh["org_id"] = str(membership.organization.id)
+            refresh["role"] = membership.role
+        else:
+            refresh["org_id"] = None
+            refresh["role"] = None
         return Response({
             "user": UserSerializer(user).data,
             "access": str(refresh.access_token),
@@ -56,8 +63,13 @@ class AuthLoginView(APIView):
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
         refresh["user_id"] = str(user.id)
-        org = user.memberships.filter(is_active=True).first().organization
-        refresh["org_id"] = str(org.id) if org else None
+        membership = user.memberships.filter(is_active=True).first()
+        if membership:
+            refresh["org_id"] = str(membership.organization.id)
+            refresh["role"] = membership.role
+        else:
+            refresh["org_id"] = None
+            refresh["role"] = None
         response = Response({
             "user": UserSerializer(user).data,
             "access": str(refresh.access_token),
@@ -72,7 +84,7 @@ class AuthLoginView(APIView):
 
 
 class AuthRefreshView(TokenRefreshView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [AllowAny]
 
 
 class AuthPasswordResetView(APIView):
@@ -80,13 +92,21 @@ class AuthPasswordResetView(APIView):
 
     @extend_schema(request={"type": "object", "properties": {"email": {"type": "string"}}, "required": ["email"]})
     def post(self, request):
+        from django.core.signing import TimestampSigner
         email = request.data.get("email")
-        try:
-            user = User.objects.get(email=email)
-            logger.info("Password reset requested for %s", email)
-        except User.DoesNotExist:
-            pass
-        return Response({"detail": "If an account exists, a reset token has been sent."}, status=status.HTTP_200_OK)
+        reset_token = None
+        if email:
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                signer = TimestampSigner()
+                reset_token = signer.sign(str(user.id))
+                logger.info("Password reset token generated for %s: %s", email, reset_token)
+            except User.DoesNotExist:
+                pass
+        resp_data = {"detail": "If an account exists, a reset token has been sent."}
+        if reset_token:
+            resp_data["reset_token"] = reset_token
+        return Response(resp_data, status=status.HTTP_200_OK)
 
 
 class AuthPasswordResetConfirmView(APIView):
@@ -94,27 +114,45 @@ class AuthPasswordResetConfirmView(APIView):
 
     @extend_schema(request={"type": "object", "properties": {"token": {"type": "string"}, "password": {"type": "string"}}, "required": ["token", "password"]})
     def post(self, request):
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
         token = request.data.get("token")
         password = request.data.get("password")
         if not token or not password:
             return Response({"detail": "Token and password are required."}, status=status.HTTP_400_BAD_REQUEST)
-        logger.info("Password reset confirmed for token %s", token)
-        return Response({"detail": "Password has been reset."}, status=status.HTTP_200_OK)
+        signer = TimestampSigner()
+        try:
+            user_id = signer.unsign(token, max_age=86400)
+            user = User.objects.get(id=user_id, is_active=True)
+            user.set_password(password)
+            user.save()
+            logger.info("Password reset confirmed for user %s", user.email)
+            return Response({"detail": "Password has been reset."}, status=status.HTTP_200_OK)
+        except (BadSignature, SignatureExpired, User.DoesNotExist):
+            return Response({"detail": "Invalid or expired reset token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AuthVerifyView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        logger.info("Verification token received: %s", token)
-        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+        signer = TimestampSigner()
+        try:
+            user_id = signer.unsign(token, max_age=86400 * 7)
+            user = User.objects.get(id=user_id, is_active=True)
+            user.is_verified = True
+            user.save(update_fields=["is_verified"])
+            logger.info("Email verified for user %s", user.email)
+            return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        except (BadSignature, SignatureExpired, User.DoesNotExist):
+            return Response({"detail": "Invalid or expired verification token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class OrganizationView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
     def get(self, request):
-        membership = request.user.memberships.filter(is_active=True).first()
+        membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
         if not membership:
             return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationSerializer(membership.organization)
@@ -122,7 +160,7 @@ class OrganizationView(APIView):
 
     @extend_schema(request=OrganizationSerializer, responses=OrganizationSerializer)
     def put(self, request):
-        membership = request.user.memberships.filter(is_active=True).first()
+        membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
         if not membership:
             return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
         org = membership.organization
@@ -133,39 +171,74 @@ class OrganizationView(APIView):
         serializer.save()
         return Response(serializer.data)
 
+    @transaction.atomic
+    def patch(self, request):
+        return self.put(request)
+
+    @transaction.atomic
+    def delete(self, request):
+        membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
+        if not membership:
+            return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
+        org = membership.organization
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def perform_transfer_ownership(current_user, target_id, organization=None):
+    if organization:
+        membership = current_user.memberships.filter(organization=organization, is_active=True, organization__is_active=True, role="owner").first()
+    else:
+        membership = current_user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
+
+    if not membership:
+        return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
+
+    new_membership = Membership.objects.select_for_update().filter(
+        Q(id=target_id) | Q(user_id=target_id),
+        organization=membership.organization,
+        is_active=True,
+    ).select_related("user").first()
+
+    if not new_membership:
+        return Response({"detail": "Target membership not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if new_membership.user_id == current_user.id:
+        return Response({"detail": "You are already the owner of this organization."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not new_membership.user.is_active or not getattr(new_membership.user, "is_verified", False):
+        return Response({"detail": "Target user account is inactive or not verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+    membership.role = Membership.ROLE_ADMIN
+    membership.save(update_fields=["role"])
+    new_membership.role = Membership.ROLE_OWNER
+    new_membership.save(update_fields=["role"])
+    return Response({
+        "detail": "Ownership transferred successfully.",
+        "previous_owner_id": str(current_user.id),
+        "new_owner_id": str(new_membership.user_id),
+        "organization_id": str(membership.organization_id),
+    }, status=status.HTTP_200_OK)
+
 
 class TransferOwnershipView(APIView):
     permission_classes = [IsAuthenticatedAndActive, IsOrgOwner]
 
     @transaction.atomic
-    @extend_schema(request={"type": "object", "properties": {"new_owner_id": {"type": "string"}}, "required": ["new_owner_id"]})
+    @extend_schema(request=TransferOwnershipSerializer)
     def post(self, request):
-        membership = request.user.memberships.filter(is_active=True, role="owner").first()
-        if not membership:
-            return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
-        new_owner_id = request.data.get("new_owner_id")
-        if not new_owner_id:
-            return Response({"detail": "new_owner_id is required."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            new_membership = Membership.objects.select_for_update().get(
-                id=new_owner_id,
-                organization=membership.organization,
-                is_active=True,
-            )
-        except Membership.DoesNotExist:
-            return Response({"detail": "Target membership not found."}, status=status.HTTP_404_NOT_FOUND)
-        membership.role = Membership.ROLE_ADMIN
-        membership.save(update_fields=["role"])
-        new_membership.role = Membership.ROLE_OWNER
-        new_membership.save(update_fields=["role"])
-        return Response({"detail": "Ownership transferred successfully."})
+        serializer = TransferOwnershipSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return perform_transfer_ownership(request.user, serializer.validated_data["new_owner_id"], getattr(request, "organization", None))
 
 
 class OrganizationDeleteView(APIView):
     permission_classes = [IsAuthenticatedAndActive, IsOrgOwner]
 
+    @transaction.atomic
     def delete(self, request):
-        membership = request.user.memberships.filter(is_active=True, role="owner").first()
+        membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
         if not membership:
             return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
         org = membership.organization
@@ -178,36 +251,116 @@ class MemberViewSet(viewsets.ModelViewSet):
     serializer_class = MembershipSerializer
     permission_classes = [IsAuthenticatedAndActive]
 
-    def get_queryset(self):
+    def _get_org(self):
         org = getattr(self.request, "organization", None)
+        if not org and hasattr(self.request, "user") and self.request.user.is_authenticated:
+            membership = self.request.user.memberships.filter(is_active=True, organization__is_active=True).select_related("organization").first()
+            if membership:
+                org = membership.organization
+                self.request.organization = org
+        return org
+
+    def get_queryset(self):
+        org = self._get_org()
         return Membership.objects.filter(organization=org, is_active=True) if org else Membership.objects.none()
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [IsAuthenticatedAndActive()]
-        if self.action in ["update", "partial_update"]:
+        if self.action in ["update", "partial_update", "create"]:
             return [IsAuthenticatedAndActive(), CanManageMembers()]
         return [IsAuthenticatedAndActive(), CanManageMembers()]
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return MembershipCreateSerializer
+        return MembershipSerializer
+
+    def perform_create(self, serializer):
+        from rest_framework import exceptions
+        org = self._get_org()
+        if not org:
+            raise exceptions.NotFound("No active organization membership.")
+        user_id = serializer.validated_data.get("user_id")
+        email = serializer.validated_data.get("email")
+        if user_id:
+            user = User.objects.filter(id=user_id, is_active=True).first()
+        else:
+            user = User.objects.filter(email=email, is_active=True).first()
+
+        if not user:
+            raise exceptions.ValidationError("User not found or inactive.")
+
+        if Membership.objects.filter(user=user, organization=org, is_active=True).exists():
+            raise exceptions.ValidationError("User is already an active member of this organization.")
+
+        serializer.save(user=user, organization=org)
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        membership = self.get_object()
+        new_role = request.data.get("role")
+        if membership.role == Membership.ROLE_OWNER:
+            return Response({"detail": "Cannot modify owner role. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_role == Membership.ROLE_OWNER:
+            return Response({"detail": "Cannot promote to owner directly. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        membership = self.get_object()
+        new_role = request.data.get("role")
+        if membership.role == Membership.ROLE_OWNER:
+            return Response({"detail": "Cannot modify owner role. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_role == Membership.ROLE_OWNER:
+            return Response({"detail": "Cannot promote to owner directly. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
+        return super().partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        membership = self.get_object()
+        if membership.role == Membership.ROLE_OWNER:
+            return Response({"detail": "Cannot remove the owner."}, status=status.HTTP_403_FORBIDDEN)
+        membership.is_active = False
+        membership.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def transfer_ownership(self, request, pk=None):
         membership = self.get_object()
         user_membership = request.user.memberships.filter(is_active=True, role="owner").first()
         if not user_membership or user_membership.organization != membership.organization:
             return Response({"detail": "Only owner can transfer ownership."}, status=status.HTTP_403_FORBIDDEN)
-        return TransferOwnershipView().post(request)
+        return perform_transfer_ownership(request.user, membership.id, membership.organization)
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
     serializer_class = InvitationSerializer
     permission_classes = [IsAuthenticatedAndActive, CanManageMembers]
 
-    def get_queryset(self):
+    def _get_org(self):
         org = getattr(self.request, "organization", None)
+        if not org and hasattr(self.request, "user") and self.request.user.is_authenticated:
+            membership = self.request.user.memberships.filter(is_active=True, organization__is_active=True).select_related("organization").first()
+            if membership:
+                org = membership.organization
+                self.request.organization = org
+        return org
+
+    def get_queryset(self):
+        org = self._get_org()
         return Invitation.objects.filter(organization=org) if org else Invitation.objects.none()
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return InvitationCreateSerializer
+        return InvitationSerializer
+
     def perform_create(self, serializer):
-        org = getattr(self.request, "organization", None)
+        from rest_framework import exceptions
+        org = self._get_org()
         if not org:
-            return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
+            raise exceptions.NotFound("No active organization membership.")
         serializer.save(organization=org)
+

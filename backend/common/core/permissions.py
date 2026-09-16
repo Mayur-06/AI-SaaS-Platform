@@ -5,6 +5,8 @@ class IsAuthenticatedAndActive(permissions.IsAuthenticated):
     message = "Your account is not active or not verified."
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            return bool(request.api_key.is_active)
         has_auth = super().has_permission(request, view)
         if not has_auth:
             return False
@@ -18,13 +20,31 @@ class HasRole(permissions.BasePermission):
     allowed_roles = []
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key_perm = getattr(request.api_key, "permissions", "write")
+            if self.allowed_roles == ["owner"] or self.allowed_roles == ["owner", "admin"]:
+                return key_perm == "admin"
+            if "member" in self.allowed_roles:
+                return key_perm in ["write", "admin"]
+            return key_perm in ["read", "write", "admin"]
+
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
-        return user.memberships.filter(
+        org = getattr(request, "organization", None)
+        if not org and hasattr(user, "memberships"):
+            membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
+            if membership:
+                org = membership.organization
+                request.organization = org
+        qs = user.memberships.filter(
             role__in=self.allowed_roles,
             is_active=True,
-        ).exists()
+            organization__is_active=True,
+        )
+        if org:
+            qs = qs.filter(organization=org)
+        return qs.exists()
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)
@@ -43,14 +63,29 @@ class IsOwnerOrReadOnly(HasRole):
     allowed_roles_write = ["owner", "admin"]
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key_perm = getattr(request.api_key, "permissions", "write")
+            if request.method in permissions.SAFE_METHODS:
+                return key_perm in ["read", "write", "admin"]
+            return key_perm == "admin"
         if request.method in permissions.SAFE_METHODS:
             user = getattr(request, "user", None)
             if not user or not user.is_authenticated:
                 return False
-            return user.memberships.filter(
+            org = getattr(request, "organization", None)
+            if not org and hasattr(user, "memberships"):
+                membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
+                if membership:
+                    org = membership.organization
+                    request.organization = org
+            qs = user.memberships.filter(
                 role__in=self.allowed_roles_read,
                 is_active=True,
-            ).exists()
+                organization__is_active=True,
+            )
+            if org:
+                qs = qs.filter(organization=org)
+            return qs.exists()
         return super().has_permission(request, view)
 
 
@@ -67,11 +102,16 @@ class IsOrgOwner(permissions.BasePermission):
             return False
         org = getattr(request, "organization", None)
         if not org:
+            membership = user.memberships.filter(role="owner", is_active=True, organization__is_active=True).select_related("organization").first()
+            if membership:
+                request.organization = membership.organization
+                return True
             return False
         return user.memberships.filter(
             organization=org,
             role="owner",
             is_active=True,
+            organization__is_active=True,
         ).exists()
 
 

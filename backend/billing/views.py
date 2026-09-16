@@ -23,11 +23,23 @@ from accounts.models import Membership
 logger = logging.getLogger(__name__)
 
 
+def get_request_org(request):
+    org = getattr(request, "organization", None)
+    if org:
+        return org
+    user = getattr(request, "user", None)
+    if user and user.is_authenticated:
+        membership = user.memberships.filter(is_active=True).select_related("organization", "organization__plan").first()
+        if membership:
+            return membership.organization
+    return None
+
+
 class BillingPlanView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
     def get(self, request):
-        org = getattr(request, "organization", None)
+        org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         serializer = PlanSerializer(org.plan)
@@ -35,9 +47,12 @@ class BillingPlanView(APIView):
 
     @extend_schema(request={"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]}, responses=PlanSerializer)
     def post(self, request):
-        org = getattr(request, "organization", None)
+        org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+        user = getattr(request, "user", None)
+        if user and not user.memberships.filter(organization=org, role__in=["owner", "admin"], is_active=True).exists():
+            return Response({"detail": "Insufficient permissions to change plan."}, status=status.HTTP_403_FORBIDDEN)
         new_plan_name = request.data.get("plan")
         if not new_plan_name:
             return Response({"detail": "plan is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -51,12 +66,12 @@ class BillingPlanView(APIView):
 
 
 class BillingUpgradeView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, IsAdminOrOwner]
 
     @transaction.atomic
     @extend_schema(request={"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]}, responses=PlanSerializer)
     def post(self, request):
-        org = getattr(request, "organization", None)
+        org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         new_plan_name = request.data.get("plan")
@@ -75,7 +90,7 @@ class BillingUsageView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
     def get(self, request):
-        org = getattr(request, "organization", None)
+        org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         plan = org.plan
@@ -115,7 +130,7 @@ class BillingUsageExportView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
     def get(self, request):
-        org = getattr(request, "organization", None)
+        org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         start_date = request.query_params.get("start_date")
@@ -145,35 +160,48 @@ class BillingUsageExportView(APIView):
 
 class APIKeyViewSet(viewsets.ModelViewSet):
     serializer_class = APIKeySerializer
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, IsAdminOrOwner]
 
     def get_queryset(self):
-        org = getattr(self.request, "organization", None)
+        org = get_request_org(self.request)
         return APIKey.objects.filter(organization=org) if org else APIKey.objects.none()
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "organization", None)
+        org = get_request_org(self.request)
         api_key = serializer.save(organization=org)
-        return api_key
+        raw_key = getattr(api_key, "_raw_key", None)
+        return api_key, raw_key
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        api_key, raw_key = self.perform_create(serializer)
+        response_serializer = self.get_serializer(api_key)
+        data = dict(response_serializer.data)
+        if raw_key:
+            data["full_key"] = raw_key
+            data["raw_key"] = raw_key
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=["post"])
     def regenerate(self, request, pk=None):
         api_key = self.get_object()
-        new_key = api_key.regenerate()
+        new_key, raw_key = api_key.regenerate()
         serializer = self.get_serializer(new_key)
-        return Response({
-            **serializer.data,
-            "full_key": f"sk_live_{'x' * 32}",
-            "raw_key": f"sk_live_{'x' * 32}",
-        })
+        data = dict(serializer.data)
+        if raw_key:
+            data["full_key"] = raw_key
+            data["raw_key"] = raw_key
+        return Response(data)
 
 
 class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = InvoiceSerializer
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, IsAdminOrOwner]
 
     def get_queryset(self):
-        org = getattr(self.request, "organization", None)
+        org = get_request_org(self.request)
         return Invoice.objects.filter(organization=org) if org else Invoice.objects.none()
 
 

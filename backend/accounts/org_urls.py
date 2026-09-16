@@ -9,6 +9,8 @@ router.register(r"invite", InvitationViewSet, basename="invitations")
 urlpatterns = [
     path("", OrganizationView.as_view(), name="organization-detail"),
     path("transferownership/", TransferOwnershipView.as_view(), name="organization-transfer-ownership"),
-    path("", OrganizationDeleteView.as_view(), name="organization-delete"),
+    path("transfer-ownership/", TransferOwnershipView.as_view(), name="organization-transfer-ownership-hyphen"),
+    path("delete/", OrganizationDeleteView.as_view(), name="organization-delete-explicit"),
     path("", include(router.urls)),
 ]
+

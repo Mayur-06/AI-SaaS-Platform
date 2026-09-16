@@ -17,11 +17,11 @@ class UsageLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not request.path.startswith("/api/ai/"):
+        if not (request.path.startswith("/api/ai/query") and request.method == "POST"):
             return self.get_response(request)
 
         organization = getattr(request, "organization", None)
-        if not organization:
+        if not organization or not getattr(organization, "plan", None):
             return self.get_response(request)
 
         if organization.plan.name.lower() == "enterprise":

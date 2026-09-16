@@ -52,6 +52,7 @@ MIDDLEWARE = [
     "middleware.request_id.RequestIDMiddleware",
     "middleware.org_context.OrganizationContextMiddleware",
     "middleware.rate_limiter.RateLimitMiddleware",
+    "middleware.usage_limit.UsageLimitMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -118,7 +119,6 @@ REST_FRAMEWORK = {
         "middleware.api_key_auth.CookieJWTAuthentication",
         "middleware.api_key_auth.BearerJWTAuthentication",
         "middleware.api_key_auth.APIKeyAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -176,5 +176,11 @@ CACHE_TTL_FREE = 3600
 CACHE_TTL_PRO = 86400
 CACHE_TTL_ENTERPRISE = 604800
 
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+

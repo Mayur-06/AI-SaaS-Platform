@@ -1,13 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from billing.views import (
-    BillingPlanView, BillingUpgradeView, BillingUsageView, BillingUsageExportView,
-    APIKeyViewSet, InvoiceViewSet,
-)
+from billing.views import APIKeyViewSet
 
 router = DefaultRouter()
-router.register(r"keys", APIKeyViewSet, basename="apikeys")
-router.register(r"invoices", InvoiceViewSet, basename="invoices")
+router.register(r"", APIKeyViewSet, basename="apikeys")
 
 urlpatterns = [
     path("", include(router.urls)),

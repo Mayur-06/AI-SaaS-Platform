@@ -67,18 +67,19 @@ class ModelRouter:
         if key in self._provider_cache:
             return self._provider_cache[key]
         from config import settings as django_settings
+        import os
         api_key_map = {
-            "gemini": getattr(django_settings, "GEMINI_API_KEY", None),
-            "openai": getattr(django_settings, "OPENAI_API_KEY", None),
-            "anthropic": getattr(django_settings, "ANTHROPIC_API_KEY", None),
-            "groq": getattr(django_settings, "GROQ_API_KEY", None),
+            "gemini": getattr(django_settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY"),
+            "openai": getattr(django_settings, "OPENAI_API_KEY", None) or os.getenv("OPENAI_API_KEY"),
+            "anthropic": getattr(django_settings, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY"),
+            "groq": getattr(django_settings, "GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY"),
         }
         api_key = api_key_map.get(model_config.provider)
         if not api_key:
             raise ValueError(f"No API key configured for provider: {model_config.provider}")
         if model_config.provider == "gemini":
             from rag.providers.gemini import Gemini
-            provider = Gemini(model_config.name)
+            provider = Gemini(model_config.name, api_key=api_key)
         elif model_config.provider == "openai":
             from rag.providers.openai import OpenAIProvider
             provider = OpenAIProvider(api_key=api_key, model_name=model_config.name)
@@ -114,12 +115,11 @@ class ModelRouter:
                 attempts += 1
                 start = time.time()
                 provider = self._get_provider_instance(candidate)
-                with httpx.Timeout(timeout):
-                    answer = provider.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        temperature=temperature,
-                    )
+                answer = provider.generate(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=temperature,
+                )
                 latency_ms = int((time.time() - start) * 1000)
                 self.circuit_breaker.reset(model_key)
                 input_tokens = len(system_prompt.split()) + len(user_prompt.split())
