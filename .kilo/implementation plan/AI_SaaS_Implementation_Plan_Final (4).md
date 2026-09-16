@@ -324,7 +324,7 @@ The assignment requires React. This implementation uses React with Vite and Reac
 
 ## **11. Corrections and Assignment Coverage** 
 
-- Frontend decision: the implementation uses React with Vite and React Router throughout (no Next.js App Router). 
+- Frontend decision: the implementation uses React with Vite and React Router throughout. 
 
 - Invitation flow: an invited user must be able to register with the invitation token and join the existing organization instead of creating a new organization. 
 
@@ -452,8 +452,7 @@ The assignment requires React. This implementation uses React with Vite and Reac
 
 ### **11.11 Frontend Corrections and UX States** 
 
-- Use React Router with Vite for client-side routing; use route guard components to protect authenticated routes (no Next.jsstyle server middleware). 
-
+- Use React Router with Vite for client-side routing; use route guard components to protect authenticated routes.
 - Implement the login Remember me checkbox according to the selected cookie/session persistence strategy. 
 
 - Implement password reset as a multi-step flow: email, console-provided token/code, new password, and confirmation. 
