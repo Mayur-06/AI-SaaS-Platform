@@ -154,17 +154,29 @@ class APIKeyViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         org = getattr(self.request, "organization", None)
         api_key = serializer.save(organization=org)
-        return api_key
+        raw_key = getattr(api_key, "_raw_key", None)
+        return api_key, raw_key
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        api_key, raw_key = self.perform_create(serializer)
+        response_serializer = self.get_serializer(api_key)
+        data = response_serializer.data
+        if raw_key:
+            data["full_key"] = raw_key
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=["post"])
     def regenerate(self, request, pk=None):
         api_key = self.get_object()
-        new_key = api_key.regenerate()
+        new_key, raw_key = api_key.regenerate()
         serializer = self.get_serializer(new_key)
         return Response({
             **serializer.data,
-            "full_key": f"sk_live_{'x' * 32}",
-            "raw_key": f"sk_live_{'x' * 32}",
+            "full_key": raw_key,
+            "raw_key": raw_key,
         })
 
 

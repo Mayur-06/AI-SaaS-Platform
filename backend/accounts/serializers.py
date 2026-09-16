@@ -42,8 +42,43 @@ class MembershipSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "user_id", "user_email", "joined_at", "is_active"]
 
 
+class MembershipCreateSerializer(serializers.ModelSerializer):
+    user_id = serializers.UUIDField(required=False)
+    email = serializers.EmailField(required=False)
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    role = serializers.ChoiceField(choices=Membership.ROLE_CHOICES, default=Membership.ROLE_MEMBER)
+
+    class Meta:
+        model = Membership
+        fields = ["id", "user_id", "email", "user_email", "role", "joined_at", "is_active"]
+        read_only_fields = ["id", "user_email", "joined_at", "is_active"]
+
+    def validate(self, attrs):
+        user_id = attrs.get("user_id")
+        email = attrs.get("email")
+        if not user_id and not email:
+            raise serializers.ValidationError("Either user_id or email is required to add a member.")
+        if attrs.get("role") == Membership.ROLE_OWNER:
+            raise serializers.ValidationError("Cannot create owner member directly. Use transfer ownership.")
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("email", None)
+        validated_data.pop("user_id", None)
+        return super().create(validated_data)
+
+
 class InvitationSerializer(serializers.ModelSerializer):
-    raw_token = serializers.CharField(write_only=True, required=False)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
+    class Meta:
+        model = Invitation
+        fields = ["id", "email", "role", "organization_name", "expires_at", "accepted_at"]
+        read_only_fields = ["id", "expires_at", "accepted_at", "organization_name"]
+
+
+class InvitationCreateSerializer(serializers.ModelSerializer):
+    raw_token = serializers.CharField(read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
 
     class Meta:
@@ -52,17 +87,22 @@ class InvitationSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "expires_at", "accepted_at", "organization_name"]
 
     def create(self, validated_data):
-        raw_token = validated_data.pop("raw_token", None) or secrets.token_urlsafe(32)
+        raw_token = secrets.token_urlsafe(32)
         validated_data["token_hash"] = hashlib.sha256(raw_token.encode()).hexdigest()
         invitation = super().create(validated_data)
         invitation.raw_token = raw_token
         return invitation
 
 
+class TransferOwnershipSerializer(serializers.Serializer):
+    new_owner_id = serializers.UUIDField(required=True)
+
+
 class OrganizationCreateSerializer(serializers.Serializer):
     organization_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
+
 
 
 class AuthRegisterSerializer(serializers.Serializer):
@@ -85,13 +125,17 @@ class AuthRegisterSerializer(serializers.Serializer):
 
         if invite_token:
             token_hash = hashlib.sha256(invite_token.encode()).hexdigest()
-            invitation = Invitation.objects.select_for_update().get(
-                token_hash=token_hash,
-                accepted_at__isnull=True,
-                expires_at__gt=timezone.now(),
-            )
-            if invitation.email != email:
-                raise serializers.ValidationError("Email does not match the invitation.")
+            try:
+                invitation = Invitation.objects.select_for_update().get(
+                    token_hash=token_hash,
+                    accepted_at__isnull=True,
+                    expires_at__gt=timezone.now(),
+                )
+            except Invitation.DoesNotExist:
+                raise serializers.ValidationError({"invite_token": "Invalid or expired invitation token."})
+
+            if invitation.email.strip().lower() != email.strip().lower():
+                raise serializers.ValidationError({"email": "Email does not match the invitation."})
             invitation.accepted_at = timezone.now()
             invitation.save(update_fields=["accepted_at"])
             org = invitation.organization

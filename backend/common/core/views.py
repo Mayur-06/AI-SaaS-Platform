@@ -35,7 +35,7 @@ class AdminHealthView(APIView):
         return [IsSuperAdmin()]
 
     def get(self, request):
-        request_id = str(uuid.uuid4())
+        request_id = getattr(request, "request_id", str(uuid.uuid4()))
         checks = {"request_id": request_id}
 
         try:

@@ -21,10 +21,20 @@ class HasRole(permissions.BasePermission):
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
-        return user.memberships.filter(
+        org = getattr(request, "organization", None)
+        if not org and hasattr(user, "memberships"):
+            membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
+            if membership:
+                org = membership.organization
+                request.organization = org
+        qs = user.memberships.filter(
             role__in=self.allowed_roles,
             is_active=True,
-        ).exists()
+            organization__is_active=True,
+        )
+        if org:
+            qs = qs.filter(organization=org)
+        return qs.exists()
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)
@@ -47,10 +57,20 @@ class IsOwnerOrReadOnly(HasRole):
             user = getattr(request, "user", None)
             if not user or not user.is_authenticated:
                 return False
-            return user.memberships.filter(
+            org = getattr(request, "organization", None)
+            if not org and hasattr(user, "memberships"):
+                membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
+                if membership:
+                    org = membership.organization
+                    request.organization = org
+            qs = user.memberships.filter(
                 role__in=self.allowed_roles_read,
                 is_active=True,
-            ).exists()
+                organization__is_active=True,
+            )
+            if org:
+                qs = qs.filter(organization=org)
+            return qs.exists()
         return super().has_permission(request, view)
 
 
@@ -67,11 +87,16 @@ class IsOrgOwner(permissions.BasePermission):
             return False
         org = getattr(request, "organization", None)
         if not org:
+            membership = user.memberships.filter(role="owner", is_active=True, organization__is_active=True).select_related("organization").first()
+            if membership:
+                request.organization = membership.organization
+                return True
             return False
         return user.memberships.filter(
             organization=org,
             role="owner",
             is_active=True,
+            organization__is_active=True,
         ).exists()
 
 

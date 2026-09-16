@@ -14,7 +14,12 @@ class CookieJWTAuthentication(JWTAuthentication):
             return None
         try:
             validated_token = self.get_validated_token(raw_token)
-            return self.get_user(validated_token), validated_token
+            user = self.get_user(validated_token)
+            if user and not getattr(request, "organization", None):
+                membership = user.memberships.filter(is_active=True).select_related("organization", "organization__plan").first()
+                if membership:
+                    request.organization = membership.organization
+            return user, validated_token
         except (InvalidToken, TokenError) as exc:
             logger.debug("Cookie JWT auth failed: %s", exc)
             return None
@@ -28,9 +33,16 @@ class BearerJWTAuthentication(JWTAuthentication):
         prefix, _, token = header.partition(b" ")
         if prefix.lower() != b"bearer":
             return None
+        if token.startswith(b"sk_live_"):
+            return None
         try:
             validated_token = self.get_validated_token(token)
-            return self.get_user(validated_token), validated_token
+            user = self.get_user(validated_token)
+            if user and not getattr(request, "organization", None):
+                membership = user.memberships.filter(is_active=True).select_related("organization", "organization__plan").first()
+                if membership:
+                    request.organization = membership.organization
+            return user, validated_token
         except (InvalidToken, TokenError) as exc:
             logger.debug("Bearer JWT auth failed: %s", exc)
             return None
@@ -41,8 +53,14 @@ class APIKeyAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
         auth = get_authorization_header(request).split()
-        if not auth or auth[0].lower() != self.keyword.lower().encode():
+        if not auth:
             return None
+        prefix = auth[0].lower()
+        if prefix != self.keyword.lower().encode():
+            if prefix == b"bearer" and len(auth) >= 2 and auth[1].startswith(b"sk_live_"):
+                pass
+            else:
+                return None
         if len(auth) == 1:
             raise exceptions.AuthenticationFailed("Invalid API key header. No credentials provided.")
         if len(auth) > 2:
@@ -56,3 +74,4 @@ class APIKeyAuthentication(BaseAuthentication):
         request.organization = api_key.organization
         owner_membership = api_key.organization.memberships.filter(role="owner", is_active=True).first()
         return (owner_membership.user if owner_membership else None, api_key)
+

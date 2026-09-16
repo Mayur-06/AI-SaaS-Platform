@@ -108,13 +108,13 @@ class AIQueryView(APIView):
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except RuntimeError as exc:
             return Response(
-                {"error": {"code": "MODEL_UNAVAILABLE", "message": str(exc), "request_id": str(__import__("uuid").uuid4())}},
+                {"error": {"code": "MODEL_UNAVAILABLE", "message": str(exc), "request_id": getattr(request, "request_id", str(__import__("uuid").uuid4()))}},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except Exception as exc:
             logger.exception("AI query failed: %s", exc)
             return Response(
-                {"error": {"code": "INTERNAL_SERVER_ERROR", "message": str(exc), "request_id": str(__import__("uuid").uuid4())}},
+                {"error": {"code": "INTERNAL_SERVER_ERROR", "message": str(exc), "request_id": getattr(request, "request_id", str(__import__("uuid").uuid4()))}},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -238,7 +238,6 @@ class CacheThresholdView(APIView):
             return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         serializer = CacheThresholdSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        from ai_service.models import CacheEntry
-        from django.db.models import F
-        CacheEntry.objects.filter(organization=org).update(threshold=serializer.validated_data["threshold"])
-        return Response({"threshold": serializer.validated_data["threshold"]})
+        org.cache_threshold = serializer.validated_data["threshold"]
+        org.save(update_fields=["cache_threshold"])
+        return Response({"threshold": org.cache_threshold})

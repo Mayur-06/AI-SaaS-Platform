@@ -84,6 +84,7 @@ class CacheEntry(models.Model):
     model = models.CharField(max_length=255)
     response_text = models.TextField()
     token_metadata = models.JSONField(null=True, blank=True)
+    embedding_vector = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()
 

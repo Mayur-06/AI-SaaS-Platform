@@ -71,6 +71,7 @@ class Organization(models.Model):
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     monthly_budget = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     budget_alert_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=80.0)
+    cache_threshold = models.FloatField(default=0.95)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
 

@@ -38,7 +38,7 @@ class RateLimitMiddleware:
             plan_name = (organization.plan.name or "free").lower().strip()
             effective_limit = RATE_LIMIT_LIMITS.get(plan_name, 10)
             if api_key and api_key.rate_limit_override is not None:
-                effective_limit = api_key.rate_limit_override
+                effective_limit = min(effective_limit, api_key.rate_limit_override)
         elif api_key:
             effective_limit = api_key.rate_limit_override or 10
         else:
@@ -55,10 +55,10 @@ class RateLimitMiddleware:
             logger.debug("Rate limiter Redis error: %s", exc)
             return self.get_response(request)
 
-        response = self.get_response(request)
-
         if not allowed:
-            exc = RateLimitExceeded(f"Rate limit exceeded. Retry after {reset_time}.")
+            import time
+            retry_after = max(1, reset_time - int(time.time()))
+            exc = RateLimitExceeded(f"Rate limit exceeded. Retry after {retry_after}s.")
             response = JsonResponse(
                 {
                     "error": {
@@ -69,9 +69,13 @@ class RateLimitMiddleware:
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-            response["Retry-After"] = str(reset_time)
+            response["Retry-After"] = str(retry_after)
+            response["X-RateLimit-Limit"] = str(effective_limit)
+            response["X-RateLimit-Remaining"] = "0"
+            response["X-RateLimit-Reset"] = str(reset_time)
             return response
 
+        response = self.get_response(request)
         response["X-RateLimit-Limit"] = str(effective_limit)
         response["X-RateLimit-Remaining"] = str(max(0, remaining))
         response["X-RateLimit-Reset"] = str(reset_time)

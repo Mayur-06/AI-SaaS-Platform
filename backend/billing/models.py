@@ -67,6 +67,9 @@ class APIKey(models.Model):
             raw_key = generate_api_key()
             self.key_prefix = raw_key[:12]
             self.key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+            self._raw_key = raw_key
+        else:
+            self._raw_key = None
         super().save(*args, **kwargs)
 
     @staticmethod
@@ -95,13 +98,14 @@ class APIKey(models.Model):
     def regenerate(self):
         self.is_active = False
         self.save(update_fields=["is_active"])
+        raw_key = generate_api_key()
         new_key = APIKey.objects.create(
             organization=self.organization,
             name=f"{self.name} (regenerated)",
             permissions=self.permissions,
             rate_limit_override=self.rate_limit_override,
         )
-        return new_key
+        return new_key, raw_key
 
     def __str__(self):
         return f"{self.name} ({self.key_prefix}...)"

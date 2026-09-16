@@ -118,7 +118,6 @@ REST_FRAMEWORK = {
         "middleware.api_key_auth.CookieJWTAuthentication",
         "middleware.api_key_auth.BearerJWTAuthentication",
         "middleware.api_key_auth.APIKeyAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
