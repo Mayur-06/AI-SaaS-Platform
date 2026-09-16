@@ -98,14 +98,13 @@ class APIKey(models.Model):
     def regenerate(self):
         self.is_active = False
         self.save(update_fields=["is_active"])
-        raw_key = generate_api_key()
         new_key = APIKey.objects.create(
             organization=self.organization,
             name=f"{self.name} (regenerated)",
             permissions=self.permissions,
             rate_limit_override=self.rate_limit_override,
         )
-        return new_key, raw_key
+        return new_key, getattr(new_key, "_raw_key", None)
 
     def __str__(self):
         return f"{self.name} ({self.key_prefix}...)"

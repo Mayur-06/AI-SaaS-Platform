@@ -1,6 +1,8 @@
 import uuid
+import time
 import logging
 import django
+from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
 from rest_framework.views import APIView
@@ -119,10 +121,10 @@ class AdminUsageView(APIView):
         ).aggregate(total=Sum("estimated_cost"))["total"] or 0
         cache_hits = UsageLog.objects.filter(timestamp__date__gte=month_start, cache_hit=True).count()
         cache_hit_rate = (cache_hits / requests_month * 100) if requests_month > 0 else 0
-        revenue_estimate = Plan.objects.filter(
-            organization__is_active=True
-        ).annotate(org_count=Count("organization")).aggregate(
-            total=Sum("price")
+        revenue_estimate = Organization.objects.filter(
+            is_active=True, plan__isnull=False
+        ).aggregate(
+            total=Sum("plan__price")
         )["total"] or 0
 
         return JsonResponse({

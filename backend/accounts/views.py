@@ -92,13 +92,21 @@ class AuthPasswordResetView(APIView):
 
     @extend_schema(request={"type": "object", "properties": {"email": {"type": "string"}}, "required": ["email"]})
     def post(self, request):
+        from django.core.signing import TimestampSigner
         email = request.data.get("email")
-        try:
-            user = User.objects.get(email=email)
-            logger.info("Password reset requested for %s", email)
-        except User.DoesNotExist:
-            pass
-        return Response({"detail": "If an account exists, a reset token has been sent."}, status=status.HTTP_200_OK)
+        reset_token = None
+        if email:
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                signer = TimestampSigner()
+                reset_token = signer.sign(str(user.id))
+                logger.info("Password reset token generated for %s: %s", email, reset_token)
+            except User.DoesNotExist:
+                pass
+        resp_data = {"detail": "If an account exists, a reset token has been sent."}
+        if reset_token:
+            resp_data["reset_token"] = reset_token
+        return Response(resp_data, status=status.HTTP_200_OK)
 
 
 class AuthPasswordResetConfirmView(APIView):
@@ -106,20 +114,38 @@ class AuthPasswordResetConfirmView(APIView):
 
     @extend_schema(request={"type": "object", "properties": {"token": {"type": "string"}, "password": {"type": "string"}}, "required": ["token", "password"]})
     def post(self, request):
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
         token = request.data.get("token")
         password = request.data.get("password")
         if not token or not password:
             return Response({"detail": "Token and password are required."}, status=status.HTTP_400_BAD_REQUEST)
-        logger.info("Password reset confirmed for token %s", token)
-        return Response({"detail": "Password has been reset."}, status=status.HTTP_200_OK)
+        signer = TimestampSigner()
+        try:
+            user_id = signer.unsign(token, max_age=86400)
+            user = User.objects.get(id=user_id, is_active=True)
+            user.set_password(password)
+            user.save()
+            logger.info("Password reset confirmed for user %s", user.email)
+            return Response({"detail": "Password has been reset."}, status=status.HTTP_200_OK)
+        except (BadSignature, SignatureExpired, User.DoesNotExist):
+            return Response({"detail": "Invalid or expired reset token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AuthVerifyView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        logger.info("Verification token received: %s", token)
-        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+        signer = TimestampSigner()
+        try:
+            user_id = signer.unsign(token, max_age=86400 * 7)
+            user = User.objects.get(id=user_id, is_active=True)
+            user.is_verified = True
+            user.save(update_fields=["is_verified"])
+            logger.info("Email verified for user %s", user.email)
+            return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        except (BadSignature, SignatureExpired, User.DoesNotExist):
+            return Response({"detail": "Invalid or expired verification token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class OrganizationView(APIView):

@@ -30,6 +30,10 @@ class RateLimitMiddleware:
         if not request.path.startswith("/api/"):
             return self.get_response(request)
 
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and user.is_staff:
+            return self.get_response(request)
+
         organization = getattr(request, "organization", None)
         api_key = getattr(request, "api_key", None)
         api_key_id = api_key.id if api_key else None

@@ -5,6 +5,8 @@ class IsAuthenticatedAndActive(permissions.IsAuthenticated):
     message = "Your account is not active or not verified."
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            return bool(request.api_key.is_active)
         has_auth = super().has_permission(request, view)
         if not has_auth:
             return False
@@ -18,6 +20,14 @@ class HasRole(permissions.BasePermission):
     allowed_roles = []
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key_perm = getattr(request.api_key, "permissions", "write")
+            if self.allowed_roles == ["owner"] or self.allowed_roles == ["owner", "admin"]:
+                return key_perm == "admin"
+            if "member" in self.allowed_roles:
+                return key_perm in ["write", "admin"]
+            return key_perm in ["read", "write", "admin"]
+
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
@@ -53,6 +63,11 @@ class IsOwnerOrReadOnly(HasRole):
     allowed_roles_write = ["owner", "admin"]
 
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key_perm = getattr(request.api_key, "permissions", "write")
+            if request.method in permissions.SAFE_METHODS:
+                return key_perm in ["read", "write", "admin"]
+            return key_perm == "admin"
         if request.method in permissions.SAFE_METHODS:
             user = getattr(request, "user", None)
             if not user or not user.is_authenticated:

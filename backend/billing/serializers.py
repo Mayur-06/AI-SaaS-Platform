@@ -10,19 +10,26 @@ class PlanSerializer(serializers.ModelSerializer):
 
 
 class APIKeySerializer(serializers.ModelSerializer):
-    full_key = serializers.CharField(write_only=True, required=False)
-    raw_key = serializers.CharField(write_only=True, required=False)
+    full_key = serializers.CharField(read_only=True, required=False)
+    raw_key = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = APIKey
         fields = ["id", "name", "key_prefix", "full_key", "raw_key", "permissions", "rate_limit_override", "last_used_at", "is_active", "created_at"]
-        read_only_fields = ["id", "key_prefix", "last_used_at", "created_at"]
+        read_only_fields = ["id", "key_prefix", "full_key", "raw_key", "last_used_at", "created_at"]
 
     def create(self, validated_data):
         validated_data.pop("full_key", None)
         validated_data.pop("raw_key", None)
-        org = self.context["request"].organization
-        return APIKey.objects.create(organization=org, **validated_data)
+        if "organization" not in validated_data or validated_data["organization"] is None:
+            request = self.context.get("request")
+            org = getattr(request, "organization", None)
+            if not org and request and getattr(request, "user", None) and request.user.is_authenticated:
+                m = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
+                if m:
+                    org = m.organization
+            validated_data["organization"] = org
+        return APIKey.objects.create(**validated_data)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
