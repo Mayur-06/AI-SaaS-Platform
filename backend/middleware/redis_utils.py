@@ -71,6 +71,6 @@ def check_rate_limit(org_id, api_key_id, limit):
     result = client.evalsha(script, 1, key, now, window, limit)
     effective_limit, count, reset_time = result
 
-    allowed = count < effective_limit
+    allowed = count <= effective_limit
     remaining = max(0, effective_limit - count)
     return allowed, remaining, reset_time

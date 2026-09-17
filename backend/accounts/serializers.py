@@ -41,6 +41,14 @@ class MembershipSerializer(serializers.ModelSerializer):
         fields = ["id", "user_id", "user_email", "role", "joined_at", "is_active"]
         read_only_fields = ["id", "user_id", "user_email", "joined_at", "is_active"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["user"] = {
+            "id": str(instance.user.id),
+            "email": instance.user.email,
+        }
+        return data
+
 
 class MembershipCreateSerializer(serializers.ModelSerializer):
     user_id = serializers.UUIDField(required=False)

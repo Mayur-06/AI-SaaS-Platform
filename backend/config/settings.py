@@ -144,8 +144,24 @@ SIMPLE_JWT = {
     "AUTH_COOKIE_SAMESITE": "Lax",
 }
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:3000"])
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
 CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = [
+    "X-Request-ID",
+    "X-Usage-Warning",
+    "X-RateLimit-Limit",
+    "X-RateLimit-Remaining",
+    "X-RateLimit-Reset",
+    "Content-Disposition",
+]
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "AI SaaS Platform API",
@@ -183,4 +199,78 @@ GROQ_API_KEY = env("GROQ_API_KEY", default="")
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "simple": {
+            "format": "%(levelname)s %(message)s",
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOGS_DIR / "backend.log"),
+            "maxBytes": 10 * 1024 * 1024,  # 10 MB
+            "backupCount": 5,
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "billing": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "ai_service": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "middleware": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
 
