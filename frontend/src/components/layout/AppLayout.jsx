@@ -35,11 +35,30 @@ export const AppLayout = () => {
         <div style={{ borderBottom: '1px solid #ccc', paddingBottom: '0.75rem' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>AI SaaS Platform</h2>
           <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-            <div><strong>Org:</strong> {organization?.name || 'My Organization'}</div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
-              <span className="badge badge-active">{planName.toUpperCase()}</span>
-              <span className="badge">{role || 'member'}</span>
-            </div>
+            {organization ? (
+              <>
+                <div><strong>Org:</strong> {organization.name}</div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
+                  <span className="badge badge-active">{String(planName || 'Free').toUpperCase()}</span>
+                  <span className="badge">{role || 'member'}</span>
+                </div>
+              </>
+            ) : user?.is_staff ? (
+              <>
+                <div><strong>Console:</strong> Superadmin</div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
+                  <span className="badge badge-active" style={{ background: '#722ed1', color: '#fff' }}>PLATFORM ADMIN</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div><strong>Org:</strong> My Organization</div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
+                  <span className="badge badge-active">{String(planName || 'Free').toUpperCase()}</span>
+                  <span className="badge">{role || 'member'}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

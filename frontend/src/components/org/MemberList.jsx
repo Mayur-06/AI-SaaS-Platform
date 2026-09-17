@@ -55,7 +55,7 @@ export const MemberList = ({
                         <option value="viewer">Viewer</option>
                       </select>
                     ) : (
-                      <span className={`badge ${isOwner ? 'badge-active' : ''}`}>{m.role.toUpperCase()}</span>
+                      <span className={`badge ${isOwner ? 'badge-active' : ''}`}>{String(m.role || 'member').toUpperCase()}</span>
                     )}
                   </td>
                   <td style={{ fontSize: '0.8rem' }}>

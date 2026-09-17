@@ -28,8 +28,9 @@ export const AdminPage = () => {
       if (m) setMetrics(m);
       if (h) setHealth(h);
       if (t) {
-        setTenants(t.results || []);
-        setTenantCount(t.count || 0);
+        const list = Array.isArray(t) ? t : (t.results || t.tenants || []);
+        setTenants(list);
+        setTenantCount(t.count ?? list.length);
         setCurrentPage(page);
       }
     } catch (err) {

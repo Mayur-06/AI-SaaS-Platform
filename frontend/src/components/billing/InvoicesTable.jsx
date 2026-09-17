@@ -26,7 +26,7 @@ export const InvoicesTable = ({ invoices }) => {
                 <td>{new Date(inv.created_at).toLocaleDateString()}</td>
                 <td>${Number(inv.amount).toFixed(2)}</td>
                 <td>
-                  <span className="badge badge-active">{inv.status.toUpperCase()}</span>
+                  <span className="badge badge-active">{String(inv.status || 'paid').toUpperCase()}</span>
                 </td>
               </tr>
             ))}

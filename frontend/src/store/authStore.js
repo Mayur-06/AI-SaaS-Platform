@@ -52,6 +52,7 @@ export const useAuthStore = create((set) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+      return data;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Login failed';
       set({ error: msg, isLoading: false, isAuthenticated: false });
