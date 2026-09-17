@@ -6,8 +6,8 @@ from rest_framework.exceptions import APIException
 logger = logging.getLogger(__name__)
 
 RATE_LIMIT_LIMITS = {
-    "free": 10,
-    "pro": 60,
+    "free": 60,
+    "pro": 120,
     "enterprise": 300,
 }
 
@@ -40,13 +40,15 @@ class RateLimitMiddleware:
 
         if organization:
             plan_name = (organization.plan.name or "free").lower().strip()
-            effective_limit = RATE_LIMIT_LIMITS.get(plan_name, 10)
-            if api_key and api_key.rate_limit_override is not None:
-                effective_limit = min(effective_limit, api_key.rate_limit_override)
+            plan_limit = getattr(organization.plan, "requests_per_minute", None) or RATE_LIMIT_LIMITS.get(plan_name, 60)
+            if api_key:
+                effective_limit = api_key.rate_limit_override if api_key.rate_limit_override is not None else plan_limit
+            else:
+                effective_limit = max(120, plan_limit)
         elif api_key:
-            effective_limit = api_key.rate_limit_override or 10
+            effective_limit = api_key.rate_limit_override or 60
         else:
-            effective_limit = 10
+            effective_limit = 60
 
         try:
             from middleware.redis_utils import check_rate_limit

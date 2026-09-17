@@ -52,11 +52,18 @@ class DocumentViewSet(viewsets.ModelViewSet):
         org = self._get_org()
         if not org:
             raise exceptions.ValidationError("No active organization.")
+        raw_content = serializer.validated_data.pop("content", None) or self.request.data.get("content")
         file_obj = serializer.validated_data.pop("file", None) or self.request.FILES.get("file")
         if file_obj:
             from django.core.files.storage import default_storage
             filename = file_obj.name
             saved_path = default_storage.save(f"documents/{org.id}/{filename}", file_obj)
+            serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
+        elif raw_content:
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+            filename = serializer.validated_data.get("filename", "document.txt")
+            saved_path = default_storage.save(f"documents/{org.id}/{filename}", ContentFile(raw_content.encode("utf-8")))
             serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
         else:
             serializer.save(organization=org, uploaded_by=self.request.user)
@@ -109,6 +116,13 @@ class AIQueryView(APIView):
             orchestrator = RAGOrchestrator(organization=org, user=request.user, api_key=getattr(request, "api_key", None))
             start = time.time()
             result = orchestrator.query(question)
+            result["response"] = result.get("answer")
+            result["model_used"] = result.get("model")
+            result["tokens"] = {
+                "prompt_tokens": result.get("input_tokens", 0),
+                "completion_tokens": result.get("output_tokens", 0),
+                "total_tokens": result.get("input_tokens", 0) + result.get("output_tokens", 0),
+            }
             response_serializer = AIQueryResponseSerializer(result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except RuntimeError as exc:
