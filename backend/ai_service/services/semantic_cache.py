@@ -47,8 +47,16 @@ class SemanticCache:
 
         best_score = 0.0
         best_entry = None
+        norm_query = query_text.strip().lower() if query_text else ""
+
         for entry in entries:
-            if entry.embedding_vector:
+            # Exact match check
+            if norm_query and entry.query_text.strip().lower() == norm_query:
+                best_score = 1.0
+                best_entry = entry
+                break
+
+            if query_embedding is not None and entry.embedding_vector:
                 try:
                     import numpy as np
                     stored = np.array(entry.embedding_vector, dtype=np.float32)

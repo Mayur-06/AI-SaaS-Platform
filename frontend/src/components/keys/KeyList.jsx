@@ -27,7 +27,9 @@ export const KeyList = ({
     return (
       <div className="card">
         <p style={{ color: '#777', fontStyle: 'italic', padding: '1rem' }}>
-          No API keys created yet. Click "Generate New Key" above to create one.
+          {canManage
+            ? 'No API keys created yet. Click "Generate New Key" above to create one.'
+            : 'No API keys have been created for this organization yet.'}
         </p>
       </div>
     );

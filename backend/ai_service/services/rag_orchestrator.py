@@ -58,9 +58,10 @@ Question: {question}"""
 
         request_id = str(__import__("uuid").uuid4())
 
-        if query_embedding is not None:
+        if query_embedding is not None or question:
             cache_result = self.semantic_cache.lookup(query_embedding, question)
             if cache_result:
+                out_tokens = len(cache_result["answer"].split())
                 log_usage(
                     organization=self.organization,
                     endpoint="/api/ai/query/",
@@ -70,12 +71,26 @@ Question: {question}"""
                     user=self.user,
                     api_key=self.api_key,
                 )
+                AIQuery.objects.create(
+                    organization=self.organization,
+                    user=self.user,
+                    api_key=self.api_key,
+                    query_text=question,
+                    response_text=cache_result["answer"],
+                    model_used=cache_result.get("model", "cached"),
+                    input_tokens=0,
+                    output_tokens=out_tokens,
+                    latency_ms=0,
+                    estimated_cost=0,
+                    cache_hit=True,
+                    request_id=request_id,
+                )
                 return {
                     "answer": cache_result["answer"],
                     "model": cache_result.get("model"),
                     "provider": "cache",
                     "input_tokens": 0,
-                    "output_tokens": len(cache_result["answer"].split()),
+                    "output_tokens": out_tokens,
                     "latency_ms": 0,
                     "estimated_cost": 0,
                     "cache_hit": True,

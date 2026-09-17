@@ -2,15 +2,24 @@ import React, { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useBillingStore } from '../../store/billingStore';
+import { orgService } from '../../services/orgService';
 
 export const AppLayout = () => {
-  const { user, organization, role, logout } = useAuthStore();
+  const { user, organization, role, logout, setOrganization } = useAuthStore();
   const { currentPlan, fetchBillingData } = useBillingStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBillingData();
-  }, [fetchBillingData]);
+    orgService.getOrg().then((org) => {
+      if (org) {
+        setOrganization(org);
+        try {
+          localStorage.setItem('ai_saas_org', JSON.stringify(org));
+        } catch {}
+      }
+    }).catch(() => {});
+  }, [fetchBillingData, setOrganization]);
 
   const handleLogout = () => {
     logout();
