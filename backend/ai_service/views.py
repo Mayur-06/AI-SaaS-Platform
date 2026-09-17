@@ -41,6 +41,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticatedAndActive]
 
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [IsAuthenticatedAndActive(), CanViewAI()]
+        return [IsAuthenticatedAndActive(), CanUseAI()]
+
     def _get_org(self):
         return get_request_org(self.request)
 

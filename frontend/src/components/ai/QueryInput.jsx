@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuthStore } from '../../store/authStore';
 
 export const QueryInput = ({
   onSubmit,
@@ -7,12 +8,14 @@ export const QueryInput = ({
   onRetry,
   quotaWarning,
 }) => {
+  const { role } = useAuthStore();
+  const isViewer = role === 'viewer';
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim() || status === 'loading') return;
+    if (!prompt.trim() || status === 'loading' || isViewer) return;
     await onSubmit(prompt, model || undefined);
   };
 
@@ -21,6 +24,12 @@ export const QueryInput = ({
       <div className="card-header">
         <h3>Submit AI Query</h3>
       </div>
+
+      {isViewer && (
+        <div className="alert" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', color: '#595959', marginBottom: '1rem' }}>
+          🔒 <strong>Read-Only Mode:</strong> Your role is <strong>VIEWER</strong>. Running live AI queries is restricted to Members, Admins, and Owners. You can review cached queries and previous responses below.
+        </div>
+      )}
 
       {quotaWarning && (
         <div className="alert alert-warning">
@@ -37,7 +46,7 @@ export const QueryInput = ({
             placeholder="Type your prompt here... Relevant documents in your organization's store will be automatically cited."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            disabled={status === 'loading'}
+            disabled={status === 'loading' || isViewer}
           />
         </div>
 
@@ -50,7 +59,7 @@ export const QueryInput = ({
               id="model-select"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || isViewer}
             >
               <option value="">Auto (Routing by Plan Tier)</option>
               <option value="gemini-2.5-flash">Gemini Flash (Free Tier)</option>
@@ -64,9 +73,10 @@ export const QueryInput = ({
           <button
             type="submit"
             className="btn-primary"
-            disabled={status === 'loading' || !prompt.trim()}
+            disabled={status === 'loading' || !prompt.trim() || isViewer}
+            title={isViewer ? 'Viewer accounts are read-only' : ''}
           >
-            {status === 'loading' ? 'Processing...' : 'Submit Query'}
+            {status === 'loading' ? 'Processing...' : isViewer ? 'Submit Query (Read-Only)' : 'Submit Query'}
           </button>
 
           {status === 'error' && onRetry && (

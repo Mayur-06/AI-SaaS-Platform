@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { aiService } from '../../services/aiService';
+import { useAuthStore } from '../../store/authStore';
 import { extractErrorMessage } from '../../services/api';
 
 export const QuickActions = ({ onQueryComplete }) => {
+  const { role } = useAuthStore();
+  const isViewer = role === 'viewer';
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -10,7 +13,7 @@ export const QuickActions = ({ onQueryComplete }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isViewer) return;
 
     setIsLoading(true);
     setError(null);
@@ -36,19 +39,24 @@ export const QuickActions = ({ onQueryComplete }) => {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+      {isViewer && (
+        <p style={{ color: '#888', fontSize: '0.85rem', marginBottom: '0.75rem', fontStyle: 'italic' }}>
+          Viewer accounts are read-only. AI query execution requires Member, Admin, or Owner role.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <input
             type="text"
-            placeholder="Ask anything (e.g. 'What is multi-tenancy in SaaS?')..."
+            placeholder={isViewer ? "Read-only mode (AI queries restricted to Member/Admin/Owner)..." : "Ask anything (e.g. 'What is multi-tenancy in SaaS?')..."}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            disabled={isLoading}
+            disabled={isLoading || isViewer}
           />
         </div>
-        <button type="submit" className="btn-primary" disabled={isLoading || !prompt.trim()}>
-          {isLoading ? 'Running query...' : 'Send Query'}
+        <button type="submit" className="btn-primary" disabled={isLoading || !prompt.trim() || isViewer} title={isViewer ? 'Viewer accounts are read-only' : ''}>
+          {isLoading ? 'Running query...' : isViewer ? 'Send Query (Read-Only)' : 'Send Query'}
         </button>
       </form>
 

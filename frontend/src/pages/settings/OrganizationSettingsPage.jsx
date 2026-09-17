@@ -45,8 +45,10 @@ export const OrganizationSettingsPage = () => {
   useEffect(() => {
     fetchOrg();
     fetchMembers();
-    fetchInvitations();
-  }, [fetchOrg, fetchMembers, fetchInvitations]);
+    if (canManage) {
+      fetchInvitations();
+    }
+  }, [fetchOrg, fetchMembers, fetchInvitations, canManage]);
 
   useEffect(() => {
     if (organization) {
@@ -210,14 +212,16 @@ export const OrganizationSettingsPage = () => {
       </div>
 
       {/* Pending Invitations */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <InvitationList
-          invitations={invitations}
-          canManage={canManage}
-          onRevoke={revokeInvitation}
-          isLoading={isLoading}
-        />
-      </div>
+      {canManage && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <InvitationList
+            invitations={invitations}
+            canManage={canManage}
+            onRevoke={revokeInvitation}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
 
       {/* Ownership Transfer & Danger Zone */}
       {isOwner && (

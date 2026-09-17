@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { aiService } from '../../services/aiService';
+import { useAuthStore } from '../../store/authStore';
 import { extractErrorMessage } from '../../services/api';
 
 export const DocumentPanel = () => {
+  const { role } = useAuthStore();
+  const canManageDocs = role === 'owner' || role === 'admin' || role === 'member';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState('');
@@ -109,45 +112,51 @@ export const DocumentPanel = () => {
       {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
 
       {/* Add Document Form */}
-      <form onSubmit={handleCreateDocument} style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-        <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Add Knowledge Document</h4>
+      {canManageDocs ? (
+        <form onSubmit={handleCreateDocument} style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
+          <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Add Knowledge Document</h4>
 
-        <div className="form-group">
-          <label htmlFor="doc-title">Document Title</label>
-          <input
-            id="doc-title"
-            type="text"
-            placeholder="e.g. Employee Handbook, Pricing Guide"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="doc-title">Document Title</label>
+            <input
+              id="doc-title"
+              type="text"
+              placeholder="e.g. Employee Handbook, Pricing Guide"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="doc-content">Direct Text Content</label>
-          <textarea
-            id="doc-content"
-            rows={3}
-            placeholder="Paste text content here..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="doc-content">Direct Text Content</label>
+            <textarea
+              id="doc-content"
+              rows={3}
+              placeholder="Paste text content here..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="doc-file">Or Upload File (.txt, .md, .pdf)</label>
-          <input
-            id="doc-file"
-            type="file"
-            onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="doc-file">Or Upload File (.txt, .md, .pdf)</label>
+            <input
+              id="doc-file"
+              type="file"
+              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+            />
+          </div>
 
-        <button type="submit" className="btn-primary" disabled={isLoading}>
-          {isLoading ? 'Uploading & Indexing...' : 'Add & Index Document'}
-        </button>
-      </form>
+          <button type="submit" className="btn-primary" disabled={isLoading}>
+            {isLoading ? 'Uploading & Indexing...' : 'Add & Index Document'}
+          </button>
+        </form>
+      ) : (
+        <p style={{ color: '#888', fontStyle: 'italic', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+          Document ingestion and index modifications are restricted to Members, Admins, and Owners. (Viewer: Read-Only)
+        </p>
+      )}
 
       {/* Documents List */}
       <div>
@@ -162,7 +171,7 @@ export const DocumentPanel = () => {
                 <th>Chunks</th>
                 <th>Status</th>
                 <th>Created</th>
-                <th>Actions</th>
+                {canManageDocs && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -172,24 +181,26 @@ export const DocumentPanel = () => {
                   <td><span className="badge">{doc.chunk_count} chunks</span></td>
                   <td><span className="badge badge-active">{doc.status || 'ready'}</span></td>
                   <td style={{ fontSize: '0.8rem' }}>{new Date(doc.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button
-                        onClick={() => handleProcess(doc.id)}
-                        disabled={isProcessing === doc.id}
-                        style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                      >
-                        {isProcessing === doc.id ? 'Processing...' : 'Reprocess'}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc.id)}
-                        className="btn-danger"
-                        style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+                  {canManageDocs && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button
+                          onClick={() => handleProcess(doc.id)}
+                          disabled={isProcessing === doc.id}
+                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                        >
+                          {isProcessing === doc.id ? 'Processing...' : 'Reprocess'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc.id)}
+                          className="btn-danger"
+                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
