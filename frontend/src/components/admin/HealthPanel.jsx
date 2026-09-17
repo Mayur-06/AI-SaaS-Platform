@@ -59,31 +59,21 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
         <div style={{ padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
           <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>LLM Providers</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            {health.providers?.gemini && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>✨ Google Gemini (Primary Free)</span>
-                <div>
-                  <span className="badge badge-active">{health.providers.gemini.status}</span>
-                  {health.providers.gemini.latency_ms !== undefined && (
-                    <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{health.providers.gemini.latency_ms}ms</span>
-                  )}
+            {health.providers && Object.keys(health.providers).length > 0 ? (
+              Object.entries(health.providers).map(([name, p]) => (
+                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}</span>
+                  <div>
+                    <span className={`badge ${p.status === 'healthy' ? 'badge-active' : ''}`} style={{ color: p.status !== 'healthy' ? '#900' : undefined }}>
+                      {p.status || 'unknown'}
+                    </span>
+                    {p.latency_ms !== undefined && (
+                      <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{p.latency_ms}ms</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {health.providers?.openai && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>🤖 OpenAI (Pro & Enterprise)</span>
-                <div>
-                  <span className="badge badge-active">{health.providers.openai.status}</span>
-                  {health.providers.openai.latency_ms !== undefined && (
-                    <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{health.providers.openai.latency_ms}ms</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {Object.keys(health.providers || {}).length === 0 && (
+              ))
+            ) : (
               <p style={{ color: '#777', fontStyle: 'italic' }}>No external providers configured</p>
             )}
           </div>

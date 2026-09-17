@@ -24,7 +24,7 @@ export const PlatformMetrics = ({ metrics }) => {
       <div className="card">
         <div style={{ fontSize: '0.8rem', color: '#666' }}>Requests (Month / Today)</div>
         <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-          {metrics.requests_month} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#888' }}>({metrics.requests_today} today)</span>
+          {metrics.requests_this_month ?? metrics.requests_month ?? 0} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#888' }}>({metrics.requests_today ?? 0} today)</span>
         </div>
       </div>
 
@@ -34,7 +34,7 @@ export const PlatformMetrics = ({ metrics }) => {
           ${Number(metrics.revenue_estimate || 0).toFixed(2)}
         </div>
         <div style={{ fontSize: '0.75rem', color: '#888' }}>
-          Platform Cost: ${Number(metrics.platform_cost || 0).toFixed(4)}
+          Platform Cost: ${Number(metrics.monthly_cost_estimate ?? metrics.platform_cost ?? 0).toFixed(4)}
         </div>
       </div>
     </div>

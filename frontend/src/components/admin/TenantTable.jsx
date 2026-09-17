@@ -39,7 +39,7 @@ export const TenantTable = ({
                   <td><strong>{t.name}</strong></td>
                   <td><code>{t.slug}</code></td>
                   <td>
-                    <span className="badge badge-active">{t.plan?.name || 'Free'}</span>
+                    <span className="badge badge-active">{t.plan?.name || t.plan || 'Free'}</span>
                   </td>
                   <td>{t.member_count}</td>
                   <td>{t.monthly_requests?.toLocaleString?.() ?? t.monthly_requests}</td>
