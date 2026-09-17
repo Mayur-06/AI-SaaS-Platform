@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOrgStore } from '../../store/orgStore';
 import { useAuthStore } from '../../store/authStore';
 import { MemberList } from '../../components/org/MemberList';
+import { InvitationList } from '../../components/org/InvitationList';
 import { InviteModal } from '../../components/org/InviteModal';
 import { OwnershipTransferModal } from '../../components/org/OwnershipTransferModal';
 import { extractErrorMessage } from '../../services/api';
@@ -12,12 +13,15 @@ export const OrganizationSettingsPage = () => {
   const {
     organization,
     members,
+    invitations,
     fetchOrg,
     fetchMembers,
+    fetchInvitations,
     updateOrg,
     updateMemberRole,
     removeMember,
     inviteMember,
+    revokeInvitation,
     transferOwnership,
     deleteOrg,
     isLoading,
@@ -41,7 +45,8 @@ export const OrganizationSettingsPage = () => {
   useEffect(() => {
     fetchOrg();
     fetchMembers();
-  }, [fetchOrg, fetchMembers]);
+    fetchInvitations();
+  }, [fetchOrg, fetchMembers, fetchInvitations]);
 
   useEffect(() => {
     if (organization) {
@@ -200,6 +205,16 @@ export const OrganizationSettingsPage = () => {
           currentUserRole={role}
           onUpdateRole={updateMemberRole}
           onRemoveMember={removeMember}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Pending Invitations */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <InvitationList
+          invitations={invitations}
+          canManage={canManage}
+          onRevoke={revokeInvitation}
           isLoading={isLoading}
         />
       </div>

@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 
 export const RegisterForm = () => {
   const [searchParams] = useSearchParams();
-  const inviteTokenFromUrl = searchParams.get('invite_token') || '';
+  const inviteTokenFromUrl = searchParams.get('invite_token') || searchParams.get('token') || '';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

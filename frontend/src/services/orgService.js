@@ -39,6 +39,19 @@ export const orgService = {
     return response.data;
   },
 
+  async getInvitations() {
+    const response = await apiClient.get('/org/invite/');
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data?.results || [];
+  },
+
+  async revokeInvitation(invitationId) {
+    const response = await apiClient.delete(`/org/invite/${invitationId}/`);
+    return response.data;
+  },
+
   async transferOwnership(newOwnerId) {
     const response = await apiClient.post('/org/transfer-ownership/', {
       new_owner_id: newOwnerId,
