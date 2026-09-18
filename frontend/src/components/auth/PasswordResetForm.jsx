@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../services/api';
+import { AuthLayout } from './AuthLayout';
 
 export const PasswordResetForm = () => {
   const [step, setStep] = useState(1);
@@ -64,54 +65,108 @@ export const PasswordResetForm = () => {
     }
   };
 
+  const inputClass = `w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
+    bg-white placeholder-gray-400 text-[#292929]
+    focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
+    transition-shadow duration-150`;
+
   return (
-    <div className="auth-card">
-      <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Reset Password</h2>
+    <AuthLayout quote="Your knowledge, finally within reach.">
+      {/* Heading */}
+      <div className="mb-7">
+        <h1
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-3xl font-bold text-[#292929] mb-2"
+        >
+          Reset your password
+        </h1>
+        <p className="text-sm text-gray-500">
+          {step === 1
+            ? 'Enter your email and we\'ll send you a reset token.'
+            : 'Enter the token you received and set a new password.'}
+        </p>
+      </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2].map((s) => (
+          <div key={s} className="flex items-center gap-2">
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-200
+                ${step >= s
+                  ? 'bg-[#b2c147] text-[#292929]'
+                  : 'bg-gray-100 text-gray-400'}`}
+            >
+              {s}
+            </div>
+            {s < 2 && (
+              <div className={`h-px w-8 transition-colors duration-200 ${step > s ? 'bg-[#b2c147]' : 'bg-gray-200'}`} />
+            )}
+          </div>
+        ))}
+        <span className="ml-2 text-xs text-gray-400">
+          {step === 1 ? 'Request token' : 'Set new password'}
+        </span>
+      </div>
 
+      {/* Success message */}
+      {message && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+          {message}
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* ── STEP 1 ── */}
       {step === 1 ? (
-        <form onSubmit={handleStep1Submit}>
-          <p style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#555' }}>
-            Step 1: Enter your account email to receive a password reset token.
-          </p>
-
-          <div className="form-group">
-            <label htmlFor="reset-email">Email Address</label>
+        <form onSubmit={handleStep1Submit} className="space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="reset-email" className="text-sm font-semibold text-[#292929]">
+              Email address
+            </label>
             <input
               id="reset-email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
+              placeholder="you@company.com"
+              className={inputClass}
             />
           </div>
 
           <button
             type="submit"
-            className="btn-primary"
-            style={{ width: '100%', marginTop: '0.5rem' }}
             disabled={isLoading}
+            className="w-full mt-2 px-4 py-2.5 bg-[#b2c147] text-[#292929] font-semibold text-sm
+                       rounded-lg hover:brightness-110 active:scale-[0.99]
+                       transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+                       focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:ring-offset-2"
           >
-            {isLoading ? 'Requesting...' : 'Request Reset Token'}
+            {isLoading ? 'Sending…' : 'Request Reset Token →'}
           </button>
         </form>
       ) : (
-        <form onSubmit={handleStep2Submit}>
-          <p style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#555' }}>
-            Step 2: Enter the reset token and your new password.
-          </p>
-
+        /* ── STEP 2 ── */
+        <form onSubmit={handleStep2Submit} className="space-y-4">
+          {/* Dev token hint */}
           {receivedTokenHint && (
-            <div className="alert alert-info" style={{ wordBreak: 'break-all' }}>
-              <strong>Demo Token:</strong> <code>{receivedTokenHint}</code>
+            <div className="px-4 py-3 rounded-lg bg-[#b2c147]/10 border border-[#b2c147]/30 text-[#292929] text-sm break-all">
+              <span className="font-semibold">Demo token: </span>
+              <code className="font-mono text-xs">{receivedTokenHint}</code>
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="token">Reset Token</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="token" className="text-sm font-semibold text-[#292929]">
+              Reset token
+            </label>
             <input
               id="token"
               type="text"
@@ -119,11 +174,14 @@ export const PasswordResetForm = () => {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="Paste token here"
+              className={inputClass}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="new-password">New Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="new-password" className="text-sm font-semibold text-[#292929]">
+              New password
+            </label>
             <input
               id="new-password"
               type="password"
@@ -132,11 +190,14 @@ export const PasswordResetForm = () => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Min 8 characters"
+              className={inputClass}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirm-reset-password">Confirm New Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="confirm-reset-password" className="text-sm font-semibold text-[#292929]">
+              Confirm new password
+            </label>
             <input
               id="confirm-reset-password"
               type="password"
@@ -144,33 +205,45 @@ export const PasswordResetForm = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
+              className={inputClass}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <div className="flex gap-3 mt-2">
             <button
               type="button"
               onClick={() => setStep(1)}
-              style={{ flex: 1 }}
               disabled={isLoading}
+              className="flex-1 px-4 py-2.5 bg-white border border-gray-200 text-[#292929] font-semibold text-sm
+                         rounded-lg hover:bg-gray-50 transition-all duration-150
+                         disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Back
+              ← Back
             </button>
             <button
               type="submit"
-              className="btn-primary"
-              style={{ flex: 2 }}
               disabled={isLoading}
+              className="flex-[2] px-4 py-2.5 bg-[#b2c147] text-[#292929] font-semibold text-sm
+                         rounded-lg hover:brightness-110 active:scale-[0.99]
+                         transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+                         focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:ring-offset-2"
             >
-              {isLoading ? 'Resetting...' : 'Confirm Reset'}
+              {isLoading ? 'Resetting…' : 'Confirm Reset →'}
             </button>
           </div>
         </form>
       )}
 
-      <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', textAlign: 'center' }}>
-        Remember your password? <Link to="/login" style={{ textDecoration: 'underline' }}>Back to Sign In</Link>
-      </div>
-    </div>
+      {/* Footer */}
+      <p className="mt-6 text-sm text-center text-gray-500">
+        Remember your password?{' '}
+        <Link
+          to="/login"
+          className="text-[#292929] font-semibold hover:text-[#b2c147] transition-colors duration-150 no-underline"
+        >
+          Back to Sign In
+        </Link>
+      </p>
+    </AuthLayout>
   );
 };
