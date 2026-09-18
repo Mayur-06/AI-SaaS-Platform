@@ -53,10 +53,14 @@ class DjangoDocumentStore:
         scored.sort(key=lambda x: x[0], reverse=True)
         results = []
         for score, chunk in scored[:top_k]:
+            filename = chunk.document.filename if chunk.document else "Document"
+            clean_name = filename.split("/")[-1] if "/" in filename else (filename.split("\\")[-1] if "\\" in filename else filename)
             results.append({
                 "chunk_id": str(chunk.id),
                 "score": score,
-                "doc_id": str(chunk.document.id),
+                "doc_id": str(chunk.document.id) if chunk.document else "",
+                "doc_title": clean_name,
+                "chunk_index": getattr(chunk, "chunk_index", 0),
                 "text": chunk.chunk_text,
             })
         return results

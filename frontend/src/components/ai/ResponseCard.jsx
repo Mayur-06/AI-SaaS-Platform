@@ -125,20 +125,30 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="dark">{data.model_used}</Badge>
+          {data.isHistorical && (
+            <span className="text-[11px] font-mono font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+              Historical Query
+            </span>
+          )}
+          <Badge variant="dark">{data.model_used || data.model || 'Auto'}</Badge>
+          {data.provider && (
+            <Badge variant="gray" className="uppercase text-[10px]">
+              {data.provider}
+            </Badge>
+          )}
           <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
             {data.cache_hit ? '⚡ CACHE HIT' : '🔄 LIVE LLM'}
           </Badge>
-          <span className="text-xs font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded">
-            {data.latency_ms} ms
+          <span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+            ⏱️ {data.latency_ms ?? 0} ms
           </span>
-          <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold">
-            ${Number(data.estimated_cost).toFixed(5)}
+          <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold border border-[#b2c147]/20">
+            ${Number(data.estimated_cost || 0).toFixed(5)}
           </span>
           <button
             type="button"
             onClick={handleCopy}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer border border-white/5"
           >
             {copied ? <Check size={12} className="text-[#b2c147]" /> : <Copy size={12} />}
             <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -153,28 +163,54 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         </div>
       )}
 
+      {/* Query Prompt (Self-Contained Query-Response Pair) */}
+      {data.query && (
+        <div className="mb-4 p-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs space-y-1">
+          <div className="flex items-center justify-between text-gray-400 font-mono text-[10px] uppercase tracking-wider">
+            <span>Query Prompt</span>
+            {data.created_at && (
+              <span>{new Date(data.created_at).toLocaleString()}</span>
+            )}
+          </div>
+          <p className="text-white font-medium text-sm leading-relaxed">
+            {data.query}
+          </p>
+        </div>
+      )}
+
       {/* Main Response Output */}
-      <div className="text-sm text-gray-200 leading-relaxed font-sans whitespace-pre-wrap selection:bg-[#b2c147] selection:text-[#292929] bg-black/30 p-4 sm:p-5 rounded-xl border border-white/5">
-        {data.response}
+      <div className="space-y-1 mb-4">
+        <span className="text-gray-400 font-mono text-[10px] uppercase tracking-wider block">
+          Model Response
+        </span>
+        <div className="text-sm text-gray-200 leading-relaxed font-sans whitespace-pre-wrap selection:bg-[#b2c147] selection:text-[#292929] bg-black/40 p-4 sm:p-5 rounded-xl border border-white/10">
+          {data.response || data.answer}
+        </div>
       </div>
 
-      {/* Token & Telemetry Breakdown */}
+      {/* Token & Telemetry Breakdown Badges */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs text-gray-400 font-mono">
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Prompt Tokens</span>
-          <span className="text-white font-semibold">{data.tokens?.prompt_tokens ?? '-'}</span>
+          <span className="text-white font-semibold">
+            {data.tokens?.prompt_tokens ?? data.input_tokens ?? '-'}
+          </span>
         </div>
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Completion Tokens</span>
-          <span className="text-white font-semibold">{data.tokens?.completion_tokens ?? '-'}</span>
+          <span className="text-white font-semibold">
+            {data.tokens?.completion_tokens ?? data.output_tokens ?? '-'}
+          </span>
         </div>
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Total Tokens</span>
-          <span className="text-white font-semibold">{data.tokens?.total_tokens ?? '-'}</span>
+          <span className="text-white font-semibold">
+            {data.tokens?.total_tokens ?? (Number(data.input_tokens || 0) + Number(data.output_tokens || 0)) ?? '-'}
+          </span>
         </div>
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Request ID</span>
-          <span className="text-gray-300 truncate block font-mono text-[11px]">
+          <span className="text-gray-300 truncate block font-mono text-[11px]" title={data.request_id}>
             {data.request_id || '-'}
           </span>
         </div>

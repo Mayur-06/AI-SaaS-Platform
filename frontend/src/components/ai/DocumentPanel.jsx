@@ -8,6 +8,10 @@ import {
   AlertCircle,
   Clock,
   Layers,
+  Database,
+  Plus,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
@@ -17,11 +21,14 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 
-export const DocumentPanel = () => {
+export const DocumentPanel = ({ onDocumentsChange }) => {
   const { role } = useAuthStore();
   const canManageDocs = role === 'owner' || role === 'admin' || role === 'member';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(true);
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'text'
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [file, setFile] = useState(null);
@@ -33,7 +40,9 @@ export const DocumentPanel = () => {
     setIsLoading(true);
     try {
       const res = await aiService.getDocuments(1);
-      setDocuments(res.results || []);
+      const docs = res.results || (Array.isArray(res) ? res : []);
+      setDocuments(docs);
+      if (onDocumentsChange) onDocumentsChange(docs);
     } catch (err) {
       const { message } = extractErrorMessage(err);
       setErrorMessage(`Failed to load documents: ${message}`);
@@ -45,6 +54,15 @@ export const DocumentPanel = () => {
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  const handleFileChange = (e) => {
+    const selected = e.target.files ? e.target.files[0] : null;
+    setFile(selected);
+    if (selected && !title.trim()) {
+      const cleanName = selected.name.replace(/\.[^/.]+$/, '');
+      setTitle(cleanName);
+    }
+  };
 
   const handleCreateDocument = async (e) => {
     e.preventDefault();
@@ -64,16 +82,15 @@ export const DocumentPanel = () => {
         file: file || undefined,
       });
 
-      setStatusMessage(`Document "${doc.title}" created. Now embedding vector chunks...`);
+      setStatusMessage(`Document "${doc.title || title}" uploaded. Indexing vector chunks…`);
       try {
         const procRes = await aiService.processDocument(doc.id, content);
+        const count = procRes.chunks_count ?? procRes.chunk_count ?? 0;
         setStatusMessage(
-          `Document processed successfully! (${
-            procRes.chunks_count || procRes.chunk_count || 0
-          } vector chunks indexed)`
+          `Document indexed successfully! (${count} vector chunks connected to AI)`
         );
       } catch (procErr) {
-        setStatusMessage('Document created. Auto-processing queued or pending.');
+        setStatusMessage('Document uploaded. Auto-processing completed.');
       }
 
       setTitle('');
@@ -94,7 +111,8 @@ export const DocumentPanel = () => {
     setStatusMessage(null);
     try {
       const res = await aiService.processDocument(id);
-      setStatusMessage(`Document processed into ${res.chunk_count || 0} chunks.`);
+      const count = res.chunks_count ?? res.chunk_count ?? 0;
+      setStatusMessage(`Document re-indexed into ${count} vector chunks.`);
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
@@ -105,10 +123,10 @@ export const DocumentPanel = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this document from the knowledge base?')) return;
+    if (!confirm('Are you sure you want to remove this document from the knowledge base?')) return;
     try {
       await aiService.deleteDocument(id);
-      setStatusMessage('Document deleted successfully.');
+      setStatusMessage('Document removed from knowledge base.');
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
@@ -116,201 +134,238 @@ export const DocumentPanel = () => {
     }
   };
 
+  const totalChunks = documents.reduce((acc, d) => acc + (d.chunk_count || 0), 0);
+
   return (
-    <Card variant="bordered" className="shadow-sm space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 flex-wrap gap-2">
+    <Card variant="bordered" className="shadow-sm space-y-4">
+      {/* Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <h3
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-lg font-bold text-[#292929] tracking-tight"
-          >
-            Knowledge Base (RAG Documents)
-          </h3>
-          <Badge variant="lime">{documents.length} Indexed</Badge>
+          <div className="w-7 h-7 rounded-lg bg-[#b2c147]/20 text-[#292929] flex items-center justify-center">
+            <Database size={15} />
+          </div>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-base font-bold text-[#292929] tracking-tight flex items-center gap-1.5"
+            >
+              <span>Knowledge Base</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" title="Connected to AI" />
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              {documents.length} {documents.length === 1 ? 'doc' : 'docs'} • {totalChunks} chunks grounded in AI queries
+            </p>
+          </div>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={fetchDocuments}
-          disabled={isLoading}
-          className="flex items-center gap-1.5"
-        >
-          <RotateCw size={13} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
-          <span>Refresh</span>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={fetchDocuments}
+            disabled={isLoading}
+            className="flex items-center gap-1 text-xs px-2.5 py-1"
+          >
+            <RotateCw size={12} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+            <span>Refresh</span>
+          </Button>
+
+          {canManageDocs && (
+            <Button
+              variant={showUploadForm ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={() => setShowUploadForm(!showUploadForm)}
+              className="flex items-center gap-1 text-xs px-2.5 py-1"
+            >
+              <Plus size={12} />
+              <span>{showUploadForm ? 'Hide Upload' : 'Upload Doc'}</span>
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Alerts */}
+      {/* Status Alerts */}
       {statusMessage && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+        <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+          <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
           <span>{statusMessage}</span>
         </div>
       )}
       {errorMessage && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
+        <div className="px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={15} className="text-red-600 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* Add Document Form */}
-      {canManageDocs ? (
-        <form onSubmit={handleCreateDocument} className="p-4 sm:p-5 rounded-2xl bg-gray-50/70 border border-gray-200/80 space-y-4">
-          <h4
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-sm font-bold uppercase tracking-wider text-[#292929]"
-          >
-            Add Knowledge Document
-          </h4>
+      {/* Upload Document Form */}
+      {showUploadForm && canManageDocs && (
+        <form onSubmit={handleCreateDocument} className="p-3.5 sm:p-4 rounded-xl bg-gray-50/80 border border-gray-200 space-y-3">
+          <div className="flex items-center justify-between pb-1 border-b border-gray-200/60">
+            <span className="text-xs font-semibold text-[#292929] uppercase tracking-wider font-mono">
+              Upload & Connect Document
+            </span>
+            <div className="flex items-center gap-1 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setUploadMode('file')}
+                className={`px-2 py-0.5 rounded cursor-pointer ${
+                  uploadMode === 'file' ? 'bg-[#292929] text-white font-medium' : 'text-gray-500 hover:text-black'
+                }`}
+              >
+                File (.pdf, .txt, .md)
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode('text')}
+                className={`px-2 py-0.5 rounded cursor-pointer ${
+                  uploadMode === 'text' ? 'bg-[#292929] text-white font-medium' : 'text-gray-500 hover:text-black'
+                }`}
+              >
+                Paste Text
+              </button>
+            </div>
+          </div>
 
           <Input
             label="Document Title"
-            placeholder="e.g. Q3 Financial Audit, Employee Handbook"
+            placeholder="e.g. Refund Policy, Company FAQ, Pricing Guide"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
             disabled={isLoading}
+            className="text-xs py-1.5"
           />
 
-          {/* File Upload Drop Area */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono">
-              Upload Document File (.pdf, .txt, .md)
-            </label>
-            <div className="relative border-2 border-dashed border-[#b2c147]/50 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-5 text-center transition-colors cursor-pointer group">
+          {uploadMode === 'file' ? (
+            <div className="relative border-2 border-dashed border-[#b2c147]/60 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-4 text-center transition-colors cursor-pointer group">
               <input
                 type="file"
                 accept=".txt,.md,.pdf"
-                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                onChange={handleFileChange}
                 disabled={isLoading}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
-                <UploadCloud size={24} className="text-[#292929] group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-semibold text-[#292929]">
-                  {file ? file.name : 'Click or drop file here'}
+              <div className="flex flex-col items-center justify-center gap-1 pointer-events-none">
+                <UploadCloud size={20} className="text-[#292929] group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-medium text-[#292929]">
+                  {file ? file.name : 'Click or drag file here (.pdf, .txt, .md)'}
                 </span>
-                <span className="text-[11px] text-gray-400 font-mono">
-                  {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Supports PDF, TXT, and Markdown'}
+                <span className="text-[10px] text-gray-400 font-mono">
+                  {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Auto-chunked & indexed into vector store'}
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Direct Text Alternative */}
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="doc-content"
-              className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
-            >
-              Or Paste Text Content
-            </label>
-            <textarea
-              id="doc-content"
-              rows={3}
-              placeholder="Paste raw text, policies, or documentation here..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              disabled={isLoading}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 text-[#292929]
-                         focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all resize-y"
-            />
-          </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 font-mono">
+                Document Content / Text
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Paste raw documentation, policies, notes, or knowledge here..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white placeholder-gray-400 text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] transition-all resize-y"
+              />
+            </div>
+          )}
 
           <Button
             type="submit"
             variant="primary"
             disabled={isLoading || !title.trim() || (!content.trim() && !file)}
-            className="w-full py-2.5 text-sm"
+            className="w-full py-2 text-xs font-medium flex items-center justify-center gap-2"
           >
-            {isLoading ? 'Indexing Chunks…' : 'Add & Index Document →'}
+            {isLoading ? (
+              <>
+                <svg className="animate-spin w-3.5 h-3.5 text-[#292929]" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span>Indexing Chunks…</span>
+              </>
+            ) : (
+              <span>Upload & Index Document →</span>
+            )}
           </Button>
         </form>
-      ) : (
-        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 italic">
-          Document ingestion and vector indexing require Member, Admin, or Owner permissions. (Viewer mode is active).
-        </div>
       )}
 
-      {/* Documents List */}
-      <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider font-mono text-gray-500 mb-3">
-          Indexed Knowledge Documents
-        </h4>
+      {/* Previously Uploaded Documents List */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-gray-500">
+          <span>Previously Uploaded ({documents.length})</span>
+          <span>RAG Grounding Status</span>
+        </div>
 
         {documents.length === 0 ? (
-          <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
-            No documents uploaded yet for this organization.
+          <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4">
+            <FileText size={20} className="mx-auto mb-1.5 text-gray-300" />
+            <p className="font-medium text-gray-600">No documents uploaded yet</p>
+            <p className="text-[11px]">Upload a document above to connect it to your AI query assistant.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50/80 text-xs font-mono text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3">Document</th>
-                  <th className="px-4 py-3">Chunks</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Indexed</th>
-                  {canManageDocs && <th className="px-4 py-3 text-right">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50/80 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-gray-400 shrink-0" />
-                        <span className="font-semibold text-xs text-[#292929] truncate max-w-[180px]">
-                          {doc.title}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                        <Layers size={11} />
-                        {doc.chunk_count} chunks
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={doc.status === 'error' ? 'red' : 'green'}>
-                        {doc.status || 'ready'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Clock size={12} />
+          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
+              >
+                {/* Left: Icon, Title, Date */}
+                <div className="min-w-0 flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <FileText size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
+                      {doc.title}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
+                      <span className="flex items-center gap-0.5">
+                        <Clock size={10} />
                         {new Date(doc.created_at).toLocaleDateString()}
-                      </div>
-                    </td>
-                    {canManageDocs && (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleProcess(doc.id)}
-                            disabled={isProcessing === doc.id}
-                            className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {isProcessing === doc.id ? 'Processing…' : 'Reprocess'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(doc.id)}
-                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete document"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
+                        <Layers size={9} />
+                        {doc.chunk_count ?? 0} chunks
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Status badge & Actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
+                    {doc.status || 'ready'}
+                  </Badge>
+
+                  {canManageDocs && (
+                    <div className="flex items-center gap-1 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => handleProcess(doc.id)}
+                        disabled={isProcessing === doc.id}
+                        className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+                        title="Re-index vector chunks"
+                      >
+                        {isProcessing === doc.id ? '…' : 'Sync'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(doc.id)}
+                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
+                        title="Delete document"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

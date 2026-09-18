@@ -38,8 +38,8 @@ class RAGOrchestrator:
     def _build_prompt(self, question: str, chunks: List[Dict]) -> tuple:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
-            doc_name = chunk.get("doc_id", "unknown")
-            context_parts.append(f"[Document {i}] (doc_id={doc_name})\n{chunk['text']}")
+            doc_name = chunk.get("doc_title") or chunk.get("doc_id", "unknown")
+            context_parts.append(f"[Document {i}] (source={doc_name})\n{chunk['text']}")
         context = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
 
         system_prompt = """You are a helpful and conversational AI assistant with access to uploaded documents.
@@ -158,7 +158,8 @@ Question: {question}"""
 
         cited_chunks = [
             {
-                "document_title": c.get("doc_id", "Document"),
+                "document_title": c.get("doc_title") or c.get("doc_id", "Document"),
+                "chunk_index": c.get("chunk_index", 0),
                 "content": c.get("text", ""),
                 "score": round(float(c.get("score", 0)), 3),
             }

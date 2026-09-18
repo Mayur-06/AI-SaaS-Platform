@@ -63,21 +63,47 @@ class DocumentViewSet(viewsets.ModelViewSet):
             from django.core.files.storage import default_storage
             filename = file_obj.name
             saved_path = default_storage.save(f"documents/{org.id}/{filename}", file_obj)
-            serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
         elif raw_content:
             from django.core.files.base import ContentFile
             from django.core.files.storage import default_storage
             filename = serializer.validated_data.get("filename", "document.txt")
             saved_path = default_storage.save(f"documents/{org.id}/{filename}", ContentFile(raw_content.encode("utf-8")))
-            serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
         else:
-            serializer.save(organization=org, uploaded_by=self.request.user)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user)
+
+        # Auto-process into vector store immediately upon upload
+        try:
+            from ai_service.services.document_store import DjangoDocumentStore
+            from ai_service.services.chunking import extract_and_chunk
+            from django.core.files.storage import default_storage
+            file_bytes = None
+            if hasattr(instance, "filename") and instance.filename:
+                try:
+                    f = default_storage.open(instance.filename)
+                    file_bytes = f.read()
+                    f.close()
+                except Exception:
+                    pass
+            if not file_bytes and raw_content:
+                file_bytes = raw_content.encode("utf-8")
+            if file_bytes:
+                chunks = extract_and_chunk(file_bytes, instance.filename)
+                if chunks:
+                    store = DjangoDocumentStore(org)
+                    store.add_document(str(instance.id), chunks)
+        except Exception as exc:
+            logger.warning("Auto-processing document %s failed: %s", instance.id, exc)
 
     @action(detail=True, methods=["post"])
     def process(self, request, pk=None):
         document = self.get_object()
+        if document.status == Document.STATUS_READY:
+            count = document.chunks.count()
+            return Response({"detail": f"Document already processed.", "chunks_count": count, "chunk_count": count})
         if document.status != Document.STATUS_PENDING:
-            return Response({"detail": "Document already processed."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Document already processed or currently processing."}, status=status.HTTP_400_BAD_REQUEST)
         from ai_service.services.document_store import DjangoDocumentStore
         from ai_service.services.chunking import extract_and_chunk
         from django.core.files.storage import default_storage
