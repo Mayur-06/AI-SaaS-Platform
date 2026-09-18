@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { extractErrorMessage } from '../../services/api';
 
 export const RegisterForm = () => {
   const [searchParams] = useSearchParams();
@@ -46,12 +47,8 @@ export const RegisterForm = () => {
       });
       navigate('/dashboard');
     } catch (err) {
-      const data = err.response?.data;
-      const msg =
-        data?.error ||
-        data?.detail ||
-        (typeof data === 'object' ? Object.values(data).flat().join(', ') : 'Registration failed');
-      setLocalError(msg);
+      const { message } = extractErrorMessage(err);
+      setLocalError(message || 'Registration failed.');
     }
   };
 

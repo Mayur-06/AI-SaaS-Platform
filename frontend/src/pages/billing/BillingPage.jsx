@@ -6,6 +6,7 @@ import { UsageBreakdown } from '../../components/billing/UsageBreakdown';
 import { CostSummary } from '../../components/billing/CostSummary';
 import { CacheStats } from '../../components/billing/CacheStats';
 import { InvoicesTable } from '../../components/billing/InvoicesTable';
+import { extractErrorMessage } from '../../services/api';
 
 export const BillingPage = () => {
   const { role } = useAuthStore();
@@ -26,7 +27,8 @@ export const BillingPage = () => {
       await upgradePlan(planId);
       setUpgradeMessage('Plan upgraded successfully! New limits and rates are now active.');
     } catch (err) {
-      setUpgradeError(err.response?.data?.error || err.message || 'Failed to upgrade plan.');
+      const { message } = extractErrorMessage(err);
+      setUpgradeError(message || 'Failed to upgrade plan.');
     }
   };
 

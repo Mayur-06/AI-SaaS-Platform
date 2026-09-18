@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { REMEMBER_ME_KEY } from '../../services/api';
+import { REMEMBER_ME_KEY, extractErrorMessage } from '../../services/api';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -31,11 +31,8 @@ export const LoginForm = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
-        'Invalid email or password.';
-      setLocalError(msg);
+      const { message } = extractErrorMessage(err);
+      setLocalError(message || 'Invalid email or password.');
     }
   };
 

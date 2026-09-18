@@ -171,7 +171,21 @@ export function extractErrorMessage(error) {
       if (typeof data.error === 'string') {
         message = data.error;
       } else if (typeof data.error === 'object' && data.error !== null) {
-        message = data.error.message || message;
+        if (typeof data.error.message === 'string') {
+          message = data.error.message;
+        } else if (typeof data.error.message === 'object' && data.error.message !== null) {
+          const firstKey = Object.keys(data.error.message)[0];
+          const val = data.error.message[firstKey];
+          if (Array.isArray(val) && val.length > 0) {
+            message = `${firstKey}: ${val[0]}`;
+          } else if (typeof val === 'string') {
+            message = `${firstKey}: ${val}`;
+          } else {
+            message = JSON.stringify(data.error.message);
+          }
+        } else if (data.error.detail && typeof data.error.detail === 'string') {
+          message = data.error.detail;
+        }
         code = data.error.code || code;
       }
     } else if (data?.detail && typeof data.detail === 'string') {
@@ -201,8 +215,13 @@ export function extractErrorMessage(error) {
       message = message || 'Monthly quota exceeded. Please upgrade your plan.';
     }
 
+    if (typeof message !== 'string') {
+      message = String(message || 'An unexpected error occurred.');
+    }
+
     return { message, code, requestId, rateLimitReset, usageWarning };
   }
 
-  return { message: error instanceof Error ? error.message : 'Unknown error' };
+  const rawMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
+  return { message: typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg) };
 }

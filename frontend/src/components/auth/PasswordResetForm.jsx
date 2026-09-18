@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { extractErrorMessage } from '../../services/api';
 
 export const PasswordResetForm = () => {
   const [step, setStep] = useState(1);
@@ -28,7 +29,8 @@ export const PasswordResetForm = () => {
       }
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to request reset.');
+      const { message } = extractErrorMessage(err);
+      setError(message || 'Failed to request reset.');
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +57,8 @@ export const PasswordResetForm = () => {
       setConfirmPassword('');
       setReceivedTokenHint(null);
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to reset password.');
+      const { message } = extractErrorMessage(err);
+      setError(message || 'Failed to reset password.');
     } finally {
       setIsLoading(false);
     }

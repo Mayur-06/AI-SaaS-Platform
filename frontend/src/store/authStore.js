@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
-import { getAccessToken, clearAuthTokens } from '../services/api';
+import { getAccessToken, clearAuthTokens, extractErrorMessage } from '../services/api';
 
 const getInitialAuthState = () => {
   try {
@@ -54,8 +54,8 @@ export const useAuthStore = create((set) => ({
       });
       return data;
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Login failed';
-      set({ error: msg, isLoading: false, isAuthenticated: false });
+      const { message } = extractErrorMessage(err);
+      set({ error: message || 'Login failed', isLoading: false, isAuthenticated: false });
       throw err;
     }
   },
@@ -72,8 +72,8 @@ export const useAuthStore = create((set) => ({
         isLoading: false,
       });
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Registration failed';
-      set({ error: msg, isLoading: false });
+      const { message } = extractErrorMessage(err);
+      set({ error: message || 'Registration failed', isLoading: false });
       throw err;
     }
   },

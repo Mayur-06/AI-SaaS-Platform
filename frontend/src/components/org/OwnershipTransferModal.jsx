@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { extractErrorMessage } from '../../services/api';
 
 export const OwnershipTransferModal = ({
   isOpen,
@@ -47,7 +48,8 @@ export const OwnershipTransferModal = ({
       await onTransfer(selectedUserId);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Transfer failed.');
+      const { message } = extractErrorMessage(err);
+      setError(message || 'Transfer failed.');
     }
   };
 

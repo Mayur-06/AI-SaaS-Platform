@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { extractErrorMessage } from '../../services/api';
 
 export const InviteModal = ({
   isOpen,
@@ -33,7 +34,8 @@ export const InviteModal = ({
       });
       setEmail('');
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to send invitation.');
+      const { message } = extractErrorMessage(err);
+      setError(message || 'Failed to send invitation.');
     }
   };
 

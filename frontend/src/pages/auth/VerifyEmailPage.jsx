@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { extractErrorMessage } from '../../services/api';
 
 export const VerifyEmailPage = () => {
   const { token } = useParams();
@@ -22,7 +23,8 @@ export const VerifyEmailPage = () => {
       })
       .catch((err) => {
         setStatus('error');
-        setMessage(err.response?.data?.error || err.response?.data?.detail || 'Invalid or expired verification token.');
+        const { message } = extractErrorMessage(err);
+        setMessage(message || 'Invalid or expired verification token.');
       });
   }, [token]);
 
