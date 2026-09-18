@@ -130,9 +130,10 @@ class AIQueryView(APIView):
             }
             response_serializer = AIQueryResponseSerializer(result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except RuntimeError as exc:
+        except (RuntimeError, OSError) as exc:
+            logger.warning("AI query service unavailable or resource constrained: %s", exc)
             return Response(
-                {"error": {"code": "MODEL_UNAVAILABLE", "message": str(exc), "request_id": getattr(request, "request_id", str(__import__("uuid").uuid4()))}},
+                {"error": {"code": "SERVICE_UNAVAILABLE", "message": str(exc), "request_id": getattr(request, "request_id", str(__import__("uuid").uuid4()))}},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except Exception as exc:

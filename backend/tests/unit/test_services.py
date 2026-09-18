@@ -3,7 +3,7 @@ from django.test import RequestFactory
 from django.contrib.auth import get_user_model
 from accounts.models import Organization, Membership
 from billing.models import Plan, APIKey, UsageAggregate
-from ai_service.models import AIQuery
+from ai_service.models import Document, DocumentChunk, AIQuery
 from ai_service.services.rag_orchestrator import RAGOrchestrator
 from ai_service.services.semantic_cache import SemanticCache, get_cache_ttl
 from ai_service.services.model_router import ModelRouter, CircuitBreaker
@@ -31,7 +31,7 @@ class TestSemanticCache:
         cache = SemanticCache(org_a)
         import numpy as np
         emb1 = np.array([0.1] * 384, dtype=np.float32)
-        emb2 = np.array([0.9] * 384, dtype=np.float32)
+        emb2 = np.array([-0.1] * 384, dtype=np.float32)
         cache.store("what is AI", emb1, "AI is artificial intelligence", "gemini-2.0-flash")
         result = cache.lookup(emb2, "what is ML")
         assert result is None

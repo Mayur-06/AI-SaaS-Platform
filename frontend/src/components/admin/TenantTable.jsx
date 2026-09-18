@@ -1,4 +1,8 @@
 import React from 'react';
+import { Building2, Users } from 'lucide-react';
+import { Card } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 
 export const TenantTable = ({
   tenants,
@@ -10,46 +14,78 @@ export const TenantTable = ({
   const totalPages = Math.ceil(totalCount / 20) || 1;
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Tenant Fleet Management ({totalCount} Organizations)</h3>
+    <Card variant="bordered" className="shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-lg font-bold text-[#292929] tracking-tight"
+          >
+            Tenant Fleet Management
+          </h3>
+          <Badge variant="lime">{totalCount} Organizations</Badge>
+        </div>
       </div>
 
       {isLoading ? (
-        <p style={{ color: '#777', padding: '1rem' }}>Loading tenants...</p>
+        <div className="text-center py-10 text-xs text-gray-400">Loading registered tenant organizations…</div>
       ) : !tenants || tenants.length === 0 ? (
-        <p style={{ color: '#777', fontStyle: 'italic', padding: '1rem' }}>No tenant organizations registered yet.</p>
+        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
+          No tenant organizations registered on this platform yet.
+        </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50/80 text-xs font-mono text-gray-500 uppercase tracking-wider border-b border-gray-200">
               <tr>
-                <th>Organization</th>
-                <th>Slug</th>
-                <th>Plan Tier</th>
-                <th>Members</th>
-                <th>Monthly Requests</th>
-                <th>Monthly Cost</th>
-                <th>Status</th>
+                <th className="px-5 py-3.5">Organization</th>
+                <th className="px-5 py-3.5">Slug</th>
+                <th className="px-5 py-3.5">Plan Tier</th>
+                <th className="px-5 py-3.5">Members</th>
+                <th className="px-5 py-3.5">Requests (Mo)</th>
+                <th className="px-5 py-3.5">Cost Incurred</th>
+                <th className="px-5 py-3.5 text-right">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100 bg-white">
               {tenants.map((t) => (
-                <tr key={t.id}>
-                  <td><strong>{t.name}</strong></td>
-                  <td><code>{t.slug}</code></td>
-                  <td>
-                    <span className="badge badge-active">{t.plan?.name || t.plan || 'Free'}</span>
+                <tr key={t.id} className="hover:bg-gray-50/80 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={16} className="text-gray-400 shrink-0" />
+                      <span className="font-semibold text-xs text-[#292929]">
+                        {t.name}
+                      </span>
+                    </div>
                   </td>
-                  <td>{t.member_count ?? 0}</td>
-                  <td>{Number(t.monthly_requests || 0).toLocaleString()}</td>
-                  <td>${Number(t.monthly_cost || 0).toFixed(4)}</td>
-                  <td>
-                    {t.is_active ? (
-                      <span className="badge badge-active">ACTIVE</span>
-                    ) : (
-                      <span className="badge" style={{ color: '#900' }}>SUSPENDED</span>
-                    )}
+
+                  <td className="px-5 py-3.5 font-mono text-xs text-gray-500">
+                    <code>{t.slug}</code>
+                  </td>
+
+                  <td className="px-5 py-3.5">
+                    <Badge variant="gray">{t.plan?.name || t.plan || 'Free'}</Badge>
+                  </td>
+
+                  <td className="px-5 py-3.5 text-xs font-mono text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Users size={12} className="text-gray-400" />
+                      <span>{t.member_count ?? 0}</span>
+                    </div>
+                  </td>
+
+                  <td className="px-5 py-3.5 font-mono text-xs text-gray-600">
+                    {Number(t.monthly_requests || 0).toLocaleString()}
+                  </td>
+
+                  <td className="px-5 py-3.5 font-mono text-xs text-emerald-700 font-semibold">
+                    ${Number(t.monthly_cost || 0).toFixed(4)}
+                  </td>
+
+                  <td className="px-5 py-3.5 text-right">
+                    <Badge variant={t.is_active ? 'green' : 'red'}>
+                      {t.is_active ? 'ACTIVE' : 'SUSPENDED'}
+                    </Badge>
                   </td>
                 </tr>
               ))}
@@ -59,27 +95,30 @@ export const TenantTable = ({
       )}
 
       {/* Pagination */}
-      <div className="pagination" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.85rem', color: '#666' }}>
-          Page {currentPage} of {totalPages}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-500 pt-2">
+        <span>
+          Showing page <strong className="text-[#292929]">{currentPage}</strong> of{' '}
+          <strong className="text-[#292929]">{totalPages}</strong>
         </span>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage <= 1 || isLoading}
             onClick={() => onPageChange(currentPage - 1)}
-            style={{ padding: '0.25rem 0.5rem' }}
           >
-            Previous
-          </button>
-          <button
+            ← Previous
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage >= totalPages || isLoading}
             onClick={() => onPageChange(currentPage + 1)}
-            style={{ padding: '0.25rem 0.5rem' }}
           >
-            Next
-          </button>
+            Next →
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

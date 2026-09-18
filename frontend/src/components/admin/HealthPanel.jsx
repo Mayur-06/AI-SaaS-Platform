@@ -1,14 +1,15 @@
 import React from 'react';
+import { Activity, RotateCw, Database, Server, Cpu } from 'lucide-react';
+import { Card } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 
 export const HealthPanel = ({ health, onRefresh, isLoading }) => {
   if (!health) {
     return (
-      <div className="card">
-        <div className="card-header">
-          <h3>Infrastructure & Provider Health</h3>
-        </div>
-        <p style={{ color: '#777' }}>Checking health status...</p>
-      </div>
+      <Card variant="bordered" className="text-center py-6 text-xs text-gray-500">
+        Inspecting infrastructure health status…
+      </Card>
     );
   }
 
@@ -19,98 +20,114 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
 
   const statusText = String(health.status || (isAllHealthy ? 'healthy' : 'degraded')).toUpperCase();
 
-  const providerEntries = Object.entries(health.providers || {}).filter(
-    ([key]) => key !== 'error' && key !== 'request_id'
-  );
-
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Infrastructure & Provider Health</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span
-            className="badge"
-            style={{
-              background: isAllHealthy ? '#f6ffed' : '#fff1f0',
-              color: isAllHealthy ? '#237804' : '#a8071a',
-              fontWeight: 600,
-            }}
-          >
+    <Card variant="bordered" className="shadow-sm space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#b2c147]/15 text-[#292929] flex items-center justify-center">
+            <Activity size={16} />
+          </div>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-lg font-bold text-[#292929] tracking-tight"
+            >
+              Infrastructure & Provider Health
+            </h3>
+            <p className="text-xs text-gray-500">
+              Live availability, latency telemetry, and connectivity probes
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Badge variant={isAllHealthy ? 'green' : 'red'}>
             STATUS: {statusText}
-          </span>
-          <button onClick={onRefresh} disabled={isLoading} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-            {isLoading ? 'Checking...' : 'Check Now'}
-          </button>
+          </Badge>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="flex items-center gap-1.5"
+          >
+            <RotateCw size={13} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+            <span>Check Now</span>
+          </Button>
         </div>
       </div>
 
-      <div className="grid-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Core Infrastructure */}
-        <div style={{ padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Core Infrastructure</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🐘 PostgreSQL (pgvector)</span>
-              <div>
-                <span
-                  className="badge"
-                  style={{
-                    background: health.database?.status === 'healthy' ? '#f6ffed' : '#fff1f0',
-                    color: health.database?.status === 'healthy' ? '#237804' : '#a8071a',
-                  }}
-                >
-                  {health.database?.status || 'unknown'}
-                </span>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 font-mono">
+            <Database size={13} className="text-gray-400" />
+            <span>Core Storage & Vector Engine</span>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            {/* PostgreSQL */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200/70">
+              <span className="font-semibold text-gray-700">🐘 PostgreSQL + pgvector</span>
+              <div className="flex items-center gap-2 font-mono">
                 {health.database?.latency_ms !== undefined && health.database?.latency_ms !== null && (
-                  <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{health.database.latency_ms}ms</span>
+                  <span className="text-gray-400">{health.database.latency_ms}ms</span>
                 )}
+                <Badge variant={health.database?.status === 'healthy' ? 'green' : 'red'}>
+                  {health.database?.status || 'unknown'}
+                </Badge>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>⚡ Redis (Cache & Rate Limiting)</span>
-              <div>
-                <span
-                  className="badge"
-                  style={{
-                    background: health.redis?.status === 'healthy' ? '#f6ffed' : '#fff1f0',
-                    color: health.redis?.status === 'healthy' ? '#237804' : '#a8071a',
-                  }}
-                >
-                  {health.redis?.status || 'unknown'}
-                </span>
+            {/* Redis */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200/70">
+              <span className="font-semibold text-gray-700">⚡ Redis (Semantic Cache & Rate Limits)</span>
+              <div className="flex items-center gap-2 font-mono">
                 {health.redis?.latency_ms !== undefined && health.redis?.latency_ms !== null && (
-                  <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{health.redis.latency_ms}ms</span>
+                  <span className="text-gray-400">{health.redis.latency_ms}ms</span>
                 )}
+                <Badge variant={health.redis?.status === 'healthy' ? 'green' : 'red'}>
+                  {health.redis?.status || 'unknown'}
+                </Badge>
               </div>
             </div>
           </div>
         </div>
 
         {/* AI LLM Providers */}
-        <div style={{ padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>LLM Providers & Models</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 font-mono">
+            <Cpu size={13} className="text-gray-400" />
+            <span>External LLM Providers</span>
+          </div>
+
+          <div className="space-y-2 text-xs">
             {health.providers && Object.keys(health.providers).length > 0 ? (
               Object.entries(health.providers).map(([name, p]) => (
-                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}</span>
-                  <div>
-                    <span className={`badge ${p.status === 'healthy' ? 'badge-active' : ''}`} style={{ color: p.status !== 'healthy' ? '#900' : undefined }}>
-                      {p.status || 'unknown'}
-                    </span>
+                <div
+                  key={name}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200/70"
+                >
+                  <span className="font-semibold text-gray-700 font-mono">
+                    {name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}
+                  </span>
+                  <div className="flex items-center gap-2 font-mono">
                     {p.latency_ms !== undefined && (
-                      <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{p.latency_ms}ms</span>
+                      <span className="text-gray-400">{p.latency_ms}ms</span>
                     )}
+                    <Badge variant={p.status === 'healthy' ? 'green' : 'red'}>
+                      {p.status || 'unknown'}
+                    </Badge>
                   </div>
                 </div>
               ))
             ) : (
-              <p style={{ color: '#777', fontStyle: 'italic' }}>No external providers configured</p>
+              <p className="text-gray-400 italic text-xs py-2">No external LLM providers configured</p>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

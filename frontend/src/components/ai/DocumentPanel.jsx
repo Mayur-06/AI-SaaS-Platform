@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import {
+  UploadCloud,
+  FileText,
+  RotateCw,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Layers,
+} from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
 import { extractErrorMessage } from '../../services/api';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { Input } from '../ui/Input';
 
 export const DocumentPanel = () => {
   const { role } = useAuthStore();
@@ -50,13 +64,16 @@ export const DocumentPanel = () => {
         file: file || undefined,
       });
 
-      setStatusMessage(`Document "${doc.title}" created. Now embedding chunks...`);
-      // Trigger automatic chunking & vector embedding
+      setStatusMessage(`Document "${doc.title}" created. Now embedding vector chunks...`);
       try {
         const procRes = await aiService.processDocument(doc.id, content);
-        setStatusMessage(`Document processed successfully! (${procRes.chunks_count || procRes.chunk_count || 0} vector chunks indexed)`);
+        setStatusMessage(
+          `Document processed successfully! (${
+            procRes.chunks_count || procRes.chunk_count || 0
+          } vector chunks indexed)`
+        );
       } catch (procErr) {
-        setStatusMessage(`Document created. Auto-processing queued or pending.`);
+        setStatusMessage('Document created. Auto-processing queued or pending.');
       }
 
       setTitle('');
@@ -100,113 +117,203 @@ export const DocumentPanel = () => {
   };
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Knowledge Base (RAG Documents)</h3>
-        <button onClick={fetchDocuments} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-          Refresh List
-        </button>
+    <Card variant="bordered" className="shadow-sm space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-gray-100 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-lg font-bold text-[#292929] tracking-tight"
+          >
+            Knowledge Base (RAG Documents)
+          </h3>
+          <Badge variant="lime">{documents.length} Indexed</Badge>
+        </div>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={fetchDocuments}
+          disabled={isLoading}
+          className="flex items-center gap-1.5"
+        >
+          <RotateCw size={13} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
-      {statusMessage && <div className="alert alert-success">{statusMessage}</div>}
-      {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
+      {/* Alerts */}
+      {statusMessage && (
+        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          <span>{statusMessage}</span>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* Add Document Form */}
       {canManageDocs ? (
-        <form onSubmit={handleCreateDocument} style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Add Knowledge Document</h4>
+        <form onSubmit={handleCreateDocument} className="p-4 sm:p-5 rounded-2xl bg-gray-50/70 border border-gray-200/80 space-y-4">
+          <h4
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-sm font-bold uppercase tracking-wider text-[#292929]"
+          >
+            Add Knowledge Document
+          </h4>
 
-          <div className="form-group">
-            <label htmlFor="doc-title">Document Title</label>
-            <input
-              id="doc-title"
-              type="text"
-              placeholder="e.g. Employee Handbook, Pricing Guide"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
+          <Input
+            label="Document Title"
+            placeholder="e.g. Q3 Financial Audit, Employee Handbook"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+
+          {/* File Upload Drop Area */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono">
+              Upload Document File (.pdf, .txt, .md)
+            </label>
+            <div className="relative border-2 border-dashed border-[#b2c147]/50 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-5 text-center transition-colors cursor-pointer group">
+              <input
+                type="file"
+                accept=".txt,.md,.pdf"
+                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                disabled={isLoading}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+                <UploadCloud size={24} className="text-[#292929] group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-semibold text-[#292929]">
+                  {file ? file.name : 'Click or drop file here'}
+                </span>
+                <span className="text-[11px] text-gray-400 font-mono">
+                  {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Supports PDF, TXT, and Markdown'}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="doc-content">Direct Text Content</label>
+          {/* Direct Text Alternative */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="doc-content"
+              className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
+            >
+              Or Paste Text Content
+            </label>
             <textarea
               id="doc-content"
               rows={3}
-              placeholder="Paste text content here..."
+              placeholder="Paste raw text, policies, or documentation here..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 text-[#292929]
+                         focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all resize-y"
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="doc-file">Or Upload File (.txt, .md, .pdf)</label>
-            <input
-              id="doc-file"
-              type="file"
-              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-            />
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={isLoading}>
-            {isLoading ? 'Uploading & Indexing...' : 'Add & Index Document'}
-          </button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isLoading || !title.trim() || (!content.trim() && !file)}
+            className="w-full py-2.5 text-sm"
+          >
+            {isLoading ? 'Indexing Chunks…' : 'Add & Index Document →'}
+          </Button>
         </form>
       ) : (
-        <p style={{ color: '#888', fontStyle: 'italic', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-          Document ingestion and index modifications are restricted to Members, Admins, and Owners. (Viewer: Read-Only)
-        </p>
+        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 italic">
+          Document ingestion and vector indexing require Member, Admin, or Owner permissions. (Viewer mode is active).
+        </div>
       )}
 
       {/* Documents List */}
       <div>
-        <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Indexed Documents ({documents.length})</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wider font-mono text-gray-500 mb-3">
+          Indexed Knowledge Documents
+        </h4>
+
         {documents.length === 0 ? (
-          <p style={{ color: '#777', fontStyle: 'italic' }}>No documents uploaded yet for this organization.</p>
+          <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
+            No documents uploaded yet for this organization.
+          </div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Chunks</th>
-                <th>Status</th>
-                <th>Created</th>
-                {canManageDocs && <th>Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((doc) => (
-                <tr key={doc.id}>
-                  <td><strong>{doc.title}</strong></td>
-                  <td><span className="badge">{doc.chunk_count} chunks</span></td>
-                  <td><span className="badge badge-active">{doc.status || 'ready'}</span></td>
-                  <td style={{ fontSize: '0.8rem' }}>{new Date(doc.created_at).toLocaleDateString()}</td>
-                  {canManageDocs && (
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button
-                          onClick={() => handleProcess(doc.id)}
-                          disabled={isProcessing === doc.id}
-                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                        >
-                          {isProcessing === doc.id ? 'Processing...' : 'Reprocess'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          className="btn-danger"
-                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                        >
-                          Delete
-                        </button>
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50/80 text-xs font-mono text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3">Document</th>
+                  <th className="px-4 py-3">Chunks</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Indexed</th>
+                  {canManageDocs && <th className="px-4 py-3 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {documents.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <FileText size={16} className="text-gray-400 shrink-0" />
+                        <span className="font-semibold text-xs text-[#292929] truncate max-w-[180px]">
+                          {doc.title}
+                        </span>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                        <Layers size={11} />
+                        {doc.chunk_count} chunks
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={doc.status === 'error' ? 'red' : 'green'}>
+                        {doc.status || 'ready'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </div>
+                    </td>
+                    {canManageDocs && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleProcess(doc.id)}
+                            disabled={isProcessing === doc.id}
+                            className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {isProcessing === doc.id ? 'Processing…' : 'Reprocess'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(doc.id)}
+                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete document"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };

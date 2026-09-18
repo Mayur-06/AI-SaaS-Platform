@@ -1,14 +1,54 @@
 import React from 'react';
+import { Card } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { ProgressBar } from '../ui/ProgressBar';
 
-export const KpiCard = ({ title, value, subtitle, badge }) => {
+export const KpiCard = ({
+  title,
+  value,
+  subtitle,
+  badge,
+  progress,
+}) => {
   return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-        <span style={{ fontSize: '0.85rem', color: '#555', fontWeight: 600 }}>{title}</span>
-        {badge && <span className="badge badge-active">{badge}</span>}
+    <Card
+      variant="bordered"
+      className="relative overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 flex flex-col justify-between"
+    >
+      {/* Top lime accent stripe */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-[#b2c147]" />
+
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
+            {title}
+          </span>
+          {badge && (
+            <Badge variant={badge === 'QUOTA ALERT' ? 'red' : 'lime'}>
+              {badge}
+            </Badge>
+          )}
+        </div>
+
+        <div
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-3xl font-bold text-[#292929] my-1.5 tracking-tight"
+        >
+          {value}
+        </div>
+
+        {progress !== undefined && (
+          <div className="my-2">
+            <ProgressBar value={progress.used} max={progress.max} size="sm" />
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: '0.25rem 0' }}>{value}</div>
-      {subtitle && <div style={{ fontSize: '0.8rem', color: '#666' }}>{subtitle}</div>}
-    </div>
+
+      {subtitle && (
+        <div className="text-xs text-gray-500 font-medium mt-1">
+          {subtitle}
+        </div>
+      )}
+    </Card>
   );
 };

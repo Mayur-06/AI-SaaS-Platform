@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Database, Sliders, Trash2, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { extractErrorMessage } from '../../services/api';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 
 export const CacheStats = ({ userRole }) => {
   const [stats, setStats] = useState(null);
@@ -59,44 +62,101 @@ export const CacheStats = ({ userRole }) => {
   };
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Semantic Cache Administration</h3>
-        <button onClick={fetchStats} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-          Refresh
-        </button>
+    <Card variant="bordered" className="shadow-sm space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-gray-100 flex-wrap gap-2">
+        <div>
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-lg font-bold text-[#292929] tracking-tight"
+          >
+            Semantic Cache Administration
+          </h3>
+          <p className="text-xs text-gray-500">
+            Configure cosine vector distance thresholds and manage cache invalidation
+          </p>
+        </div>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={fetchStats}
+          disabled={isLoading}
+          className="flex items-center gap-1.5"
+        >
+          <RotateCw size={13} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {/* Alerts */}
+      {message && (
+        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          <span>{message}</span>
+        </div>
+      )}
+      {error && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      <div className="grid-3" style={{ marginBottom: '1rem' }}>
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Active Cache Entries</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+      {/* 3 Metric Tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">
+            Active Cache Entries
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-[#292929]"
+          >
             {stats?.cache_entries_count ?? stats?.total_entries ?? 0}
           </div>
+          <div className="text-[11px] text-gray-400 font-mono">Retained in vector store</div>
         </div>
 
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Similarity Threshold</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">
+            Similarity Threshold
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-[#292929]"
+          >
             {threshold}
           </div>
+          <div className="text-[11px] text-gray-400 font-mono">Cosine similarity required</div>
         </div>
 
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Cache Engine</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Redis + pgvector</div>
-          <div style={{ fontSize: '0.75rem', color: '#777' }}>all-MiniLM-L6-v2 (384d)</div>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">
+            Engine Architecture
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-xl font-bold text-[#292929] truncate"
+          >
+            Redis + pgvector
+          </div>
+          <div className="text-[11px] text-gray-400 font-mono">all-MiniLM-L6-v2 (384d)</div>
         </div>
       </div>
 
+      {/* Admin Action Form */}
       {canManage && (
-        <div style={{ borderTop: '1px solid #eee', paddingTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <form onSubmit={handleSaveThreshold} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-            <div>
-              <label htmlFor="cache-threshold" style={{ fontSize: '0.85rem' }}>Update Match Threshold (0.80 - 0.99):</label>
+        <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <form onSubmit={handleSaveThreshold} className="flex items-end gap-2.5">
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="cache-threshold"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-600 font-mono flex items-center gap-1.5"
+              >
+                <Sliders size={13} className="text-gray-400" />
+                <span>Match Threshold (0.80 - 0.99)</span>
+              </label>
               <input
                 id="cache-threshold"
                 type="number"
@@ -105,19 +165,27 @@ export const CacheStats = ({ userRole }) => {
                 max="0.99"
                 value={threshold}
                 onChange={(e) => setThreshold(parseFloat(e.target.value))}
-                style={{ width: '120px', display: 'block', marginTop: '0.25rem' }}
+                className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
               />
             </div>
-            <button type="submit" disabled={isLoading}>
+            <Button type="submit" variant="secondary" size="md" disabled={isLoading}>
               Save Threshold
-            </button>
+            </Button>
           </form>
 
-          <button onClick={handleClearCache} className="btn-danger" disabled={isLoading}>
-            Purge Cache
-          </button>
+          <Button
+            type="button"
+            variant="danger"
+            size="md"
+            onClick={handleClearCache}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <Trash2 size={14} />
+            <span>Purge Cache</span>
+          </Button>
         </div>
       )}
-    </div>
+    </Card>
   );
 };
