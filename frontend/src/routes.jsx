@@ -13,6 +13,7 @@ import { BillingPage } from './pages/billing/BillingPage';
 import { APIKeysPage } from './pages/keys/APIKeysPage';
 import { OrganizationSettingsPage } from './pages/settings/OrganizationSettingsPage';
 import { AdminPage } from './pages/admin/AdminPage';
+import { LandingPage } from './pages/landing/LandingPage';
 
 // Route Guard: Authenticated user required
 const ProtectedRoute = ({ children }) => {
@@ -48,7 +49,7 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// Route Guard: Public only (redirect logged-in users away from /login)
+// Route Guard: Public only (redirect logged-in users away from /login or /)
 const PublicOnlyRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
 
@@ -66,6 +67,16 @@ const PublicOnlyRoute = ({ children }) => {
 export const AppRoutes = () => {
   return (
     <Routes>
+      {/* Public Landing Page */}
+      <Route
+        path="/"
+        element={
+          <PublicOnlyRoute>
+            <LandingPage />
+          </PublicOnlyRoute>
+        }
+      />
+
       {/* Public Auth Routes */}
       <Route
         path="/login"
@@ -88,21 +99,19 @@ export const AppRoutes = () => {
 
       {/* Protected App Routes under AppLayout */}
       <Route
-        path="/"
         element={
           <ProtectedRoute>
             <AppLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="ai" element={<AIQueryPage />} />
-        <Route path="billing" element={<BillingPage />} />
-        <Route path="keys" element={<APIKeysPage />} />
-        <Route path="settings" element={<OrganizationSettingsPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/ai" element={<AIQueryPage />} />
+        <Route path="/billing" element={<BillingPage />} />
+        <Route path="/keys" element={<APIKeysPage />} />
+        <Route path="/settings" element={<OrganizationSettingsPage />} />
         <Route
-          path="admin"
+          path="/admin"
           element={
             <AdminRoute>
               <AdminPage />
@@ -112,7 +121,7 @@ export const AppRoutes = () => {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
