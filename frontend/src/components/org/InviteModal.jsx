@@ -20,7 +20,7 @@ export const InviteModal = ({
     setError(null);
     try {
       const res = await onInvite(email.trim(), role);
-      const token = res.invitation?.token || res.token || '';
+      const token = res.raw_token || res.token || res.invitation?.token || '';
       const inviteUrl = token
         ? `${window.location.origin}/register?invite_token=${token}`
         : '';

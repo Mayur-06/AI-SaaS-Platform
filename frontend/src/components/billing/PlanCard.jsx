@@ -51,15 +51,22 @@ export const PlanCard = ({
           <button disabled style={{ width: '100%' }}>
             Active Plan
           </button>
-        ) : (
+        ) : canUpgrade ? (
           <button
             className="btn-primary"
             style={{ width: '100%' }}
             onClick={() => onUpgrade(plan.id)}
-            disabled={isLoading || !canUpgrade}
-            title={!canUpgrade ? 'Only Owner or Admin can change plans' : ''}
+            disabled={isLoading}
           >
             {isLoading ? 'Switching...' : `Switch to ${plan.name}`}
+          </button>
+        ) : (
+          <button
+            disabled
+            style={{ width: '100%', opacity: 0.6, cursor: 'not-allowed' }}
+            title="Only Owner or Admin can change plans"
+          >
+            Switch to {plan.name} (Admin Only)
           </button>
         )}
       </div>

@@ -24,8 +24,12 @@ export const LoginForm = () => {
     }
 
     try {
-      await login(email, password, rememberMe);
-      navigate('/dashboard');
+      const data = await login(email, password, rememberMe);
+      if (data?.user?.is_staff && !data?.organization) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       const msg =
         err.response?.data?.error ||

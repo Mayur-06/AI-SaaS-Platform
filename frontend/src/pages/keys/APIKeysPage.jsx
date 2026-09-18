@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { billingService } from '../../services/billingService';
 import { useAuthStore } from '../../store/authStore';
 import { KeyList } from '../../components/keys/KeyList';
@@ -7,7 +8,7 @@ import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
 import { extractErrorMessage } from '../../services/api';
 
 export const APIKeysPage = () => {
-  const { role } = useAuthStore();
+  const { role, user, organization } = useAuthStore();
   const [keys, setKeys] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -38,8 +39,10 @@ export const APIKeysPage = () => {
   };
 
   useEffect(() => {
-    fetchKeys(1);
-  }, []);
+    if (canManage && (organization || !user?.is_staff)) {
+      fetchKeys(1);
+    }
+  }, [organization, user, canManage]);
 
   const handleCreateKey = async (data) => {
     setIsLoading(true);
@@ -132,6 +135,40 @@ export const APIKeysPage = () => {
   };
 
   const totalPages = Math.ceil(totalCount / 20) || 1;
+
+  if (!organization && user?.is_staff) {
+    return (
+      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>🔑 Tenant API Keys Management</h2>
+        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
+          API keys are scoped to individual tenant organizations. You are currently logged in as a <strong>Platform Superadmin</strong> without a tenant organization context.
+        </p>
+        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+          To inspect tenant fleets, infrastructure health, or configure model routing, visit the Superadmin Console.
+        </p>
+        <Link to="/admin" className="btn-primary" style={{ display: 'inline-block', padding: '0.6rem 1.2rem', textDecoration: 'none' }}>
+          🛡️ Go to Platform Admin Panel
+        </Link>
+      </div>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>🔑 API Keys Management</h2>
+        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
+          Programmatic API keys allow administrative access to organization-wide AI endpoints, custom rate limits, and automated systems.
+        </p>
+        <div style={{ display: 'inline-block', marginBottom: '1.5rem', background: '#fff7e6', color: '#d46b08', border: '1px solid #ffd591', padding: '0.5rem 1rem', borderRadius: '4px', fontSize: '0.9rem' }}>
+          Role: <strong>{String(role || 'member').toUpperCase()}</strong> — Admin or Owner privileges required
+        </div>
+        <p style={{ color: '#888', fontSize: '0.85rem' }}>
+          Please contact your organization administrator or owner to create or inspect API credentials.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>

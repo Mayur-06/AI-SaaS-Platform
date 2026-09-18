@@ -6,8 +6,8 @@ from rest_framework.exceptions import APIException
 logger = logging.getLogger(__name__)
 
 RATE_LIMIT_LIMITS = {
-    "free": 60,
-    "pro": 120,
+    "free": 10,
+    "pro": 60,
     "enterprise": 300,
 }
 
@@ -44,7 +44,7 @@ class RateLimitMiddleware:
             if api_key:
                 effective_limit = api_key.rate_limit_override if api_key.rate_limit_override is not None else plan_limit
             else:
-                effective_limit = max(120, plan_limit)
+                effective_limit = plan_limit
         elif api_key:
             effective_limit = api_key.rate_limit_override or 60
         else:

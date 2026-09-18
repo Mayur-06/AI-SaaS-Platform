@@ -9,16 +9,28 @@ export const PlatformMetrics = ({ metrics }) => {
     );
   }
 
+  const requestsMonth = metrics.requests_month ?? metrics.requests_this_month ?? 0;
+  const requestsToday = metrics.requests_today ?? 0;
+  const platformCost = metrics.platform_cost ?? metrics.monthly_cost_estimate ?? 0;
+  const cacheHitRate = metrics.cache_hit_rate_percent ?? 0;
+
   return (
-    <div className="grid-4" style={{ marginBottom: '1rem' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+      }}
+    >
       <div className="card">
         <div style={{ fontSize: '0.8rem', color: '#666' }}>Total Organizations</div>
-        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{metrics.total_organizations}</div>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{metrics.total_organizations ?? 0}</div>
       </div>
 
       <div className="card">
         <div style={{ fontSize: '0.8rem', color: '#666' }}>Total Registered Users</div>
-        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{metrics.total_users}</div>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{metrics.total_users ?? 0}</div>
       </div>
 
       <div className="card">

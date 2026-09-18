@@ -42,10 +42,15 @@ class DocumentUploadSerializer(serializers.Serializer):
 
 
 class AIQuerySerializer(serializers.ModelSerializer):
+    total_tokens = serializers.SerializerMethodField()
+
     class Meta:
         model = AIQuery
-        fields = ["id", "query_text", "response_text", "model_used", "input_tokens", "output_tokens", "latency_ms", "estimated_cost", "cache_hit", "created_at"]
+        fields = ["id", "query_text", "response_text", "model_used", "input_tokens", "output_tokens", "total_tokens", "latency_ms", "estimated_cost", "cache_hit", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def get_total_tokens(self, obj):
+        return (obj.input_tokens or 0) + (obj.output_tokens or 0)
 
 
 class AIQueryRequestSerializer(serializers.Serializer):

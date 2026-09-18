@@ -41,9 +41,9 @@ export const TenantTable = ({
                   <td>
                     <span className="badge badge-active">{t.plan?.name || t.plan || 'Free'}</span>
                   </td>
-                  <td>{t.member_count}</td>
-                  <td>{t.monthly_requests?.toLocaleString?.() ?? t.monthly_requests}</td>
-                  <td>${Number(t.monthly_cost).toFixed(4)}</td>
+                  <td>{t.member_count ?? 0}</td>
+                  <td>{Number(t.monthly_requests || 0).toLocaleString()}</td>
+                  <td>${Number(t.monthly_cost || 0).toFixed(4)}</td>
                   <td>
                     {t.is_active ? (
                       <span className="badge badge-active">ACTIVE</span>

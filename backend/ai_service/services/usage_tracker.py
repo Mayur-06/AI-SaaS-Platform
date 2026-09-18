@@ -52,7 +52,8 @@ def log_usage(
             agg.total_cost = (agg.total_cost or Decimal("0")) + cost_dec
             if cache_hit:
                 agg.cache_hits = (agg.cache_hits or 0) + 1
-                agg.cache_savings = (agg.cache_savings or Decimal("0")) + cost_dec
+                saved_cost = Decimal(str(round(max(output_tokens, 30) * 0.000002, 6)))
+                agg.cache_savings = (agg.cache_savings or Decimal("0")) + saved_cost
             agg.save()
             return log
     except Exception as exc:

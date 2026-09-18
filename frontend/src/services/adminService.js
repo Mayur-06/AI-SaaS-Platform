@@ -22,4 +22,14 @@ export const adminService = {
     const response = await apiClient.get('/health/');
     return response.data;
   },
+
+  async getRouting() {
+    const response = await apiClient.get('/admin/routing/');
+    return response.data;
+  },
+
+  async updateRouting(data) {
+    const response = await apiClient.post('/admin/routing/', data);
+    return response.data;
+  },
 };

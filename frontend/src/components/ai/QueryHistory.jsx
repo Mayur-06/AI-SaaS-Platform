@@ -85,7 +85,7 @@ export const QueryHistory = ({ refreshTrigger }) => {
                       {item.query_text}
                     </td>
                     <td><span className="badge">{item.model_used}</span></td>
-                    <td>{item.total_tokens}</td>
+                    <td>{item.total_tokens ?? ((item.input_tokens || 0) + (item.output_tokens || 0))}</td>
                     <td>{item.latency_ms}ms</td>
                     <td>${Number(item.estimated_cost).toFixed(5)}</td>
                     <td>

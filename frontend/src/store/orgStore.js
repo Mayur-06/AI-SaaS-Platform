@@ -4,6 +4,7 @@ import { orgService } from '../services/orgService';
 export const useOrgStore = create((set, get) => ({
   organization: null,
   members: [],
+  invitations: [],
   isLoading: false,
   error: null,
 
@@ -23,6 +24,15 @@ export const useOrgStore = create((set, get) => ({
       set({ members });
     } catch (err) {
       set({ error: err.message || 'Failed to fetch members' });
+    }
+  },
+
+  fetchInvitations: async () => {
+    try {
+      const invitations = await orgService.getInvitations();
+      set({ invitations });
+    } catch (err) {
+      set({ error: err.message || 'Failed to fetch invitations' });
     }
   },
 
@@ -48,7 +58,14 @@ export const useOrgStore = create((set, get) => ({
   },
 
   inviteMember: async (email, role) => {
-    return await orgService.inviteMember({ email, role });
+    const res = await orgService.inviteMember({ email, role });
+    await get().fetchInvitations();
+    return res;
+  },
+
+  revokeInvitation: async (invitationId) => {
+    await orgService.revokeInvitation(invitationId);
+    await get().fetchInvitations();
   },
 
   transferOwnership: async (newOwnerId) => {
@@ -59,6 +76,6 @@ export const useOrgStore = create((set, get) => ({
 
   deleteOrg: async () => {
     await orgService.deleteOrg();
-    set({ organization: null, members: [] });
+    set({ organization: null, members: [], invitations: [] });
   },
 }));

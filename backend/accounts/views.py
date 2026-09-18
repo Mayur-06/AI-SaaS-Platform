@@ -39,15 +39,19 @@ class AuthRegisterView(APIView):
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
         refresh["user_id"] = str(user.id)
-        membership = user.memberships.filter(is_active=True).first()
+        membership = user.memberships.filter(is_active=True).select_related("organization", "organization__plan").first()
+        org_data = None
         if membership:
             refresh["org_id"] = str(membership.organization.id)
             refresh["role"] = membership.role
+            org_data = OrganizationSerializer(membership.organization).data
+            org_data["role"] = membership.role
         else:
             refresh["org_id"] = None
             refresh["role"] = None
         return Response({
             "user": UserSerializer(user).data,
+            "organization": org_data,
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }, status=status.HTTP_201_CREATED)
@@ -63,15 +67,19 @@ class AuthLoginView(APIView):
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
         refresh["user_id"] = str(user.id)
-        membership = user.memberships.filter(is_active=True).first()
+        membership = user.memberships.filter(is_active=True).select_related("organization", "organization__plan").first()
+        org_data = None
         if membership:
             refresh["org_id"] = str(membership.organization.id)
             refresh["role"] = membership.role
+            org_data = OrganizationSerializer(membership.organization).data
+            org_data["role"] = membership.role
         else:
             refresh["org_id"] = None
             refresh["role"] = None
         response = Response({
             "user": UserSerializer(user).data,
+            "organization": org_data,
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }, status=status.HTTP_200_OK)
@@ -156,7 +164,9 @@ class OrganizationView(APIView):
         if not membership:
             return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationSerializer(membership.organization)
-        return Response(serializer.data)
+        data = dict(serializer.data)
+        data["role"] = membership.role
+        return Response(data)
 
     @extend_schema(request=OrganizationSerializer, responses=OrganizationSerializer)
     def put(self, request):

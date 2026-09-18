@@ -2,22 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useOrgStore } from '../../store/orgStore';
 import { useAuthStore } from '../../store/authStore';
 import { MemberList } from '../../components/org/MemberList';
+import { InvitationList } from '../../components/org/InvitationList';
 import { InviteModal } from '../../components/org/InviteModal';
 import { OwnershipTransferModal } from '../../components/org/OwnershipTransferModal';
 import { extractErrorMessage } from '../../services/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export const OrganizationSettingsPage = () => {
   const { user, role, logout } = useAuthStore();
   const {
     organization,
     members,
+    invitations,
     fetchOrg,
     fetchMembers,
+    fetchInvitations,
     updateOrg,
     updateMemberRole,
     removeMember,
     inviteMember,
+    revokeInvitation,
     transferOwnership,
     deleteOrg,
     isLoading,
@@ -41,7 +45,10 @@ export const OrganizationSettingsPage = () => {
   useEffect(() => {
     fetchOrg();
     fetchMembers();
-  }, [fetchOrg, fetchMembers]);
+    if (canManage) {
+      fetchInvitations();
+    }
+  }, [fetchOrg, fetchMembers, fetchInvitations, canManage]);
 
   useEffect(() => {
     if (organization) {
@@ -87,6 +94,23 @@ export const OrganizationSettingsPage = () => {
       setErrorMsg(`Failed to delete organization: ${message}`);
     }
   };
+
+  if (!organization && user?.is_staff) {
+    return (
+      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>⚙️ Tenant Organization Settings</h2>
+        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
+          Organization profile, team invitations, and budget limits are scoped to tenant accounts. You are currently logged in as a <strong>Platform Superadmin</strong> without a tenant organization context.
+        </p>
+        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+          To manage all registered tenant organizations, view platform economics, or configure routing rules, visit the Superadmin Console.
+        </p>
+        <Link to="/admin" className="btn-primary" style={{ display: 'inline-block', padding: '0.6rem 1.2rem', textDecoration: 'none' }}>
+          🛡️ Go to Platform Admin Panel
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -186,6 +210,18 @@ export const OrganizationSettingsPage = () => {
           isLoading={isLoading}
         />
       </div>
+
+      {/* Pending Invitations */}
+      {canManage && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <InvitationList
+            invitations={invitations}
+            canManage={canManage}
+            onRevoke={revokeInvitation}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
 
       {/* Ownership Transfer & Danger Zone */}
       {isOwner && (

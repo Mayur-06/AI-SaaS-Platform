@@ -42,8 +42,15 @@ class BillingPlanView(APIView):
         org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = PlanSerializer(org.plan)
-        return Response(serializer.data)
+        serializer = PlanSerializer(org.plan) if org.plan else None
+        plans = Plan.objects.all().order_by("price")
+        data = {
+            "current_plan": serializer.data if serializer else None,
+            "plans": PlanSerializer(plans, many=True).data,
+        }
+        if serializer:
+            data.update(serializer.data)
+        return Response(data)
 
     @extend_schema(request={"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]}, responses=PlanSerializer)
     def post(self, request):
@@ -54,12 +61,20 @@ class BillingPlanView(APIView):
         if user and not user.memberships.filter(organization=org, role__in=["owner", "admin"], is_active=True).exists():
             return Response({"detail": "Insufficient permissions to change plan."}, status=status.HTTP_403_FORBIDDEN)
         new_plan_name = request.data.get("plan")
-        if not new_plan_name:
-            return Response({"detail": "plan is required."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            new_plan = Plan.objects.get(name=new_plan_name)
-        except Plan.DoesNotExist:
-            return Response({"detail": "Invalid plan."}, status=status.HTTP_400_BAD_REQUEST)
+        plan_id = request.data.get("plan_id")
+        new_plan = None
+        if plan_id:
+            try:
+                new_plan = Plan.objects.get(id=plan_id)
+            except (Plan.DoesNotExist, ValueError):
+                pass
+        if not new_plan and new_plan_name:
+            try:
+                new_plan = Plan.objects.get(name__iexact=new_plan_name)
+            except Plan.DoesNotExist:
+                pass
+        if not new_plan:
+            return Response({"detail": "Valid plan or plan_id is required."}, status=status.HTTP_400_BAD_REQUEST)
         org.plan = new_plan
         org.save(update_fields=["plan"])
         return Response(PlanSerializer(org.plan).data)
@@ -75,15 +90,26 @@ class BillingUpgradeView(APIView):
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         new_plan_name = request.data.get("plan")
-        if not new_plan_name:
-            return Response({"detail": "plan is required."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            new_plan = Plan.objects.get(name=new_plan_name)
-        except Plan.DoesNotExist:
-            return Response({"detail": "Invalid plan."}, status=status.HTTP_400_BAD_REQUEST)
+        plan_id = request.data.get("plan_id")
+        new_plan = None
+        if plan_id:
+            try:
+                new_plan = Plan.objects.get(id=plan_id)
+            except (Plan.DoesNotExist, ValueError):
+                pass
+        if not new_plan and new_plan_name:
+            try:
+                new_plan = Plan.objects.get(name__iexact=new_plan_name)
+            except Plan.DoesNotExist:
+                pass
+        if not new_plan:
+            return Response({"detail": "Valid plan or plan_id is required."}, status=status.HTTP_400_BAD_REQUEST)
         org.plan = new_plan
         org.save(update_fields=["plan"])
-        return Response(PlanSerializer(new_plan).data)
+        return Response({
+            "current_plan": PlanSerializer(new_plan).data,
+            **PlanSerializer(new_plan).data,
+        })
 
 
 class BillingUsageView(APIView):
@@ -104,12 +130,39 @@ class BillingUsageView(APIView):
         total_cost = month_logs.aggregate(total=Sum("estimated_cost"))["total"] or 0
         remaining = max(0, monthly_limit - requests_used)
         usage_percent = (requests_used / monthly_limit * 100) if monthly_limit > 0 else 0
-        budget_remaining = float(org.monthly_budget) - float(total_cost)
-        projected_spend = float(total_cost) * (30 / max(1, (now - month_start).days + 1)) * 30
+        budget_remaining = max(0.0, float(org.monthly_budget) - float(total_cost))
+        days_passed = max(1, (now - month_start).days + 1)
+        projected_spend = (float(total_cost) / days_passed) * 30
+
+        cache_hits = month_logs.filter(cache_hit=True).count()
+        cache_hit_rate = round((cache_hits / requests_used * 100), 2) if requests_used > 0 else 0
+        cache_savings = month_logs.filter(cache_hit=True).aggregate(total=Sum("estimated_cost"))["total"] or 0
+
+        # Calculate daily usage
+        from django.db.models import Count, F
+        daily_usage_qs = (
+            month_logs.values("timestamp__date")
+            .annotate(
+                requests=Count("id"),
+                tokens=Sum(F("input_tokens") + F("output_tokens")),
+                cost=Sum("estimated_cost"),
+            )
+            .order_by("timestamp__date")
+        )
+        daily_usage = [
+            {
+                "date": str(d["timestamp__date"]),
+                "requests": d["requests"],
+                "tokens": d["tokens"] or 0,
+                "cost": round(float(d["cost"] or 0), 4),
+            }
+            for d in daily_usage_qs
+        ]
 
         data = {
             "plan": PlanSerializer(plan).data if plan else None,
             "requests_used": requests_used,
+            "monthly_requests_used": requests_used,
             "monthly_limit": monthly_limit,
             "remaining": remaining,
             "usage_percent": round(usage_percent, 2),
@@ -119,6 +172,10 @@ class BillingUsageView(APIView):
             "budget_remaining": round(budget_remaining, 2),
             "projected_monthly_spend": round(projected_spend, 2),
             "budget_alert_threshold": float(org.budget_alert_threshold),
+            "cache_hits": cache_hits,
+            "cache_hit_rate": cache_hit_rate,
+            "cache_savings": round(float(cache_savings), 4),
+            "daily_usage": daily_usage,
         }
         response = Response(data)
         if usage_percent >= 80:
