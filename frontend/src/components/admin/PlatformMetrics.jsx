@@ -36,18 +36,7 @@ export const PlatformMetrics = ({ metrics }) => {
       <div className="card">
         <div style={{ fontSize: '0.8rem', color: '#666' }}>Requests (Month / Today)</div>
         <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-          {requestsMonth}{' '}
-          <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#888' }}>({requestsToday} today)</span>
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{ fontSize: '0.8rem', color: '#666' }}>Global Cache Hit Rate</div>
-        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0969da' }}>
-          {Number(cacheHitRate).toFixed(1)}%
-        </div>
-        <div style={{ fontSize: '0.75rem', color: '#888' }}>
-          Semantic vector cache efficiency
+          {metrics.requests_this_month ?? metrics.requests_month ?? 0} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#888' }}>({metrics.requests_today ?? 0} today)</span>
         </div>
       </div>
 
@@ -57,7 +46,7 @@ export const PlatformMetrics = ({ metrics }) => {
           ${Number(metrics.revenue_estimate || 0).toFixed(2)}
         </div>
         <div style={{ fontSize: '0.75rem', color: '#888' }}>
-          Platform Cost: ${Number(platformCost).toFixed(4)}
+          Platform Cost: ${Number(metrics.monthly_cost_estimate ?? metrics.platform_cost ?? 0).toFixed(4)}
         </div>
       </div>
     </div>

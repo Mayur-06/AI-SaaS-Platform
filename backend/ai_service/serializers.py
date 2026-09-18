@@ -81,6 +81,7 @@ class AIQueryResponseSerializer(serializers.Serializer):
     cache_hit = serializers.BooleanField()
     request_id = serializers.CharField()
     chunks_retrieved = serializers.IntegerField(required=False)
+    cited_chunks = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class CacheStatsSerializer(serializers.Serializer):

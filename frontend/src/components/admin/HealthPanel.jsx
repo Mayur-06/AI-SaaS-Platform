@@ -91,36 +91,22 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
         <div style={{ padding: '0.75rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
           <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>LLM Providers & Models</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            {providerEntries.length > 0 ? (
-              providerEntries.map(([name, item]) => {
-                const healthy = item?.status === 'healthy';
-                const icon = name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠';
-                return (
-                  <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{icon} {name}</span>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span
-                        className="badge"
-                        style={{
-                          background: healthy ? '#f6ffed' : '#fff1f0',
-                          color: healthy ? '#237804' : '#a8071a',
-                        }}
-                      >
-                        {item?.status || 'unknown'}
-                      </span>
-                      {item?.latency_ms !== undefined && item?.latency_ms !== null && (
-                        <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{item.latency_ms}ms</span>
-                      )}
-                    </div>
+            {health.providers && Object.keys(health.providers).length > 0 ? (
+              Object.entries(health.providers).map(([name, p]) => (
+                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}</span>
+                  <div>
+                    <span className={`badge ${p.status === 'healthy' ? 'badge-active' : ''}`} style={{ color: p.status !== 'healthy' ? '#900' : undefined }}>
+                      {p.status || 'unknown'}
+                    </span>
+                    {p.latency_ms !== undefined && (
+                      <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '6px' }}>{p.latency_ms}ms</span>
+                    )}
                   </div>
-                );
-              })
+                </div>
+              ))
             ) : (
               <p style={{ color: '#777', fontStyle: 'italic' }}>No external providers configured</p>
-            )}
-
-            {health.providers?.error && (
-              <p style={{ color: '#a8071a', fontSize: '0.8rem' }}>Error probing providers: {health.providers.error}</p>
             )}
           </div>
         </div>

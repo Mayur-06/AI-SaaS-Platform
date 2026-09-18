@@ -149,6 +149,15 @@ Question: {question}"""
             api_key=self.api_key,
         )
 
+        cited_chunks = [
+            {
+                "document_title": c.get("doc_id", "Document"),
+                "content": c.get("text", ""),
+                "score": round(float(c.get("score", 0)), 3),
+            }
+            for c in chunks
+        ]
+
         return {
             "answer": answer,
             "model": model,
@@ -160,6 +169,7 @@ Question: {question}"""
             "cache_hit": False,
             "request_id": request_id,
             "chunks_retrieved": len(chunks),
+            "cited_chunks": cited_chunks,
         }
 
     def query(self, question: str) -> Dict[str, Any]:
