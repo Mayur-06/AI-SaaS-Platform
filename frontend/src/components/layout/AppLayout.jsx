@@ -14,7 +14,6 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useBillingStore } from '../../store/billingStore';
 import { orgService } from '../../services/orgService';
-import { Badge } from '../ui/Badge';
 
 export const AppLayout = () => {
   const { user, organization, role, logout, setOrganization } = useAuthStore();
@@ -78,15 +77,14 @@ export const AppLayout = () => {
         </Link>
 
         {/* Org & Context Info */}
-        <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+        <div className="mt-4 pt-4 border-t border-white/5 space-y-1">
           {organization ? (
             <>
               <div className="text-xs font-semibold text-gray-300 truncate">
                 {organization.name}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="lime">{planName}</Badge>
-                <Badge variant="gray">{role || 'member'}</Badge>
+              <div className="text-[11px] text-gray-400 capitalize">
+                {planName} Plan
               </div>
             </>
           ) : user?.is_staff ? (
@@ -94,8 +92,8 @@ export const AppLayout = () => {
               <div className="text-xs font-semibold text-gray-300">
                 Superadmin Mode
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="purple">PLATFORM ADMIN</Badge>
+              <div className="text-[11px] text-purple-400 font-mono">
+                Platform Admin
               </div>
             </>
           ) : (
@@ -103,9 +101,8 @@ export const AppLayout = () => {
               <div className="text-xs font-semibold text-gray-300 truncate">
                 My Organization
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="lime">{planName}</Badge>
-                <Badge variant="gray">{role || 'member'}</Badge>
+              <div className="text-[11px] text-gray-400 capitalize">
+                {planName} Plan
               </div>
             </>
           )}

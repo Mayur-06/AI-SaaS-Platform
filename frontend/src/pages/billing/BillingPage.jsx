@@ -6,7 +6,6 @@ import { useAuthStore } from '../../store/authStore';
 import { PlanCard } from '../../components/billing/PlanCard';
 import { UsageBreakdown } from '../../components/billing/UsageBreakdown';
 import { CostSummary } from '../../components/billing/CostSummary';
-import { CacheStats } from '../../components/billing/CacheStats';
 import { InvoicesTable } from '../../components/billing/InvoicesTable';
 import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
@@ -156,9 +155,6 @@ export const BillingPage = () => {
           ))}
         </div>
       </div>
-
-      {/* Semantic Cache Administration */}
-      <CacheStats userRole={role} />
 
       {/* Invoices */}
       <InvoicesTable invoices={invoices} />

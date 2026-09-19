@@ -5,7 +5,6 @@ import { useBillingStore } from '../../store/billingStore';
 import { useAuthStore } from '../../store/authStore';
 import { KpiCard } from '../../components/dashboard/KpiCard';
 import { UsageChart } from '../../components/dashboard/UsageChart';
-import { QuickActions } from '../../components/dashboard/QuickActions';
 import { Button } from '../../components/ui/Button';
 
 export const DashboardPage = () => {
@@ -119,9 +118,6 @@ export const DashboardPage = () => {
           subtitle={`Budget remaining: $${Number(usage?.budget_remaining || 0).toFixed(2)}`}
         />
       </div>
-
-      {/* Quick AI Query Widget */}
-      <QuickActions onQueryComplete={() => fetchBillingData()} />
 
       {/* 30-Day Usage Trend & Breakdown */}
       <UsageChart data={usage?.daily_usage || []} />

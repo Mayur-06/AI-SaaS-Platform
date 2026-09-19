@@ -23,7 +23,6 @@ export const MemberList = ({
           >
             Team Members
           </h3>
-          <Badge variant="lime">{(members || []).length} Active</Badge>
         </div>
       </div>
 

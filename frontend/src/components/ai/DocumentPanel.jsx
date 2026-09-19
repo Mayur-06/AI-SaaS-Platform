@@ -147,10 +147,9 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
           <div>
             <h3
               style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-              className="text-base font-bold text-[#292929] tracking-tight flex items-center gap-1.5"
+              className="text-base font-bold text-[#292929] tracking-tight"
             >
-              <span>Knowledge Base</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" title="Connected to AI" />
+              Knowledge Base
             </h3>
             <p className="text-[11px] text-gray-500">
               {documents.length} {documents.length === 1 ? 'doc' : 'docs'} • {totalChunks} chunks grounded in AI queries

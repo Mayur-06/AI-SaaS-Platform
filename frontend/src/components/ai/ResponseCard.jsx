@@ -106,10 +106,7 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
   }
 
   return (
-    <Card variant="dark" className="border border-white/10 shadow-xl relative overflow-hidden">
-      {/* Subtle lime ambient light */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-[#b2c147]/5 rounded-full blur-3xl pointer-events-none -z-10" />
-
+    <Card variant="dark" className="border border-white/10 shadow-xl">
       {/* Header Bar with Badges */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -137,10 +134,10 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
             </Badge>
           )}
           <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
-            {data.cache_hit ? '⚡ CACHE HIT' : '🔄 LIVE LLM'}
+            {data.cache_hit ? 'CACHE HIT' : 'LIVE LLM'}
           </Badge>
           <span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/5">
-            ⏱️ {data.latency_ms ?? 0} ms
+            {data.latency_ms ?? 0} ms
           </span>
           <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold border border-[#b2c147]/20">
             ${Number(data.estimated_cost || 0).toFixed(5)}

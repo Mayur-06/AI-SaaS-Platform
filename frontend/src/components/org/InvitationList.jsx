@@ -21,7 +21,6 @@ export const InvitationList = ({
           >
             Pending Invitations
           </h3>
-          <Badge variant="lime">{pendingInvites.length} Pending</Badge>
         </div>
       </div>
 

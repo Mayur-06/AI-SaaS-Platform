@@ -45,10 +45,7 @@ export const QueryInput = ({
   };
 
   return (
-    <Card variant="bordered" className="shadow-sm relative overflow-hidden">
-      {/* Subtle accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-[#b2c147]" />
-
+    <Card variant="bordered" className="shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
         <div>
