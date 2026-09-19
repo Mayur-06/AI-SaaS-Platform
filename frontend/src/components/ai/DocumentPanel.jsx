@@ -31,6 +31,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '../ui/AlertDialog';
+import { ScrollArea } from '../ui/ScrollArea';
+import { SimpleTooltip } from '../ui/Tooltip';
 
 export const DocumentPanel = ({ onDocumentsChange }) => {
   const { role } = useAuthStore();
@@ -318,66 +320,70 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
             <p className="text-[11px]">Upload a document above to connect it to your AI query assistant.</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
-              >
-                {/* Left: Icon, Title, Date */}
-                <div className="min-w-0 flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <FileText size={15} />
+          <ScrollArea className="h-[360px] pr-2">
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
+                >
+                  {/* Left: Icon, Title, Date */}
+                  <div className="min-w-0 flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <FileText size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
+                        {doc.title}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
+                        <span className="flex items-center gap-0.5">
+                          <Clock size={10} />
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
+                          <Layers size={9} />
+                          {doc.chunk_count ?? 0} chunks
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
-                      {doc.title}
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
-                      <span className="flex items-center gap-0.5">
-                        <Clock size={10} />
-                        {new Date(doc.created_at).toLocaleDateString()}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
-                        <Layers size={9} />
-                        {doc.chunk_count ?? 0} chunks
-                      </span>
-                    </div>
+
+                  {/* Right: Status badge & Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
+                      {doc.status || 'ready'}
+                    </Badge>
+
+                    {canManageDocs && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <SimpleTooltip content="Re-index into vector chunks">
+                          <button
+                            type="button"
+                            onClick={() => handleProcess(doc.id)}
+                            disabled={isProcessing === doc.id}
+                            className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+                          >
+                            {isProcessing === doc.id ? '…' : 'Sync'}
+                          </button>
+                        </SimpleTooltip>
+                        <SimpleTooltip content="Remove document from knowledge base">
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteDoc({ id: doc.id, title: doc.title })}
+                            className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </SimpleTooltip>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Right: Status badge & Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
-                    {doc.status || 'ready'}
-                  </Badge>
-
-                  {canManageDocs && (
-                    <div className="flex items-center gap-1 ml-1">
-                      <button
-                        type="button"
-                        onClick={() => handleProcess(doc.id)}
-                        disabled={isProcessing === doc.id}
-                        className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
-                        title="Re-index vector chunks"
-                      >
-                        {isProcessing === doc.id ? '…' : 'Sync'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDeleteDoc({ id: doc.id, title: doc.title })}
-                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
-                        title="Delete document"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </div>
 

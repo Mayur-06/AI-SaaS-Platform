@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RotateCw, CheckCircle2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { RotateCw, ShieldAlert, CreditCard, Activity, Receipt, Database } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBillingStore } from '../../store/billingStore';
 import { useAuthStore } from '../../store/authStore';
 import { PlanCard } from '../../components/billing/PlanCard';
 import { UsageBreakdown } from '../../components/billing/UsageBreakdown';
 import { CostSummary } from '../../components/billing/CostSummary';
 import { InvoicesTable } from '../../components/billing/InvoicesTable';
+import { CacheStats } from '../../components/billing/CacheStats';
 import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
 
 export const BillingPage = () => {
   const { role, user, organization } = useAuthStore();
@@ -23,8 +26,6 @@ export const BillingPage = () => {
     isLoading,
   } = useBillingStore();
 
-  const [upgradeMessage, setUpgradeMessage] = useState(null);
-  const [upgradeError, setUpgradeError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -35,19 +36,23 @@ export const BillingPage = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchBillingData(true);
-    setRefreshing(false);
+    try {
+      await fetchBillingData(true);
+      toast.success('Telemetry and quota metrics refreshed.');
+    } catch {
+      toast.error('Failed to refresh telemetry.');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleUpgrade = async (planId) => {
-    setUpgradeMessage(null);
-    setUpgradeError(null);
     try {
       await upgradePlan(planId);
-      setUpgradeMessage('Plan upgraded successfully! New limits and rates are now active.');
+      toast.success('Plan upgraded successfully! New limits and rates are now active.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setUpgradeError(message || 'Failed to upgrade plan.');
+      toast.error(message || 'Failed to upgrade plan.');
     }
   };
 
@@ -78,7 +83,7 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
@@ -108,56 +113,71 @@ export const BillingPage = () => {
         </Button>
       </div>
 
-      {/* Upgrade Notifications */}
-      {upgradeMessage && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-          <span>{upgradeMessage}</span>
-        </div>
-      )}
-      {upgradeError && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
-          <span>{upgradeError}</span>
-        </div>
-      )}
+      {/* Tabs Navigation */}
+      <Tabs defaultValue="plans" className="space-y-6">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+          <TabsTrigger value="plans" className="flex items-center gap-1.5">
+            <CreditCard size={13} />
+            <span>Plans</span>
+          </TabsTrigger>
+          <TabsTrigger value="usage" className="flex items-center gap-1.5">
+            <Activity size={13} />
+            <span>Usage &amp; Cost</span>
+          </TabsTrigger>
+          <TabsTrigger value="invoices" className="flex items-center gap-1.5">
+            <Receipt size={13} />
+            <span>Invoices</span>
+          </TabsTrigger>
+          <TabsTrigger value="cache" className="flex items-center gap-1.5">
+            <Database size={13} />
+            <span>Cache Admin</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Quota & Usage Progress */}
-      <UsageBreakdown usage={usage} />
+        {/* Tab 1: Plans */}
+        <TabsContent value="plans" className="space-y-4">
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-xl font-bold text-[#292929] tracking-tight"
+            >
+              Available Subscription Tiers
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Switch plans to immediately expand monthly request volume and cache retention
+            </p>
+          </div>
 
-      {/* Cost & Cache Efficiency */}
-      <CostSummary usage={usage} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            {availablePlans.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                isCurrent={currentPlan?.id === plan.id || currentPlan?.name === plan.name}
+                onUpgrade={handleUpgrade}
+                isLoading={isLoading}
+                userRole={role}
+              />
+            ))}
+          </div>
+        </TabsContent>
 
-      {/* Subscription Plans Comparison */}
-      <div className="space-y-4">
-        <div>
-          <h3
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-xl font-bold text-[#292929] tracking-tight"
-          >
-            Available Subscription Tiers
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Switch plans to immediately expand monthly request volume and cache retention
-          </p>
-        </div>
+        {/* Tab 2: Usage & Cost */}
+        <TabsContent value="usage" className="space-y-6">
+          <UsageBreakdown usage={usage} />
+          <CostSummary usage={usage} />
+        </TabsContent>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-          {availablePlans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              isCurrent={currentPlan?.id === plan.id || currentPlan?.name === plan.name}
-              onUpgrade={handleUpgrade}
-              isLoading={isLoading}
-              userRole={role}
-            />
-          ))}
-        </div>
-      </div>
+        {/* Tab 3: Invoices */}
+        <TabsContent value="invoices" className="space-y-4">
+          <InvoicesTable invoices={invoices} />
+        </TabsContent>
 
-      {/* Invoices */}
-      <InvoicesTable invoices={invoices} />
+        {/* Tab 4: Semantic Cache Admin */}
+        <TabsContent value="cache" className="space-y-4">
+          <CacheStats userRole={role} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

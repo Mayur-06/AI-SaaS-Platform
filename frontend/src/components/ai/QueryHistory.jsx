@@ -12,6 +12,8 @@ import { aiService } from '../../services/aiService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { ScrollArea } from '../ui/ScrollArea';
+import { SimpleTooltip } from '../ui/Tooltip';
 
 export const QueryHistory = ({
   selectedId,
@@ -100,14 +102,93 @@ export const QueryHistory = ({
           <p className="font-medium text-gray-600 mb-0.5">No queries yet</p>
           <p className="text-[11px]">Type a question in the input box above to start.</p>
         </div>
+      ) : isSidebar ? (
+        <ScrollArea className="h-[580px] pr-2">
+          <div className="space-y-2.5">
+            {history.map((item, index) => {
+              const isSelected = selectedId === item.id;
+              const totalTokens =
+                item.total_tokens ??
+                ((item.input_tokens || 0) + (item.output_tokens || 0));
+
+              return (
+                <div
+                  key={item.id || index}
+                  onClick={() => onSelectQuery && onSelectQuery(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (onSelectQuery) onSelectQuery(item);
+                    }
+                  }}
+                  className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer group relative ${
+                    isSelected
+                      ? 'border-[#b2c147] bg-[#b2c147]/10 ring-2 ring-[#b2c147]/30 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-[#b2c147]/60 hover:bg-gray-50/70'
+                  }`}
+                >
+                  {/* Top Row: Index, Timestamp & Selection State */}
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-gray-400 font-mono mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-gray-500">#{index + 1}</span>
+                      <Clock size={11} className="text-gray-400" />
+                      <span>{formatTimestamp(item.created_at)}</span>
+                    </div>
+
+                    {isSelected ? (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                        <CheckCircle2 size={11} />
+                        <span>Viewing</span>
+                      </span>
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-gray-400 flex items-center gap-0.5">
+                        <span>Re-view</span>
+                        <ArrowRight size={10} />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Prompt Preview */}
+                  <div className="text-xs font-medium text-[#292929] line-clamp-2 mb-2 leading-relaxed">
+                    {item.query_text}
+                  </div>
+
+                  {/* Bottom Row: Model, Cache Badge, Tokens, Reuse */}
+                  <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-gray-100 text-[10px] font-mono text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Badge variant={item.cache_hit ? 'lime' : 'gray'} className="text-[9px] px-1.5 py-0">
+                        {item.cache_hit ? 'CACHE' : 'LLM'}
+                      </Badge>
+                      <span className="text-gray-400">{item.model_used || 'auto'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">{totalTokens} tok</span>
+                      {onReusePrompt && (
+                        <SimpleTooltip content="Load into prompt box">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReusePrompt(item.query_text);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#292929] p-1 rounded hover:bg-gray-200 transition-all cursor-pointer"
+                          >
+                            <CornerDownLeft size={11} />
+                          </button>
+                        </SimpleTooltip>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
       ) : (
-        <div
-          className={
-            isSidebar
-              ? 'space-y-2.5 max-h-[640px] overflow-y-auto pr-1'
-              : 'grid grid-cols-1 sm:grid-cols-2 gap-3'
-          }
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {history.map((item, index) => {
             const isSelected = selectedId === item.id;
             const totalTokens =
@@ -132,63 +213,27 @@ export const QueryHistory = ({
                     : 'border-gray-200 bg-white hover:border-[#b2c147]/60 hover:bg-gray-50/70'
                 }`}
               >
-                {/* Top Row: Index, Timestamp & Selection State */}
                 <div className="flex items-center justify-between gap-2 text-[11px] text-gray-400 font-mono mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-gray-500">#{index + 1}</span>
                     <Clock size={11} className="text-gray-400" />
                     <span>{formatTimestamp(item.created_at)}</span>
                   </div>
-
-                  {isSelected ? (
+                  {isSelected && (
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
                       <CheckCircle2 size={11} />
                       <span>Viewing</span>
                     </span>
-                  ) : (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-gray-400 flex items-center gap-0.5">
-                      <span>Re-view</span>
-                      <ArrowRight size={10} />
-                    </span>
                   )}
                 </div>
-
-                {/* Prompt Preview */}
                 <div className="text-xs font-medium text-[#292929] line-clamp-2 mb-2 leading-relaxed">
                   {item.query_text}
                 </div>
-
-                {/* Bottom Badges Row */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-                  <Badge variant="gray" className="text-[10px] px-1.5 py-0">
-                    {item.model_used || 'gemini'}
+                <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-gray-100 text-[10px] font-mono text-gray-500">
+                  <Badge variant={item.cache_hit ? 'lime' : 'gray'} className="text-[9px] px-1.5 py-0">
+                    {item.cache_hit ? 'CACHE' : 'LLM'}
                   </Badge>
-
-                  <Badge variant={item.cache_hit ? 'lime' : 'gray'} className="text-[10px] px-1.5 py-0">
-                    {item.cache_hit ? '⚡ HIT' : 'MISS'}
-                  </Badge>
-
-                  <span className="text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                    {item.latency_ms ?? 0}ms
-                  </span>
-
-                  <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
-                    ${Number(item.estimated_cost || 0).toFixed(4)}
-                  </span>
-
-                  {onReusePrompt && (
-                    <button
-                      type="button"
-                      title="Load prompt into input box"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReusePrompt(item.query_text);
-                      }}
-                      className="ml-auto opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#292929] p-1 rounded hover:bg-gray-200 transition-all cursor-pointer"
-                    >
-                      <CornerDownLeft size={11} />
-                    </button>
-                  )}
+                  <span>{totalTokens} tok</span>
                 </div>
               </div>
             );

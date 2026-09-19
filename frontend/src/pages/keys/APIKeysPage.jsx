@@ -7,9 +7,11 @@ import { useAuthStore } from '../../store/authStore';
 import { KeyList } from '../../components/keys/KeyList';
 import { CreateKeyModal } from '../../components/keys/CreateKeyModal';
 import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
-import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { SimpleTooltip } from '../../components/ui/Tooltip';
+import { Copy, Terminal, Code, Check } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -35,6 +37,14 @@ export const APIKeysPage = () => {
   // AlertDialog states
   const [pendingRevoke, setPendingRevoke] = useState(null);     // keyId
   const [pendingRegenerate, setPendingRegenerate] = useState(null); // keyId
+  const [copiedSnippet, setCopiedSnippet] = useState(null);
+
+  const copySnippet = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippet(key);
+    toast.success('Code snippet copied to clipboard.');
+    setTimeout(() => setCopiedSnippet(null), 2000);
+  };
 
   const canManage = role === 'owner' || role === 'admin';
 
@@ -249,6 +259,132 @@ export const APIKeysPage = () => {
           </Button>
         </div>
       </div>
+
+      {/* Integration Quickstart Tabs */}
+      <Card variant="bordered" className="shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#b2c147]/20 text-[#292929] flex items-center justify-center font-bold">
+              <Code size={16} />
+            </div>
+            <div>
+              <h3
+                style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+                className="text-base font-bold text-[#292929] tracking-tight"
+              >
+                Developer Quickstart &amp; Code Samples
+              </h3>
+              <p className="text-xs text-gray-500">
+                Authenticate programmatic LLM queries using the <code className="font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">X-API-Key</code> HTTP header
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="curl" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="curl" className="flex items-center gap-1.5">
+                <Terminal size={12} />
+                <span>cURL</span>
+              </TabsTrigger>
+              <TabsTrigger value="python" className="flex items-center gap-1.5">
+                <Code size={12} />
+                <span>Python</span>
+              </TabsTrigger>
+              <TabsTrigger value="node" className="flex items-center gap-1.5">
+                <Code size={12} />
+                <span>Node.js / Fetch</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="curl">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy cURL snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `curl -X POST "${window.location.origin}/api/ai/query/" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -d '{"prompt": "What are our enterprise refund terms?"}'`,
+                      'curl'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'curl' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`curl -X POST "${window.location.origin}/api/ai/query/" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -d '{"prompt": "What are our enterprise refund terms?"}'`}
+              </pre>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="python">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy Python snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `import requests\n\nresponse = requests.post(\n    "${window.location.origin}/api/ai/query/",\n    headers={"X-API-Key": "YOUR_API_KEY", "Content-Type": "application/json"},\n    json={"prompt": "What are our enterprise refund terms?"}\n)\nprint(response.json()["response"])`,
+                      'python'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'python' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`import requests
+
+response = requests.post(
+    "${window.location.origin}/api/ai/query/",
+    headers={"X-API-Key": "YOUR_API_KEY", "Content-Type": "application/json"},
+    json={"prompt": "What are our enterprise refund terms?"}
+)
+print(response.json()["response"])`}
+              </pre>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="node">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy Node.js snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `const response = await fetch("${window.location.origin}/api/ai/query/", {\n  method: "POST",\n  headers: {\n    "X-API-Key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({ prompt: "What are our enterprise refund terms?" }),\n});\nconst data = await response.json();\nconsole.log(data.response);`,
+                      'node'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'node' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`const response = await fetch("${window.location.origin}/api/ai/query/", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt: "What are our enterprise refund terms?" }),
+});
+const data = await response.json();
+console.log(data.response);`}
+              </pre>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </Card>
 
       {/* Create Modal */}
       <CreateKeyModal

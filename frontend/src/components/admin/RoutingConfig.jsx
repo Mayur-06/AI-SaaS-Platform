@@ -13,6 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from '../ui/Select';
+import { Switch } from '../ui/Switch';
 
 export const RoutingConfig = () => {
   const [plans, setPlans] = useState([]);
@@ -224,21 +225,23 @@ export const RoutingConfig = () => {
                         .map((m) => {
                           const checked = (currentEdit.fallbackModelIds || []).includes(m.id);
                           return (
-                            <label
+                            <div
                               key={m.id}
-                              className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
+                              className="flex items-center gap-2.5 text-xs text-gray-700 py-0.5"
                             >
-                              <input
-                                type="checkbox"
+                              <Switch
+                                id={`fallback-${planName}-${m.id}`}
                                 checked={checked}
-                                onChange={() => handleFallbackToggle(planName, m.id)}
+                                onCheckedChange={() => handleFallbackToggle(planName, m.id)}
                                 disabled={isLoading || isSaving}
-                                className="w-3.5 h-3.5 rounded border-gray-300 accent-[#b2c147]"
                               />
-                              <span>
+                              <label
+                                htmlFor={`fallback-${planName}-${m.id}`}
+                                className="cursor-pointer font-medium text-xs text-[#292929]"
+                              >
                                 {m.name} <span className="text-gray-400 font-mono text-[10px]">({m.provider})</span>
-                              </span>
-                            </label>
+                              </label>
+                            </div>
                           );
                         })}
                     </div>
