@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Sliders, Trash2, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Database, Sliders, Trash2, RotateCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { aiService } from '../../services/aiService';
 import { extractErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../ui/AlertDialog';
 
 export const CacheStats = ({ userRole }) => {
   const [stats, setStats] = useState(null);
   const [threshold, setThreshold] = useState(0.95);
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
 
   const canManage = userRole === 'owner' || userRole === 'admin';
 
@@ -35,29 +46,24 @@ export const CacheStats = ({ userRole }) => {
   }, []);
 
   const handleClearCache = async () => {
-    if (!confirm('Clear all cached AI query responses for this organization?')) return;
-    setError(null);
-    setMessage(null);
     try {
       const res = await aiService.clearCache();
-      setMessage(res.message || 'Semantic cache cleared successfully.');
+      toast.success(res.message || 'Semantic cache purged successfully.');
       await fetchStats();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to clear cache: ${message}`);
+      toast.error(`Failed to clear cache: ${message}`);
     }
   };
 
   const handleSaveThreshold = async (e) => {
     e.preventDefault();
-    setError(null);
-    setMessage(null);
     try {
       const res = await aiService.updateCacheThreshold(Number(threshold));
-      setMessage(`Similarity threshold updated to ${res.threshold}.`);
+      toast.success(`Similarity threshold updated to ${res.threshold}.`);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to update threshold: ${message}`);
+      toast.error(`Failed to update threshold: ${message}`);
     }
   };
 
@@ -88,20 +94,6 @@ export const CacheStats = ({ userRole }) => {
           <span>Refresh</span>
         </Button>
       </div>
-
-      {/* Alerts */}
-      {message && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-          <span>{message}</span>
-        </div>
-      )}
-      {error && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
 
       {/* 3 Metric Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -173,17 +165,34 @@ export const CacheStats = ({ userRole }) => {
             </Button>
           </form>
 
-          <Button
-            type="button"
-            variant="danger"
-            size="md"
-            onClick={handleClearCache}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Trash2 size={14} />
-            <span>Purge Cache</span>
-          </Button>
+          <AlertDialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="danger"
+                size="md"
+                disabled={isLoading}
+                className="flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Trash2 size={14} />
+                <span>Purge Cache</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Purge Semantic Cache?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will clear all cached query-response pairs and invalidate all Redis and pgvector cache entries for this organization. Future identical queries will require full model inference.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction variant="danger" onClick={handleClearCache}>
+                  Yes, purge cache
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </Card>

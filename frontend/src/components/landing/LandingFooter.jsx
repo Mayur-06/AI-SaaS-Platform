@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 
 export const LandingFooter = () => {
   return (
-    <footer className="bg-[#292929] text-white border-t border-white/10 pt-16 pb-12">
+    <footer className="bg-[#292929] text-white border-t border-white/10 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Main Footer Content */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 pb-12 border-b border-white/10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
           
           {/* Brand Column */}
           <div className="col-span-2 space-y-4">
@@ -22,10 +22,6 @@ export const LandingFooter = () => {
             <p className="text-sm text-gray-400 max-w-sm leading-relaxed">
               Transform overwhelming reports, research papers, and company documentation into clear, grounded answers.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
-              <span className="w-2 h-2 rounded-full bg-[#b2c147] animate-pulse" />
-              <span>All Systems Operational</span>
-            </div>
           </div>
 
           {/* Product Links */}
@@ -110,16 +106,6 @@ export const LandingFooter = () => {
             </ul>
           </div>
 
-        </div>
-
-        {/* Copyright Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
-          <p>© 2026 Hapy Inc. All rights reserved.</p>
-          <div className="flex items-center gap-6">
-            <span className="hover:text-gray-400 cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-gray-400 cursor-pointer transition-colors">Terms of Service</span>
-            <span className="hover:text-gray-400 cursor-pointer transition-colors">Security</span>
-          </div>
         </div>
 
       </div>

@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
-import { Key, Calendar, Clock, RefreshCw, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Key, Calendar, Clock, RefreshCw, Trash2, Edit2, Check, X, MoreHorizontal } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../ui/Select';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '../ui/DropdownMenu';
 
 export const KeyList = ({
   keys,
@@ -91,15 +106,16 @@ export const KeyList = ({
 
                 <td className="px-5 py-3.5">
                   {editingId === k.id ? (
-                    <select
-                      value={editPerm}
-                      onChange={(e) => setEditPerm(e.target.value)}
-                      className="px-2 py-1 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
-                    >
-                      <option value="write">write</option>
-                      <option value="read">read</option>
-                      <option value="admin">admin</option>
-                    </select>
+                    <Select value={editPerm} onValueChange={setEditPerm}>
+                      <SelectTrigger className="h-7 text-xs w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="write">write</SelectItem>
+                        <SelectItem value="read">read</SelectItem>
+                        <SelectItem value="admin">admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Badge variant={k.permissions === 'admin' ? 'purple' : 'gray'}>
                       {k.permissions}
@@ -159,34 +175,34 @@ export const KeyList = ({
                           </button>
                         </>
                       ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(k)}
-                            className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                            title="Edit key name or permissions"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onRegenerate(k.id)}
-                            disabled={isLoading}
-                            className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                            title="Regenerate key secret and invalidate old"
-                          >
-                            <RefreshCw size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onRevoke(k.id)}
-                            disabled={isLoading}
-                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Immediately revoke access"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="p-1.5 text-gray-400 hover:text-[#292929] hover:bg-gray-100 rounded-lg transition-colors cursor-pointer outline-none"
+                              title="Key actions"
+                            >
+                              <MoreHorizontal size={15} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Key Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => startEdit(k)}>
+                              <Edit2 size={13} />
+                              Edit Name &amp; Permissions
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onRegenerate(k.id)}>
+                              <RefreshCw size={13} />
+                              Regenerate Secret
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem destructive onClick={() => onRevoke(k.id)}>
+                              <Trash2 size={13} />
+                              Revoke Key
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   ) : (

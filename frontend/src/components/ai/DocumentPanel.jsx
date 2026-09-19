@@ -16,17 +16,34 @@ import {
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
 import { extractErrorMessage } from '../../services/api';
+import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../ui/AlertDialog';
+import { ScrollArea } from '../ui/ScrollArea';
+import { SimpleTooltip } from '../ui/Tooltip';
 
-export const DocumentPanel = ({ onDocumentsChange }) => {
+export const DocumentPanel = ({
+  onDocumentsChange,
+  isEmbedded = false,
+  isSplit = false,
+}) => {
   const { role } = useAuthStore();
   const canManageDocs = role === 'owner' || role === 'admin' || role === 'member';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showUploadForm, setShowUploadForm] = useState(true);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'text'
 
   const [title, setTitle] = useState('');
@@ -35,6 +52,7 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
   const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(null);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = useState(null); // { id, title }
 
   const fetchDocuments = async () => {
     setIsLoading(true);
@@ -107,37 +125,45 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
 
   const handleProcess = async (id) => {
     setIsProcessing(id);
-    setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await aiService.processDocument(id);
       const count = res.chunks_count ?? res.chunk_count ?? 0;
-      setStatusMessage(`Document re-indexed into ${count} vector chunks.`);
+      toast.success(`Document re-indexed into ${count} vector chunks.`);
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMessage(`Processing error: ${message}`);
+      toast.error(`Processing error: ${message}`);
     } finally {
       setIsProcessing(null);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to remove this document from the knowledge base?')) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteDoc) return;
     try {
-      await aiService.deleteDocument(id);
-      setStatusMessage('Document removed from knowledge base.');
+      await aiService.deleteDocument(pendingDeleteDoc.id);
+      toast.success('Document removed from knowledge base.');
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMessage(`Failed to delete: ${message}`);
+      toast.error(`Failed to delete document: ${message}`);
+    } finally {
+      setPendingDeleteDoc(null);
     }
   };
 
   const totalChunks = documents.reduce((acc, d) => acc + (d.chunk_count || 0), 0);
+  const Container = isEmbedded ? 'div' : Card;
+  const containerProps = isEmbedded
+    ? { className: 'space-y-4' }
+    : { variant: 'bordered', className: 'shadow-sm space-y-4' };
+
+  const scrollAreaHeight = isSplit
+    ? (showUploadForm ? 'h-[180px]' : 'h-[240px]')
+    : (showUploadForm ? 'h-[240px]' : 'h-[380px]');
 
   return (
-    <Card variant="bordered" className="shadow-sm space-y-4">
+    <Container {...containerProps}>
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -147,10 +173,9 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
           <div>
             <h3
               style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-              className="text-base font-bold text-[#292929] tracking-tight flex items-center gap-1.5"
+              className="text-base font-bold text-[#292929] tracking-tight"
             >
-              <span>Knowledge Base</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" title="Connected to AI" />
+              Knowledge Base
             </h3>
             <p className="text-[11px] text-gray-500">
               {documents.length} {documents.length === 1 ? 'doc' : 'docs'} • {totalChunks} chunks grounded in AI queries
@@ -301,74 +326,118 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
         </div>
 
         {documents.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4">
-            <FileText size={20} className="mx-auto mb-1.5 text-gray-300" />
-            <p className="font-medium text-gray-600">No documents uploaded yet</p>
-            <p className="text-[11px]">Upload a document above to connect it to your AI query assistant.</p>
+          <div className="text-center py-7 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4 space-y-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+              <FileText size={18} />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700 text-xs">No documents uploaded yet</p>
+              <p className="text-[11px] text-gray-400 max-w-xs mx-auto mt-0.5">
+                Upload company documents to ground AI queries with vector citations.
+              </p>
+            </div>
+            {!showUploadForm && canManageDocs && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setShowUploadForm(true)}
+                className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5"
+              >
+                <Plus size={13} />
+                <span>Upload First Document</span>
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
-              >
-                {/* Left: Icon, Title, Date */}
-                <div className="min-w-0 flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <FileText size={15} />
+          <ScrollArea className={`${scrollAreaHeight} pr-2`}>
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
+                >
+                  {/* Left: Icon, Title, Date */}
+                  <div className="min-w-0 flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <FileText size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
+                        {doc.title}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
+                        <span className="flex items-center gap-0.5">
+                          <Clock size={10} />
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
+                          <Layers size={9} />
+                          {doc.chunk_count ?? 0} chunks
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
-                      {doc.title}
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
-                      <span className="flex items-center gap-0.5">
-                        <Clock size={10} />
-                        {new Date(doc.created_at).toLocaleDateString()}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
-                        <Layers size={9} />
-                        {doc.chunk_count ?? 0} chunks
-                      </span>
-                    </div>
+
+                  {/* Right: Status badge & Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
+                      {doc.status || 'ready'}
+                    </Badge>
+
+                    {canManageDocs && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <SimpleTooltip content="Re-index into vector chunks">
+                          <button
+                            type="button"
+                            onClick={() => handleProcess(doc.id)}
+                            disabled={isProcessing === doc.id}
+                            className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+                          >
+                            {isProcessing === doc.id ? '…' : 'Sync'}
+                          </button>
+                        </SimpleTooltip>
+                        <SimpleTooltip content="Remove document from knowledge base">
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteDoc({ id: doc.id, title: doc.title })}
+                            className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </SimpleTooltip>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Right: Status badge & Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
-                    {doc.status || 'ready'}
-                  </Badge>
-
-                  {canManageDocs && (
-                    <div className="flex items-center gap-1 ml-1">
-                      <button
-                        type="button"
-                        onClick={() => handleProcess(doc.id)}
-                        disabled={isProcessing === doc.id}
-                        className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
-                        title="Re-index vector chunks"
-                      >
-                        {isProcessing === doc.id ? '…' : 'Sync'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(doc.id)}
-                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
-                        title="Delete document"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </div>
-    </Card>
+
+      {/* Delete Document AlertDialog */}
+      <AlertDialog
+        open={Boolean(pendingDeleteDoc)}
+        onOpenChange={(open) => { if (!open) setPendingDeleteDoc(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>&ldquo;{pendingDeleteDoc?.title}&rdquo;</strong> from the knowledge base?
+              All associated vector embeddings will be pruned and this document will no longer ground AI queries.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleConfirmDelete}>
+              Delete Document
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Container>
   );
 };

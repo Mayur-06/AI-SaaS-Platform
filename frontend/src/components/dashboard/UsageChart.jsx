@@ -17,7 +17,7 @@ export const UsageChart = ({ data }) => {
           No Usage Data Recorded Yet
         </h3>
         <p className="text-xs text-gray-500 max-w-sm mx-auto">
-          Start running queries from the AI Query hub or the quick prompt widget to track token utilization and cost telemetry.
+          Start running queries from the AI Query hub to track token utilization and cost telemetry.
         </p>
       </Card>
     );

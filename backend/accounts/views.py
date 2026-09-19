@@ -190,10 +190,40 @@ class OrganizationView(APIView):
         membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
         if not membership:
             return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
-        org = membership.organization
-        org.is_active = False
-        org.save(update_fields=["is_active"])
+        perform_delete_organization(membership.organization)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def perform_delete_organization(org):
+    from billing.models import APIKey
+    from ai_service.models import CacheEntry
+    from middleware.redis_utils import get_redis_client
+
+    # 1. Soft-delete the organization record
+    org.is_active = False
+    org.save(update_fields=["is_active"])
+
+    # 2. Update and deactivate all active memberships for this tenant
+    org.memberships.filter(is_active=True).update(is_active=False)
+
+    # 3. Update and deactivate all active API keys
+    APIKey.objects.filter(organization=org, is_active=True).update(is_active=False)
+
+    # 4. Remove all pending invitations
+    org.invitations.all().delete()
+
+    # 5. Remove all semantic cache entries
+    CacheEntry.objects.filter(organization=org).delete()
+
+    # 6. Flush Redis cache keys for this tenant if available
+    try:
+        r = get_redis_client()
+        if r:
+            keys = r.keys(f"semcache:{org.id}:*")
+            if keys:
+                r.delete(*keys)
+    except Exception as exc:
+        logger.debug("Failed to flush redis cache on org delete: %s", exc)
 
 
 def perform_transfer_ownership(current_user, target_id, organization=None):
@@ -224,11 +254,20 @@ def perform_transfer_ownership(current_user, target_id, organization=None):
     membership.save(update_fields=["role"])
     new_membership.role = Membership.ROLE_OWNER
     new_membership.save(update_fields=["role"])
+
+    refresh = RefreshToken.for_user(current_user)
+    refresh["user_id"] = str(current_user.id)
+    refresh["org_id"] = str(membership.organization_id)
+    refresh["role"] = Membership.ROLE_ADMIN
+
     return Response({
         "detail": "Ownership transferred successfully.",
         "previous_owner_id": str(current_user.id),
         "new_owner_id": str(new_membership.user_id),
         "organization_id": str(membership.organization_id),
+        "role": Membership.ROLE_ADMIN,
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
     }, status=status.HTTP_200_OK)
 
 
@@ -251,9 +290,7 @@ class OrganizationDeleteView(APIView):
         membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
         if not membership:
             return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
-        org = membership.organization
-        org.is_active = False
-        org.save(update_fields=["is_active"])
+        perform_delete_organization(membership.organization)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -306,6 +343,17 @@ class MemberViewSet(viewsets.ModelViewSet):
 
         serializer.save(user=user, organization=org)
 
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        obj = queryset.filter(Q(id=lookup_value) | Q(user__id=lookup_value)).first()
+        if not obj:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Member not found.")
+        self.check_object_permissions(self.request, obj)
+        return obj
+
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         membership = self.get_object()
@@ -329,10 +377,27 @@ class MemberViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         membership = self.get_object()
+
+        caller_membership = request.user.memberships.filter(
+            organization=membership.organization,
+            is_active=True,
+        ).first()
+        if not caller_membership:
+            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Cannot remove the owner
         if membership.role == Membership.ROLE_OWNER:
             return Response({"detail": "Cannot remove the owner."}, status=status.HTTP_403_FORBIDDEN)
-        membership.is_active = False
-        membership.save(update_fields=["is_active"])
+
+        # Only the owner can remove an admin
+        if membership.role == Membership.ROLE_ADMIN and caller_membership.role != Membership.ROLE_OWNER:
+            return Response({"detail": "Only the owner can remove an admin."}, status=status.HTTP_403_FORBIDDEN)
+
+        target_user = membership.user
+        membership.delete()
+        if target_user:
+            target_user.delete()
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])

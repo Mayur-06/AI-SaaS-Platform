@@ -66,7 +66,7 @@ def run_tests():
 
     # Ensure GammaOrg is active and has pro plan (60 rpm)
     org_id = "721aa560-d889-4bc2-815a-fdbe4f601c7b"
-    org = Organization.objects.get(id=org_id)
+    org, _ = Organization.objects.get_or_create(id=org_id, defaults={"name": "GammaOrg", "slug": "gammaorg"})
     org.is_active = True
     org.name = "GammaOrg"
     org.monthly_budget = 0
@@ -76,7 +76,14 @@ def run_tests():
     org.save()
 
     # Ensure gamma_owner is owner of GammaOrg
-    owner_user = User.objects.get(email="gamma_owner@example.com")
+    owner_user = User.objects.filter(email="gamma_owner@example.com").first()
+    if not owner_user:
+        owner_user = User.objects.create_user(email="gamma_owner@example.com", password="GammaPass123!", is_verified=True)
+    else:
+        owner_user.set_password("GammaPass123!")
+        owner_user.is_verified = True
+        owner_user.save()
+
     owner_mem = Membership.objects.filter(user=owner_user, organization=org).first()
     if not owner_mem:
         owner_mem = Membership.objects.create(user=owner_user, organization=org, role="owner", is_active=True)
@@ -323,18 +330,22 @@ def run_tests():
     })
     owner_token = body_ol2.get("access")
 
-    # Step 18: DELETE /api/org/members/{id}/ (Remove Viewer)
+    # Step 18: DELETE /api/org/members/{id}/ (Remove Viewer & Ensure Account No Longer Exists)
     print(f"\n--- Step 18: Remove Member (DELETE /api/org/members/{viewer_mem.id}/) ---")
     st, hdrs, body = make_request("DELETE", f"/api/org/members/{viewer_mem.id}/", token=owner_token)
-    viewer_mem.refresh_from_db()
-    # Also verify GET /api/org/members/ no longer lists viewer
+    user_deleted = not User.objects.filter(id=viewer_user.id).exists()
+    mem_deleted = not Membership.objects.filter(id=viewer_mem.id).exists()
+    st_login, _, _ = make_request("POST", "/api/auth/login/", {
+        "email": "gamma_viewer@example.com",
+        "password": "GammaPass123!"
+    })
     st_g_mems, _, body_g_mems = make_request("GET", "/api/org/members/", token=owner_token)
     mem_list_after = body_g_mems if isinstance(body_g_mems, list) else body_g_mems.get("results", [])
     active_ids = [m.get("id") for m in mem_list_after if isinstance(m, dict)]
-    step18_pass = st == 204 and viewer_mem.is_active is False and str(viewer_mem.id) not in active_ids
-    record(18, "Remove Member (DELETE /api/org/members/{id}/)", step18_pass, f"HTTP {st}, DB is_active: {viewer_mem.is_active}, Excluded from list: {str(viewer_mem.id) not in active_ids}")
+    step18_pass = st == 204 and user_deleted and mem_deleted and st_login in [400, 401] and str(viewer_mem.id) not in active_ids
+    record(18, "Remove Member (DELETE /api/org/members/{id}/)", step18_pass, f"HTTP {st}, User deleted: {user_deleted}, Login blocked: {st_login in [400, 401]}, Excluded from list: {str(viewer_mem.id) not in active_ids}")
 
-    # Step 19: DELETE /api/org/ (Soft Delete Organization)
+    # Step 19: DELETE /api/org/ (Soft Delete Organization & update/remove records)
     print("\n--- Step 19: Soft Delete Organization (DELETE /api/org/) ---")
     # Guard: Non-owner cannot delete org
     st_non_owner_del, _, _ = make_request("DELETE", "/api/org/", token=member_token)
@@ -343,13 +354,19 @@ def run_tests():
     org.refresh_from_db()
     # Subsequent GET returns 404
     st_after_get, _, body_after = make_request("GET", "/api/org/", token=owner_token)
+    mems_active_count = org.memberships.filter(is_active=True).count()
+    inv_count = org.invitations.count()
+    from billing.models import APIKey
+    keys_active_count = APIKey.objects.filter(organization=org, is_active=True).count()
+    records_updated = mems_active_count == 0 and inv_count == 0 and keys_active_count == 0
     step19_pass = (
         st_non_owner_del == 403 and
         st_owner_del == 204 and
         org.is_active is False and
-        st_after_get == 404
+        st_after_get == 404 and
+        records_updated
     )
-    record(19, "Soft Delete Org (DELETE /api/org/)", step19_pass, f"Non-owner del: HTTP {st_non_owner_del}, Owner del: HTTP {st_owner_del}, DB is_active: {org.is_active}, Subsequent GET: HTTP {st_after_get}")
+    record(19, "Soft Delete Org (DELETE /api/org/)", step19_pass, f"Non-owner del: HTTP {st_non_owner_del}, Owner del: HTTP {st_owner_del}, DB is_active: {org.is_active}, Subsequent GET: HTTP {st_after_get}, Records cleaned: {records_updated}")
 
     print("\n" + "=" * 75)
     total_passed = sum(1 for _, _, p, _ in results if p)

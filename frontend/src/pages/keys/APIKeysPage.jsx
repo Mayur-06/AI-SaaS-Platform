@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, ShieldAlert, Key, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { Plus, ShieldAlert, Key, Lock } from 'lucide-react';
 import { billingService } from '../../services/billingService';
 import { useAuthStore } from '../../store/authStore';
 import { KeyList } from '../../components/keys/KeyList';
 import { CreateKeyModal } from '../../components/keys/CreateKeyModal';
 import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
-import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { SimpleTooltip } from '../../components/ui/Tooltip';
+import { Copy, Terminal, Code, Check } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../../components/ui/AlertDialog';
 
 export const APIKeysPage = () => {
   const { role, user, organization } = useAuthStore();
@@ -21,8 +34,17 @@ export const APIKeysPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [revealedKey, setRevealedKey] = useState(null);
 
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  // AlertDialog states
+  const [pendingRevoke, setPendingRevoke] = useState(null);     // keyId
+  const [pendingRegenerate, setPendingRegenerate] = useState(null); // keyId
+  const [copiedSnippet, setCopiedSnippet] = useState(null);
+
+  const copySnippet = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippet(key);
+    toast.success('Code snippet copied to clipboard.');
+    setTimeout(() => setCopiedSnippet(null), 2000);
+  };
 
   const canManage = role === 'owner' || role === 'admin';
 
@@ -35,7 +57,7 @@ export const APIKeysPage = () => {
       setCurrentPage(page);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to load keys: ${message}`);
+      toast.error(`Failed to load keys: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +71,6 @@ export const APIKeysPage = () => {
 
   const handleCreateKey = async (data) => {
     setIsLoading(true);
-    setError(null);
     try {
       const newKey = await billingService.createKey(data);
       setIsCreateModalOpen(false);
@@ -61,30 +82,22 @@ export const APIKeysPage = () => {
           keyName: newKey.name,
         });
       } else {
-        setMessage('API key created successfully.');
+        toast.success('API key created successfully.');
       }
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to create key: ${message}`);
+      toast.error(`Failed to create key: ${message}`);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegenerateKey = async (id) => {
-    if (
-      !confirm(
-        'Are you sure you want to regenerate this key? The existing key will be immediately revoked and cannot be restored.'
-      )
-    ) {
-      return;
-    }
-
+  const handleRegenerateKey = async () => {
+    if (!pendingRegenerate) return;
     setIsLoading(true);
-    setError(null);
     try {
-      const regenerated = await billingService.regenerateKey(id);
+      const regenerated = await billingService.regenerateKey(pendingRegenerate);
       await fetchKeys(currentPage);
 
       if (regenerated.full_key) {
@@ -93,45 +106,42 @@ export const APIKeysPage = () => {
           keyName: regenerated.name,
         });
       } else {
-        setMessage('Key regenerated successfully.');
+        toast.success('Key regenerated successfully.');
       }
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Regeneration failed: ${message}`);
+      toast.error(`Regeneration failed: ${message}`);
     } finally {
       setIsLoading(false);
+      setPendingRegenerate(null);
     }
   };
 
-  const handleRevokeKey = async (id) => {
-    if (!confirm('Immediately revoke this API key? Applications using it will lose access immediately.')) {
-      return;
-    }
-
+  const handleRevokeKey = async () => {
+    if (!pendingRevoke) return;
     setIsLoading(true);
-    setError(null);
     try {
-      await billingService.revokeKey(id);
-      setMessage('API key revoked.');
+      await billingService.revokeKey(pendingRevoke);
+      toast.success('API key revoked. Applications using it have lost access.');
       await fetchKeys(currentPage);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Revocation failed: ${message}`);
+      toast.error(`Revocation failed: ${message}`);
     } finally {
       setIsLoading(false);
+      setPendingRevoke(null);
     }
   };
 
   const handleUpdateKey = async (id, name, permissions) => {
     setIsLoading(true);
-    setError(null);
     try {
       await billingService.updateKey(id, { name, permissions });
-      setMessage('API key updated.');
+      toast.success('API key updated.');
       await fetchKeys(currentPage);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Update failed: ${message}`);
+      toast.error(`Update failed: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -213,25 +223,11 @@ export const APIKeysPage = () => {
         )}
       </div>
 
-      {/* Message Notifications */}
-      {message && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-          <span>{message}</span>
-        </div>
-      )}
-      {error && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
       {/* Key Table */}
       <KeyList
         keys={keys}
-        onRevoke={handleRevokeKey}
-        onRegenerate={handleRegenerateKey}
+        onRevoke={(id) => setPendingRevoke(id)}
+        onRegenerate={(id) => setPendingRegenerate(id)}
         onUpdate={handleUpdateKey}
         isLoading={isLoading}
         canManage={canManage}
@@ -264,6 +260,132 @@ export const APIKeysPage = () => {
         </div>
       </div>
 
+      {/* Integration Quickstart Tabs */}
+      <Card variant="bordered" className="shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#b2c147]/20 text-[#292929] flex items-center justify-center font-bold">
+              <Code size={16} />
+            </div>
+            <div>
+              <h3
+                style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+                className="text-base font-bold text-[#292929] tracking-tight"
+              >
+                Developer Quickstart &amp; Code Samples
+              </h3>
+              <p className="text-xs text-gray-500">
+                Authenticate programmatic LLM queries using the <code className="font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">X-API-Key</code> HTTP header
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="curl" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="curl" className="flex items-center gap-1.5">
+                <Terminal size={12} />
+                <span>cURL</span>
+              </TabsTrigger>
+              <TabsTrigger value="python" className="flex items-center gap-1.5">
+                <Code size={12} />
+                <span>Python</span>
+              </TabsTrigger>
+              <TabsTrigger value="node" className="flex items-center gap-1.5">
+                <Code size={12} />
+                <span>Node.js / Fetch</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="curl">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy cURL snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `curl -X POST "${window.location.origin}/api/ai/query/" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -d '{"prompt": "What are our enterprise refund terms?"}'`,
+                      'curl'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'curl' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`curl -X POST "${window.location.origin}/api/ai/query/" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -d '{"prompt": "What are our enterprise refund terms?"}'`}
+              </pre>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="python">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy Python snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `import requests\n\nresponse = requests.post(\n    "${window.location.origin}/api/ai/query/",\n    headers={"X-API-Key": "YOUR_API_KEY", "Content-Type": "application/json"},\n    json={"prompt": "What are our enterprise refund terms?"}\n)\nprint(response.json()["response"])`,
+                      'python'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'python' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`import requests
+
+response = requests.post(
+    "${window.location.origin}/api/ai/query/",
+    headers={"X-API-Key": "YOUR_API_KEY", "Content-Type": "application/json"},
+    json={"prompt": "What are our enterprise refund terms?"}
+)
+print(response.json()["response"])`}
+              </pre>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="node">
+            <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto">
+              <SimpleTooltip content="Copy Node.js snippet">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copySnippet(
+                      `const response = await fetch("${window.location.origin}/api/ai/query/", {\n  method: "POST",\n  headers: {\n    "X-API-Key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({ prompt: "What are our enterprise refund terms?" }),\n});\nconst data = await response.json();\nconsole.log(data.response);`,
+                      'node'
+                    )
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copiedSnippet === 'node' ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+                </button>
+              </SimpleTooltip>
+              <pre className="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
+{`const response = await fetch("${window.location.origin}/api/ai/query/", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt: "What are our enterprise refund terms?" }),
+});
+const data = await response.json();
+console.log(data.response);`}
+              </pre>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </Card>
+
       {/* Create Modal */}
       <CreateKeyModal
         isOpen={isCreateModalOpen}
@@ -280,6 +402,42 @@ export const APIKeysPage = () => {
           onClose={() => setRevealedKey(null)}
         />
       )}
+
+      {/* Revoke Confirm Dialog */}
+      <AlertDialog open={Boolean(pendingRevoke)} onOpenChange={(open) => { if (!open) setPendingRevoke(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will <strong className="text-red-600">immediately revoke</strong> this API key. Any application or script using it will lose access right away. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleRevokeKey} disabled={isLoading}>
+              {isLoading ? 'Revoking…' : 'Revoke key'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Regenerate Confirm Dialog */}
+      <AlertDialog open={Boolean(pendingRegenerate)} onOpenChange={(open) => { if (!open) setPendingRegenerate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The existing secret will be <strong className="text-red-600">immediately invalidated</strong> and a new one will be generated. Update any integrations using the old key before closing the reveal dialog.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleRegenerateKey} disabled={isLoading}>
+              {isLoading ? 'Regenerating…' : 'Regenerate key'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

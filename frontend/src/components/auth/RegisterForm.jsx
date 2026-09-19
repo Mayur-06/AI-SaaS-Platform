@@ -14,6 +14,7 @@ export const RegisterForm = () => {
   const [organizationName, setOrganizationName] = useState('');
   const [inviteToken, setInviteToken] = useState(inviteTokenFromUrl);
   const [localError, setLocalError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const { register, isLoading } = useAuthStore();
   const navigate = useNavigate();
@@ -24,39 +25,92 @@ export const RegisterForm = () => {
     }
   }, [inviteTokenFromUrl]);
 
+  const clearFieldError = (field) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (localError) setLocalError(null);
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const trimmedEmail = email.trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmedEmail) {
+      errors.email = 'Email address is required.';
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!inviteToken) {
+      const trimmedOrg = organizationName.trim();
+      if (!trimmedOrg) {
+        errors.organizationName = 'Organization name is required.';
+      } else if (trimmedOrg.length < 2) {
+        errors.organizationName = 'Organization name must be at least 2 characters.';
+      }
+    }
+
+    if (!password) {
+      errors.password = 'Password is required.';
+    } else if (password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long.';
+    }
+
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Confirm password is required.';
+    } else if (password && password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError(null);
 
-    if (password !== confirmPassword) {
-      setLocalError('Passwords do not match.');
-      return;
-    }
-
-    if (!inviteToken && !organizationName.trim()) {
-      setLocalError('Organization name is required when creating a new organization.');
+    if (!validateForm()) {
       return;
     }
 
     try {
       await register({
-        email,
+        email: email.trim(),
         password,
         confirm_password: confirmPassword,
-        organization_name: inviteToken ? undefined : organizationName,
+        organization_name: inviteToken ? undefined : organizationName.trim(),
         invite_token: inviteToken || undefined,
       });
       navigate('/dashboard');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setLocalError(message || 'Registration failed.');
+      const lower = (message || '').toLowerCase();
+      if (lower.includes('email')) {
+        setFieldErrors((prev) => ({ ...prev, email: message }));
+      } else if (lower.includes('password')) {
+        setFieldErrors((prev) => ({ ...prev, password: message }));
+      } else if (lower.includes('organization')) {
+        setFieldErrors((prev) => ({ ...prev, organizationName: message }));
+      } else {
+        setLocalError(message || 'Registration failed.');
+      }
     }
   };
 
-  const inputClass = `w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
-    bg-white placeholder-gray-400 text-[#292929]
-    focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
-    transition-shadow duration-150`;
+  const getInputClass = (hasError) =>
+    `w-full px-3.5 py-2.5 border rounded-lg text-sm bg-white placeholder-gray-400 text-[#292929]
+     focus:outline-none transition-all duration-150 ${
+       hasError
+         ? 'border-red-500 focus:ring-2 focus:ring-red-400/30'
+         : 'border-gray-200 focus:ring-2 focus:ring-[#b2c147] focus:border-transparent'
+     }`;
 
   return (
     <AuthLayout quote="Clarity is not about having less information. It's about understanding more of it.">
@@ -71,7 +125,7 @@ export const RegisterForm = () => {
         <p className="text-sm text-gray-500">
           {inviteToken
             ? 'You were invited to join an organization on Hapy.'
-            : 'Start for free — no credit card required.'}
+            : 'Start for free'}
         </p>
       </div>
 
@@ -92,7 +146,7 @@ export const RegisterForm = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form noValidate onSubmit={handleSubmit} className="space-y-4">
         {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-semibold text-[#292929]">
@@ -101,12 +155,17 @@ export const RegisterForm = () => {
           <input
             id="email"
             type="email"
-            required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearFieldError('email');
+            }}
             placeholder="you@company.com"
-            className={inputClass}
+            className={getInputClass(!!fieldErrors.email)}
           />
+          {fieldErrors.email && (
+            <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
+          )}
         </div>
 
         {/* Organization name (only when not using invite) */}
@@ -118,12 +177,17 @@ export const RegisterForm = () => {
             <input
               id="org"
               type="text"
-              required
               value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
+              onChange={(e) => {
+                setOrganizationName(e.target.value);
+                clearFieldError('organizationName');
+              }}
               placeholder="Acme Corp"
-              className={inputClass}
+              className={getInputClass(!!fieldErrors.organizationName)}
             />
+            {fieldErrors.organizationName && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.organizationName}</p>
+            )}
           </div>
         )}
 
@@ -135,13 +199,17 @@ export const RegisterForm = () => {
           <input
             id="password"
             type="password"
-            required
-            minLength={8}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearFieldError('password');
+            }}
             placeholder="Min 8 characters"
-            className={inputClass}
+            className={getInputClass(!!fieldErrors.password)}
           />
+          {fieldErrors.password && (
+            <p className="text-xs text-red-600 mt-1">{fieldErrors.password}</p>
+          )}
         </div>
 
         {/* Confirm password */}
@@ -152,12 +220,17 @@ export const RegisterForm = () => {
           <input
             id="confirmPassword"
             type="password"
-            required
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              clearFieldError('confirmPassword');
+            }}
             placeholder="Repeat password"
-            className={inputClass}
+            className={getInputClass(!!fieldErrors.confirmPassword)}
           />
+          {fieldErrors.confirmPassword && (
+            <p className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</p>
+          )}
         </div>
 
         {/* Submit */}

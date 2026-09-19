@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export const HeroSection = () => {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-white">
       {/* Subtle lime ambient light blob in background */}
@@ -13,12 +16,6 @@ export const HeroSection = () => {
           
           {/* Left / Main Text Column */}
           <div className="lg:col-span-6 xl:col-span-6 animate-fade-up">
-            {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#b2c147]/15 border border-[#b2c147]/30 text-[#292929] text-xs font-semibold uppercase tracking-wider mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#b2c147] animate-pulse" />
-              AI-Powered Document Intelligence
-            </div>
-
             {/* Main Display Headline */}
             <h1
               style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
@@ -48,10 +45,10 @@ export const HeroSection = () => {
             {/* Primary & Secondary CTAs */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-10">
               <Link
-                to="/register"
+                to={isAuthenticated ? "/dashboard" : "/register"}
                 className="inline-flex items-center justify-center px-6 py-3.5 text-base font-bold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-xl shadow-sm transition-all no-underline text-center"
               >
-                Start for Free →
+                {isAuthenticated ? "Go to Dashboard →" : "Start for Free →"}
               </Link>
               <a
                 href="#how-it-works"

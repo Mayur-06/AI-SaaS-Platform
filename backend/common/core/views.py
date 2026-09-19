@@ -217,6 +217,7 @@ class AdminRoutingView(APIView):
 
     def get(self, request):
         from billing.models import Plan, ModelConfig, RoutingRule
+        from ai_service.services.model_router import _shared_circuit_breaker
 
         plans = [{"id": str(p.id), "name": p.name} for p in Plan.objects.all()]
         models = [
@@ -253,16 +254,175 @@ class AdminRoutingView(APIView):
                 "timeout_seconds": r.timeout_seconds,
             })
 
+        circuit_breakers = {
+            f"{m.provider}:{m.name}": _shared_circuit_breaker.get_status(f"{m.provider}:{m.name}")
+            for m in ModelConfig.objects.all()
+        }
+
         return JsonResponse({
             "plans": plans,
             "models": models,
             "rules": rules,
             "permitted_models": self.PLAN_PERMITTED_MODELS,
+            "circuit_breakers": circuit_breakers,
         })
 
     def post(self, request):
         from billing.models import Plan, ModelConfig, RoutingRule
+        from ai_service.services.model_router import ModelRouter, _shared_circuit_breaker
 
+        action = request.data.get("action", "save")
+
+        # Action: Reset circuit breakers
+        if action == "reset_circuit_breaker":
+            model_key = request.data.get("model_key")
+            _shared_circuit_breaker.reset(model_key)
+            return JsonResponse({
+                "message": f"Circuit breaker for {'all models' if not model_key else model_key} has been reset.",
+                "circuit_breakers": {
+                    f"{m.provider}:{m.name}": _shared_circuit_breaker.get_status(f"{m.provider}:{m.name}")
+                    for m in ModelConfig.objects.all()
+                },
+            })
+
+        # Action: Reset plan routing rule to platform defaults
+        if action == "reset":
+            plan_name = request.data.get("plan_name")
+            if not plan_name:
+                return JsonResponse({"error": "plan_name is required for reset."}, status=400)
+            plan = Plan.objects.filter(name=plan_name.lower()).first()
+            if not plan:
+                return JsonResponse({"error": f"Plan '{plan_name}' does not exist."}, status=404)
+
+            p_name = plan.name.lower()
+            if p_name == "free":
+                default_primary = ModelConfig.objects.filter(name="gemini-2.5-flash").first() or ModelConfig.objects.first()
+                default_fallbacks = []
+                timeout = 10
+            elif p_name == "pro":
+                default_primary = ModelConfig.objects.filter(name="gemini-2.5-flash").first() or ModelConfig.objects.first()
+                fb = ModelConfig.objects.filter(name="gpt-4o-mini").first()
+                default_fallbacks = [fb] if fb else []
+                timeout = 10
+            else:  # enterprise
+                default_primary = ModelConfig.objects.filter(name="gpt-4o-mini").first() or ModelConfig.objects.first()
+                fb1 = ModelConfig.objects.filter(name="gemini-2.5-flash").first()
+                fb2 = ModelConfig.objects.filter(name="gpt-4").first()
+                default_fallbacks = [f for f in [fb1, fb2] if f]
+                timeout = 15
+
+            rule = RoutingRule.objects.filter(plan=plan).first()
+            if not rule:
+                rule = RoutingRule(plan=plan, primary_model=default_primary)
+            else:
+                rule.primary_model = default_primary
+            rule.timeout_seconds = timeout
+            rule.save()
+            rule.fallback_models.set(default_fallbacks)
+
+            return JsonResponse({
+                "message": f"Routing configuration for {plan.name.capitalize()} reset to platform defaults.",
+                "rule": {
+                    "id": str(rule.id),
+                    "plan_name": rule.plan.name,
+                    "primary_model": {"id": str(rule.primary_model.id), "name": rule.primary_model.name},
+                    "fallback_models": [{"id": str(f.id), "name": f.name} for f in rule.fallback_models.all()],
+                    "timeout_seconds": rule.timeout_seconds,
+                },
+            })
+
+        # Action: Test routing cascade simulation
+        if action == "test":
+            plan_name = request.data.get("plan_name")
+            simulate_failure = bool(request.data.get("simulate_failure", False))
+            simulate_timeout = bool(request.data.get("simulate_timeout", False))
+
+            if not plan_name:
+                return JsonResponse({"error": "plan_name is required for testing cascade."}, status=400)
+            plan = Plan.objects.filter(name=plan_name.lower()).first()
+            if not plan:
+                return JsonResponse({"error": f"Plan '{plan_name}' does not exist."}, status=404)
+
+            primary_model_id = request.data.get("primary_model_id")
+            fallback_model_ids = request.data.get("fallback_model_ids")
+            timeout_seconds = int(request.data.get("timeout_seconds", 0))
+
+            if primary_model_id:
+                primary_model = ModelConfig.objects.filter(id=primary_model_id, is_active=True).first()
+            else:
+                rule = RoutingRule.objects.filter(plan=plan).first()
+                primary_model = rule.primary_model if rule else ModelConfig.objects.filter(is_active=True).first()
+
+            if fallback_model_ids is not None:
+                fallback_models = list(ModelConfig.objects.filter(id__in=fallback_model_ids, is_active=True))
+            else:
+                rule = RoutingRule.objects.filter(plan=plan).first()
+                fallback_models = list(rule.fallback_models.filter(is_active=True)) if rule else []
+
+            if not timeout_seconds:
+                rule = RoutingRule.objects.filter(plan=plan).first()
+                timeout_seconds = rule.timeout_seconds if rule else 10
+
+            if not primary_model:
+                return JsonResponse({"error": "No primary model found to test."}, status=400)
+
+            class TestRouter(ModelRouter):
+                def get_route(self):
+                    return {
+                        "primary": primary_model,
+                        "fallbacks": fallback_models,
+                        "timeout": timeout_seconds,
+                    }
+
+            router = TestRouter()
+            sim_failure_models = [primary_model.name] if simulate_failure else None
+            sim_timeout_models = [primary_model.name] if simulate_timeout else None
+
+            test_system = "You are a test probe."
+            test_prompt = "Respond with 'OK' if operational."
+
+            try:
+                res = router.generate(
+                    system_prompt=test_system,
+                    user_prompt=test_prompt,
+                    temperature=0.0,
+                    simulate_failure_models=sim_failure_models,
+                    simulate_timeout_models=sim_timeout_models,
+                )
+                return JsonResponse({
+                    "status": "success",
+                    "message": "Cascade simulation completed successfully.",
+                    "plan_name": plan.name,
+                    "primary_model": primary_model.name,
+                    "fallback_models": [fb.name for fb in fallback_models],
+                    "timeout_seconds": timeout_seconds,
+                    "model_used": res.get("model"),
+                    "provider": res.get("provider"),
+                    "latency_ms": res.get("latency_ms"),
+                    "attempts": res.get("attempts"),
+                    "cascade_log": res.get("cascade_log", []),
+                    "errors": res.get("errors", []),
+                    "circuit_breakers": {
+                        f"{m.provider}:{m.name}": _shared_circuit_breaker.get_status(f"{m.provider}:{m.name}")
+                        for m in ModelConfig.objects.all()
+                    },
+                })
+            except Exception as exc:
+                return JsonResponse({
+                    "status": "cascade_failed",
+                    "message": str(exc),
+                    "plan_name": plan.name,
+                    "primary_model": primary_model.name,
+                    "fallback_models": [fb.name for fb in fallback_models],
+                    "timeout_seconds": timeout_seconds,
+                    "errors": [str(exc)],
+                    "circuit_breakers": {
+                        f"{m.provider}:{m.name}": _shared_circuit_breaker.get_status(f"{m.provider}:{m.name}")
+                        for m in ModelConfig.objects.all()
+                    },
+                }, status=200)
+
+        # Action: Save routing rule (Default)
         plan_name = request.data.get("plan_name")
         primary_model_id = request.data.get("primary_model_id")
         fallback_model_ids = request.data.get("fallback_model_ids", [])
@@ -314,5 +474,9 @@ class AdminRoutingView(APIView):
                 "primary_model": {"id": str(rule.primary_model.id), "name": rule.primary_model.name},
                 "fallback_models": [{"id": str(f.id), "name": f.name} for f in rule.fallback_models.all()],
                 "timeout_seconds": rule.timeout_seconds,
-            }
+            },
+            "circuit_breakers": {
+                f"{m.provider}:{m.name}": _shared_circuit_breaker.get_status(f"{m.provider}:{m.name}")
+                for m in ModelConfig.objects.all()
+            },
         })

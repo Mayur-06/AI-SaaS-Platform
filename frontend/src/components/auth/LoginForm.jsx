@@ -11,21 +11,51 @@ export const LoginForm = () => {
     () => localStorage.getItem(REMEMBER_ME_KEY) === 'true'
   );
   const [localError, setLocalError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const { login, isLoading } = useAuthStore();
   const navigate = useNavigate();
+
+  const clearFieldError = (field) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (localError) setLocalError(null);
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const trimmedEmail = email.trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmedEmail) {
+      errors.email = 'Email address is required.';
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!password) {
+      errors.password = 'Password is required.';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError(null);
 
-    if (!email || !password) {
-      setLocalError('Please fill in both email and password.');
+    if (!validateForm()) {
       return;
     }
 
     try {
-      const data = await login(email, password, rememberMe);
+      const data = await login(email.trim(), password, rememberMe);
       if (data?.user?.is_staff && !data?.organization) {
         navigate('/admin');
       } else {
@@ -36,6 +66,14 @@ export const LoginForm = () => {
       setLocalError(message || 'Invalid email or password.');
     }
   };
+
+  const getInputClass = (hasError) =>
+    `w-full px-3.5 py-2.5 border rounded-lg text-sm bg-white placeholder-gray-400 text-[#292929]
+     focus:outline-none transition-all duration-150 ${
+       hasError
+         ? 'border-red-500 focus:ring-2 focus:ring-red-400/30'
+         : 'border-gray-200 focus:ring-2 focus:ring-[#b2c147] focus:border-transparent'
+     }`;
 
   return (
     <AuthLayout quote="The best insights shouldn't be buried under hundreds of pages.">
@@ -57,7 +95,7 @@ export const LoginForm = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form noValidate onSubmit={handleSubmit} className="space-y-4">
         {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-semibold text-[#292929]">
@@ -66,15 +104,17 @@ export const LoginForm = () => {
           <input
             id="email"
             type="email"
-            required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearFieldError('email');
+            }}
             placeholder="you@company.com"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
-                       bg-white placeholder-gray-400 text-[#292929]
-                       focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
-                       transition-shadow duration-150"
+            className={getInputClass(!!fieldErrors.email)}
           />
+          {fieldErrors.email && (
+            <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
+          )}
         </div>
 
         {/* Password */}
@@ -93,15 +133,17 @@ export const LoginForm = () => {
           <input
             id="password"
             type="password"
-            required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearFieldError('password');
+            }}
             placeholder="••••••••"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
-                       bg-white placeholder-gray-400 text-[#292929]
-                       focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
-                       transition-shadow duration-150"
+            className={getInputClass(!!fieldErrors.password)}
           />
+          {fieldErrors.password && (
+            <p className="text-xs text-red-600 mt-1">{fieldErrors.password}</p>
+          )}
         </div>
 
         {/* Remember me */}

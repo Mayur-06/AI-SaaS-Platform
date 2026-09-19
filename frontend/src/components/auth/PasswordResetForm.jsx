@@ -14,20 +14,48 @@ export const PasswordResetForm = () => {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [receivedTokenHint, setReceivedTokenHint] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const clearFieldError = (field) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (error) setError(null);
+  };
 
   const handleStep1Submit = async (e) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
+
+    const errors = {};
+    const trimmedEmail = email.trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      errors.email = 'Email address is required.';
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const res = await authService.requestPasswordReset(email);
+      const res = await authService.requestPasswordReset(trimmedEmail);
       setMessage(res.message || 'Password reset requested.');
       if (res.token) {
         setReceivedTokenHint(res.token);
         setToken(res.token);
       }
+      setFieldErrors({});
       setStep(2);
     } catch (err) {
       const { message } = extractErrorMessage(err);
@@ -42,14 +70,29 @@ export const PasswordResetForm = () => {
     setError(null);
     setMessage(null);
 
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+    const errors = {};
+    if (!token.trim()) {
+      errors.token = 'Reset token is required.';
+    }
+    if (!newPassword) {
+      errors.newPassword = 'New password is required.';
+    } else if (newPassword.length < 8) {
+      errors.newPassword = 'Password must be at least 8 characters long.';
+    }
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Confirm new password is required.';
+    } else if (newPassword && newPassword !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
     setIsLoading(true);
     try {
-      const res = await authService.confirmPasswordReset(token, newPassword, confirmPassword);
+      const res = await authService.confirmPasswordReset(token.trim(), newPassword, confirmPassword);
       setMessage(res.message || 'Password has been reset successfully!');
       setStep(1);
       setEmail('');
@@ -57,6 +100,7 @@ export const PasswordResetForm = () => {
       setNewPassword('');
       setConfirmPassword('');
       setReceivedTokenHint(null);
+      setFieldErrors({});
     } catch (err) {
       const { message } = extractErrorMessage(err);
       setError(message || 'Failed to reset password.');
@@ -65,10 +109,13 @@ export const PasswordResetForm = () => {
     }
   };
 
-  const inputClass = `w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
-    bg-white placeholder-gray-400 text-[#292929]
-    focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
-    transition-shadow duration-150`;
+  const getInputClass = (hasError) =>
+    `w-full px-3.5 py-2.5 border rounded-lg text-sm bg-white placeholder-gray-400 text-[#292929]
+     focus:outline-none transition-all duration-150 ${
+       hasError
+         ? 'border-red-500 focus:ring-2 focus:ring-red-400/30'
+         : 'border-gray-200 focus:ring-2 focus:ring-[#b2c147] focus:border-transparent'
+     }`;
 
   return (
     <AuthLayout quote="Your knowledge, finally within reach.">
@@ -125,7 +172,7 @@ export const PasswordResetForm = () => {
 
       {/* ── STEP 1 ── */}
       {step === 1 ? (
-        <form onSubmit={handleStep1Submit} className="space-y-4">
+        <form noValidate onSubmit={handleStep1Submit} className="space-y-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="reset-email" className="text-sm font-semibold text-[#292929]">
               Email address
@@ -133,12 +180,17 @@ export const PasswordResetForm = () => {
             <input
               id="reset-email"
               type="email"
-              required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearFieldError('email');
+              }}
               placeholder="you@company.com"
-              className={inputClass}
+              className={getInputClass(!!fieldErrors.email)}
             />
+            {fieldErrors.email && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
+            )}
           </div>
 
           <button
@@ -154,7 +206,7 @@ export const PasswordResetForm = () => {
         </form>
       ) : (
         /* ── STEP 2 ── */
-        <form onSubmit={handleStep2Submit} className="space-y-4">
+        <form noValidate onSubmit={handleStep2Submit} className="space-y-4">
           {/* Dev token hint */}
           {receivedTokenHint && (
             <div className="px-4 py-3 rounded-lg bg-[#b2c147]/10 border border-[#b2c147]/30 text-[#292929] text-sm break-all">
@@ -170,12 +222,17 @@ export const PasswordResetForm = () => {
             <input
               id="token"
               type="text"
-              required
               value={token}
-              onChange={(e) => setToken(e.target.value)}
+              onChange={(e) => {
+                setToken(e.target.value);
+                clearFieldError('token');
+              }}
               placeholder="Paste token here"
-              className={inputClass}
+              className={getInputClass(!!fieldErrors.token)}
             />
+            {fieldErrors.token && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.token}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -185,13 +242,17 @@ export const PasswordResetForm = () => {
             <input
               id="new-password"
               type="password"
-              required
-              minLength={8}
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                clearFieldError('newPassword');
+              }}
               placeholder="Min 8 characters"
-              className={inputClass}
+              className={getInputClass(!!fieldErrors.newPassword)}
             />
+            {fieldErrors.newPassword && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.newPassword}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -201,12 +262,17 @@ export const PasswordResetForm = () => {
             <input
               id="confirm-reset-password"
               type="password"
-              required
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                clearFieldError('confirmPassword');
+              }}
               placeholder="Confirm new password"
-              className={inputClass}
+              className={getInputClass(!!fieldErrors.confirmPassword)}
             />
+            {fieldErrors.confirmPassword && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</p>
+            )}
           </div>
 
           <div className="flex gap-3 mt-2">

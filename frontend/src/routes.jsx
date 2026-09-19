@@ -14,13 +14,14 @@ import { APIKeysPage } from './pages/keys/APIKeysPage';
 import { OrganizationSettingsPage } from './pages/settings/OrganizationSettingsPage';
 import { AdminPage } from './pages/admin/AdminPage';
 import { LandingPage } from './pages/landing/LandingPage';
+import { FullPageSpinner } from './components/ui/Spinner';
 
 // Route Guard: Authenticated user required
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading session...</div>;
+    return <FullPageSpinner />;
   }
 
   if (!isAuthenticated) {
@@ -35,7 +36,7 @@ const AdminRoute = ({ children }) => {
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading session...</div>;
+    return <FullPageSpinner />;
   }
 
   if (!isAuthenticated) {
@@ -49,12 +50,12 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// Route Guard: Public only (redirect logged-in users away from /login or /)
+// Route Guard: Public only (redirect logged-in users away from /login or /register)
 const PublicOnlyRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading session...</div>;
+    return <FullPageSpinner />;
   }
 
   if (isAuthenticated) {
@@ -68,14 +69,7 @@ export const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Landing Page */}
-      <Route
-        path="/"
-        element={
-          <PublicOnlyRoute>
-            <LandingPage />
-          </PublicOnlyRoute>
-        }
-      />
+      <Route path="/" element={<LandingPage />} />
 
       {/* Public Auth Routes */}
       <Route

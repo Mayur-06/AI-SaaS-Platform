@@ -85,6 +85,18 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       const refreshToken = getRefreshToken();
 
+      const isPublicPath = () => {
+        if (typeof window === 'undefined') return false;
+        const p = window.location.pathname;
+        return (
+          p === '/' ||
+          p.startsWith('/login') ||
+          p.startsWith('/register') ||
+          p.startsWith('/password-reset') ||
+          p.startsWith('/verify')
+        );
+      };
+
       // If this is a login or refresh request failing, don't loop
       if (
         originalRequest.url?.includes('/auth/login/') ||
@@ -92,8 +104,8 @@ apiClient.interceptors.response.use(
         !refreshToken
       ) {
         clearAuthTokens();
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login';
+        if (typeof window !== 'undefined' && !isPublicPath()) {
+          window.location.replace('/login');
         }
         return Promise.reject(error);
       }
@@ -132,8 +144,8 @@ apiClient.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         clearAuthTokens();
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login';
+        if (typeof window !== 'undefined' && !isPublicPath()) {
+          window.location.replace('/login');
         }
         return Promise.reject(refreshErr);
       } finally {

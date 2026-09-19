@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Send, RotateCcw, AlertTriangle, Lock, Cpu, X } from 'lucide-react';
+import { Send, RotateCcw, AlertTriangle, Lock, Cpu, X, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../ui/Select';
+
+const SUGGESTIONS = [
+  'What is our refund policy?',
+  'Explain our pricing tiers',
+  'Summarize company guidelines',
+];
 
 export const QueryInput = ({
   onSubmit,
@@ -16,7 +29,7 @@ export const QueryInput = ({
   const { role } = useAuthStore();
   const isViewer = role === 'viewer';
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('');
+  const [model, setModel] = useState('auto');
 
   // Sync external prompt when loaded from history
   useEffect(() => {
@@ -29,7 +42,7 @@ export const QueryInput = ({
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!prompt.trim() || status === 'loading' || isViewer) return;
-    await onSubmit(prompt.trim(), model || undefined);
+    await onSubmit(prompt.trim(), model === 'auto' ? undefined : model);
   };
 
   const handleKeyDown = (e) => {
@@ -45,22 +58,24 @@ export const QueryInput = ({
   };
 
   return (
-    <Card variant="bordered" className="shadow-sm relative overflow-hidden">
-      {/* Subtle accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-[#b2c147]" />
-
+    <Card variant="bordered" className="shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-        <div>
-          <h3
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-lg font-bold text-[#292929] tracking-tight"
-          >
-            Input Box
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Type your natural language query or question. Press <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-gray-100 border border-gray-200 rounded">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-gray-100 border border-gray-200 rounded">Enter</kbd> to send.
-          </p>
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#b2c147]/20 text-[#292929] flex items-center justify-center font-bold">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-base font-bold text-[#292929] tracking-tight"
+            >
+              Ask AI Assistant
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              Grounded with semantic vector retrieval & live model routing
+            </p>
+          </div>
         </div>
 
         {prompt.length > 0 && (
@@ -68,7 +83,7 @@ export const QueryInput = ({
             type="button"
             onClick={handleClear}
             disabled={status === 'loading'}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-gray-100"
           >
             <X size={13} />
             <span>Clear</span>
@@ -101,12 +116,12 @@ export const QueryInput = ({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {/* Textarea */}
         <div className="flex flex-col gap-1.5">
           <textarea
             id="prompt-text"
-            rows={4}
+            rows={3}
             placeholder="Type your query here... e.g. 'What is our refund policy?' or 'Explain our pricing tiers.'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -114,8 +129,25 @@ export const QueryInput = ({
             disabled={status === 'loading' || isViewer}
             className="w-full px-3.5 py-3 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 text-[#292929]
                        focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all
-                       disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-y min-h-[90px]"
+                       disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-y min-h-[85px]"
           />
+
+          {/* Quick Starter Suggestions */}
+          {!prompt && !isViewer && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[10px] text-gray-400 font-medium uppercase font-mono tracking-wider">Try:</span>
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setPrompt(s)}
+                  className="text-[11px] text-gray-600 bg-gray-100 hover:bg-[#b2c147]/20 hover:text-[#292929] px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                >
+                  &ldquo;{s}&rdquo;
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Model Selector & Actions Row */}
@@ -123,25 +155,17 @@ export const QueryInput = ({
           {/* Target Model Override */}
           <div className="flex items-center gap-2 max-w-xs w-full">
             <Cpu size={14} className="text-gray-400 shrink-0" />
-            <div className="relative w-full">
-              <select
-                id="model-select"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                disabled={status === 'loading' || isViewer}
-                className="w-full px-3 py-1.5 pr-8 border border-gray-200 rounded-lg text-xs bg-white text-[#292929]
-                           focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all
-                           disabled:bg-gray-50 disabled:text-gray-400 appearance-none cursor-pointer"
-              >
-                <option value="">Auto-Routing (Optimized)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Pro)</option>
-                <option value="gpt-4">GPT-4 (Enterprise)</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-gray-400 text-[10px]">
-                ▼
-              </div>
-            </div>
+            <Select value={model} onValueChange={setModel} disabled={status === 'loading' || isViewer}>
+              <SelectTrigger className="w-full h-8 text-xs">
+                <SelectValue placeholder="Auto-Routing (Optimized)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto-Routing (Optimized)</SelectItem>
+                <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini (Pro)</SelectItem>
+                <SelectItem value="gpt-4">GPT-4 (Enterprise)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Form Action Buttons */}
@@ -186,6 +210,7 @@ export const QueryInput = ({
                 </>
               ) : (
                 <>
+                  <span className="text-[10px] opacity-60 font-mono hidden sm:inline">Ctrl+↵</span>
                   <span>Send Query</span>
                   <Send size={14} />
                 </>
