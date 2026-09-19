@@ -35,6 +35,21 @@ def get_request_org(request):
     return None
 
 
+def ensure_default_plans():
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_FREE,
+        defaults={"monthly_request_limit": 100, "requests_per_minute": 10, "price": 0, "cache_ttl_seconds": 3600},
+    )
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_PRO,
+        defaults={"monthly_request_limit": 1000, "requests_per_minute": 60, "price": 29, "cache_ttl_seconds": 86400},
+    )
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_ENTERPRISE,
+        defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 99, "cache_ttl_seconds": 604800},
+    )
+
+
 class BillingPlanView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
@@ -42,6 +57,7 @@ class BillingPlanView(APIView):
         org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+        ensure_default_plans()
         serializer = PlanSerializer(org.plan) if org.plan else None
         plans = Plan.objects.all().order_by("price")
         data = {
