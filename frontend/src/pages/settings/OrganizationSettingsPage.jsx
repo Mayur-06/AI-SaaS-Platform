@@ -87,10 +87,36 @@ export const OrganizationSettingsPage = () => {
     }
   };
 
+  const handleRemoveMember = async (memberId) => {
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      await removeMember(memberId);
+      setSuccessMsg('Member account has been permanently removed.');
+    } catch (err) {
+      const { message } = extractErrorMessage(err);
+      setErrorMsg(`Failed to remove member: ${message}`);
+      throw err;
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerId) => {
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      await transferOwnership(newOwnerId);
+      setSuccessMsg('Ownership successfully transferred. Your role is now Admin.');
+    } catch (err) {
+      const { message } = extractErrorMessage(err);
+      setErrorMsg(`Failed to transfer ownership: ${message}`);
+      throw err;
+    }
+  };
+
   const handleDeleteOrg = async () => {
     if (
       !confirm(
-        'CRITICAL WARNING: This will deactivate this organization and immediately disable access for all members. Continue?'
+        'CRITICAL WARNING: This will deactivate this organization, revoke all API credentials, and permanently remove associated tenant records. Continue?'
       )
     ) {
       return;
@@ -98,8 +124,7 @@ export const OrganizationSettingsPage = () => {
 
     try {
       await deleteOrg();
-      alert('Organization has been deactivated.');
-      logout();
+      alert('Organization has been deactivated and records removed/updated.');
       navigate('/login');
     } catch (err) {
       const { message } = extractErrorMessage(err);
@@ -248,7 +273,7 @@ export const OrganizationSettingsPage = () => {
         currentUserId={user?.id}
         currentUserRole={role}
         onUpdateRole={updateMemberRole}
-        onRemoveMember={removeMember}
+        onRemoveMember={handleRemoveMember}
         isLoading={isLoading}
       />
 
@@ -332,7 +357,7 @@ export const OrganizationSettingsPage = () => {
         onClose={() => setIsTransferOpen(false)}
         members={members}
         currentUserId={user?.id}
-        onTransfer={transferOwnership}
+        onTransfer={handleTransferOwnership}
         isLoading={isLoading}
       />
     </div>

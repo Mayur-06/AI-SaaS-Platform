@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { orgService } from '../services/orgService';
+import { useAuthStore } from './authStore';
+import { setAuthTokens } from '../services/api';
 
 export const useOrgStore = create((set, get) => ({
   organization: null,
@@ -13,6 +15,12 @@ export const useOrgStore = create((set, get) => ({
     try {
       const org = await orgService.getOrg();
       set({ organization: org, isLoading: false });
+      if (org) {
+        useAuthStore.getState().setOrganization(org);
+        try {
+          localStorage.setItem('ai_saas_org', JSON.stringify(org));
+        } catch {}
+      }
     } catch (err) {
       set({ error: err.message || 'Failed to fetch organization', isLoading: false });
     }
@@ -41,6 +49,12 @@ export const useOrgStore = create((set, get) => ({
     try {
       const updated = await orgService.updateOrg(data);
       set({ organization: updated, isLoading: false });
+      if (updated) {
+        useAuthStore.getState().setOrganization(updated);
+        try {
+          localStorage.setItem('ai_saas_org', JSON.stringify(updated));
+        } catch {}
+      }
     } catch (err) {
       set({ error: err.message || 'Failed to update organization', isLoading: false });
       throw err;
@@ -69,13 +83,18 @@ export const useOrgStore = create((set, get) => ({
   },
 
   transferOwnership: async (newOwnerId) => {
-    await orgService.transferOwnership(newOwnerId);
+    const res = await orgService.transferOwnership(newOwnerId);
+    if (res?.access) {
+      setAuthTokens(res.access, res.refresh);
+    }
     await get().fetchMembers();
     await get().fetchOrg();
+    return res;
   },
 
   deleteOrg: async () => {
     await orgService.deleteOrg();
     set({ organization: null, members: [], invitations: [] });
+    useAuthStore.getState().logout();
   },
 }));

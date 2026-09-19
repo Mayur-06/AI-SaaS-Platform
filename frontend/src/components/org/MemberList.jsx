@@ -97,14 +97,18 @@ export const MemberList = ({
                     {canEditThisMember && !isSelf ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`Remove ${memberEmail} from this organization?`)) {
-                            onRemoveMember(m.id);
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to remove ${memberEmail}? This account will be permanently deleted and will no longer be able to log in.`)) {
+                            try {
+                              await onRemoveMember(m.id);
+                            } catch (err) {
+                              alert(err.message || 'Failed to remove member');
+                            }
                           }
                         }}
                         disabled={isLoading}
                         className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        title="Remove member"
+                        title="Delete member account"
                       >
                         <Trash2 size={14} />
                       </button>

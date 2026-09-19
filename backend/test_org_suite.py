@@ -302,14 +302,19 @@ def run_tests():
     })
     owner_token = body_ol.get("access")
 
-    # Step 18: DELETE /api/org/members/{id}/ (Remove Viewer)
+    # Step 18: DELETE /api/org/members/{id}/ (Remove Viewer & Ensure Account No Longer Exists)
     print("\n--- Step 18: DELETE /api/org/members/{id}/ ---")
     st, hdrs, body = make_request("DELETE", f"/api/org/members/{viewer_mem.id}/", token=owner_token)
-    viewer_mem.refresh_from_db()
-    step18_pass = st == 204 and viewer_mem.is_active is False
-    record("Step 18: DELETE member", step18_pass, f"HTTP {st}, DB is_active: {viewer_mem.is_active}")
+    user_deleted = not User.objects.filter(id=viewer_user.id).exists()
+    mem_deleted = not Membership.objects.filter(id=viewer_mem.id).exists()
+    st_login, _, _ = make_request("POST", "/api/auth/login/", {
+        "email": "omega_viewer@example.com",
+        "password": "ViewerPass123!"
+    })
+    step18_pass = st == 204 and user_deleted and mem_deleted and st_login in [400, 401]
+    record("Step 18: DELETE member", step18_pass, f"HTTP {st}, User deleted: {user_deleted}, Login blocked: {st_login in [400, 401]}")
 
-    # Step 19: DELETE /api/org/ (Soft delete org)
+    # Step 19: DELETE /api/org/ (Soft delete org & update/remove records)
     print("\n--- Step 19: DELETE /api/org/ (Soft delete org) ---")
     # Non-owner cannot delete
     st_m_del, _, _ = make_request("DELETE", "/api/org/", token=member_token)
@@ -321,8 +326,13 @@ def run_tests():
     
     # Subsequent GET returns 404
     st_after, _, _ = make_request("GET", "/api/org/", token=owner_token)
-    step19_pass = guard_org_del and st_o_del == 204 and org.is_active is False and st_after == 404
-    record("Step 19: DELETE /api/org/", step19_pass, f"Member Del: {st_m_del}, Owner Del: {st_o_del}, DB is_active: {org.is_active}, After GET: {st_after}")
+    mems_active_count = org.memberships.filter(is_active=True).count()
+    inv_count = org.invitations.count()
+    from billing.models import APIKey
+    keys_active_count = APIKey.objects.filter(organization=org, is_active=True).count()
+    records_updated = mems_active_count == 0 and inv_count == 0 and keys_active_count == 0
+    step19_pass = guard_org_del and st_o_del == 204 and org.is_active is False and st_after == 404 and records_updated
+    record("Step 19: DELETE /api/org/", step19_pass, f"Member Del: {st_m_del}, Owner Del: {st_o_del}, DB is_active: {org.is_active}, After GET: {st_after}, Records cleaned: {records_updated}")
 
     print("\n" + "=" * 70)
     total_passed = sum(1 for _, p, _ in results if p)

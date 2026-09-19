@@ -28,6 +28,15 @@ export const OwnershipTransferModal = ({
     }
   }, [eligibleMembers, selectedUserId]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+      if (eligibleMembers.length > 0) {
+        setSelectedUserId(getMemberUserId(eligibleMembers[0]) || '');
+      }
+    }
+  }, [isOpen]);
+
   const [error, setError] = useState(null);
 
   if (!isOpen) return null;
