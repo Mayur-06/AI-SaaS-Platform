@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   UserPlus,
   ShieldAlert,
   Save,
-  CheckCircle2,
-  AlertCircle,
   AlertOctagon,
   ArrowRightLeft,
+  Trash2,
 } from 'lucide-react';
 import { useOrgStore } from '../../store/orgStore';
 import { useAuthStore } from '../../store/authStore';
@@ -19,6 +19,17 @@ import { extractErrorMessage } from '../../services/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../../components/ui/AlertDialog';
 
 export const OrganizationSettingsPage = () => {
   const { user, role, logout } = useAuthStore();
@@ -48,8 +59,8 @@ export const OrganizationSettingsPage = () => {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
 
-  const [successMsg, setSuccessMsg] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
+  // AlertDialog state for org deletion
+  const [isDeleteOrgDialogOpen, setIsDeleteOrgDialogOpen] = useState(false);
 
   const isOwner = role === 'owner';
   const canManage = role === 'owner' || role === 'admin';
@@ -72,63 +83,49 @@ export const OrganizationSettingsPage = () => {
 
   const handleUpdateOrg = async (e) => {
     e.preventDefault();
-    setSuccessMsg(null);
-    setErrorMsg(null);
     try {
       await updateOrg({
         name: orgName,
         monthly_budget: Number(budget),
         budget_alert_threshold: Number(threshold),
       });
-      setSuccessMsg('Organization profile and budget preferences saved successfully.');
+      toast.success('Organization profile saved successfully.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMsg(`Update failed: ${message}`);
+      toast.error(`Update failed: ${message}`);
     }
   };
 
   const handleRemoveMember = async (memberId) => {
-    setSuccessMsg(null);
-    setErrorMsg(null);
     try {
       await removeMember(memberId);
-      setSuccessMsg('Member account has been permanently removed.');
+      toast.success('Member account has been permanently removed.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMsg(`Failed to remove member: ${message}`);
+      toast.error(`Failed to remove member: ${message}`);
       throw err;
     }
   };
 
   const handleTransferOwnership = async (newOwnerId) => {
-    setSuccessMsg(null);
-    setErrorMsg(null);
     try {
       await transferOwnership(newOwnerId);
-      setSuccessMsg('Ownership successfully transferred. Your role is now Admin.');
+      toast.success('Ownership successfully transferred. Your role is now Admin.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMsg(`Failed to transfer ownership: ${message}`);
+      toast.error(`Failed to transfer ownership: ${message}`);
       throw err;
     }
   };
 
   const handleDeleteOrg = async () => {
-    if (
-      !confirm(
-        'CRITICAL WARNING: This will deactivate this organization, revoke all API credentials, and permanently remove associated tenant records. Continue?'
-      )
-    ) {
-      return;
-    }
-
     try {
       await deleteOrg();
-      alert('Organization has been deactivated and records removed/updated.');
+      toast.success('Organization deactivated and records cleaned up.');
       navigate('/login');
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMsg(`Failed to delete organization: ${message}`);
+      toast.error(`Failed to deactivate organization: ${message}`);
     }
   };
 
@@ -187,20 +184,6 @@ export const OrganizationSettingsPage = () => {
         )}
       </div>
 
-      {/* Notifications */}
-      {successMsg && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-      {errorMsg && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
       {/* Organization Details Form */}
       <Card variant="bordered" className="shadow-sm space-y-5">
         <div className="pb-3 border-b border-gray-100">
@@ -208,7 +191,7 @@ export const OrganizationSettingsPage = () => {
             style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
             className="text-lg font-bold text-[#292929] tracking-tight"
           >
-            General Profile & Spending Ceilings
+            General Profile &amp; Spending Ceilings
           </h3>
           <p className="text-xs text-gray-500">
             Define tenant identity and configure monthly budget notifications
@@ -328,14 +311,42 @@ export const OrganizationSettingsPage = () => {
                   Immediately soft-delete this tenant, revoke all API credentials, and disable access for all members.
                 </p>
               </div>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={handleDeleteOrg}
-                className="self-start sm:self-auto"
-              >
-                Deactivate Organization
-              </Button>
+              <AlertDialog open={isDeleteOrgDialogOpen} onOpenChange={setIsDeleteOrgDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="self-start sm:self-auto flex items-center gap-1.5"
+                  >
+                    <Trash2 size={13} />
+                    <span>Deactivate Organization</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Deactivate Organization?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      <strong className="text-red-600">This action cannot be undone.</strong> This will immediately:
+                      <ul className="mt-2 space-y-1 list-disc pl-4 text-gray-500">
+                        <li>Soft-delete this organization</li>
+                        <li>Revoke all active API credentials</li>
+                        <li>Deactivate all member access</li>
+                        <li>Remove all pending invitations</li>
+                      </ul>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="danger"
+                      onClick={handleDeleteOrg}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Deactivating…' : 'Yes, deactivate'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </Card>

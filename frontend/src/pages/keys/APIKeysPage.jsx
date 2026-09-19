@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, ShieldAlert, Key, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { Plus, ShieldAlert, Key, Lock } from 'lucide-react';
 import { billingService } from '../../services/billingService';
 import { useAuthStore } from '../../store/authStore';
 import { KeyList } from '../../components/keys/KeyList';
@@ -9,6 +10,16 @@ import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
 import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../../components/ui/AlertDialog';
 
 export const APIKeysPage = () => {
   const { role, user, organization } = useAuthStore();
@@ -21,8 +32,9 @@ export const APIKeysPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [revealedKey, setRevealedKey] = useState(null);
 
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  // AlertDialog states
+  const [pendingRevoke, setPendingRevoke] = useState(null);     // keyId
+  const [pendingRegenerate, setPendingRegenerate] = useState(null); // keyId
 
   const canManage = role === 'owner' || role === 'admin';
 
@@ -35,7 +47,7 @@ export const APIKeysPage = () => {
       setCurrentPage(page);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to load keys: ${message}`);
+      toast.error(`Failed to load keys: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +61,6 @@ export const APIKeysPage = () => {
 
   const handleCreateKey = async (data) => {
     setIsLoading(true);
-    setError(null);
     try {
       const newKey = await billingService.createKey(data);
       setIsCreateModalOpen(false);
@@ -61,30 +72,22 @@ export const APIKeysPage = () => {
           keyName: newKey.name,
         });
       } else {
-        setMessage('API key created successfully.');
+        toast.success('API key created successfully.');
       }
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to create key: ${message}`);
+      toast.error(`Failed to create key: ${message}`);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegenerateKey = async (id) => {
-    if (
-      !confirm(
-        'Are you sure you want to regenerate this key? The existing key will be immediately revoked and cannot be restored.'
-      )
-    ) {
-      return;
-    }
-
+  const handleRegenerateKey = async () => {
+    if (!pendingRegenerate) return;
     setIsLoading(true);
-    setError(null);
     try {
-      const regenerated = await billingService.regenerateKey(id);
+      const regenerated = await billingService.regenerateKey(pendingRegenerate);
       await fetchKeys(currentPage);
 
       if (regenerated.full_key) {
@@ -93,45 +96,42 @@ export const APIKeysPage = () => {
           keyName: regenerated.name,
         });
       } else {
-        setMessage('Key regenerated successfully.');
+        toast.success('Key regenerated successfully.');
       }
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Regeneration failed: ${message}`);
+      toast.error(`Regeneration failed: ${message}`);
     } finally {
       setIsLoading(false);
+      setPendingRegenerate(null);
     }
   };
 
-  const handleRevokeKey = async (id) => {
-    if (!confirm('Immediately revoke this API key? Applications using it will lose access immediately.')) {
-      return;
-    }
-
+  const handleRevokeKey = async () => {
+    if (!pendingRevoke) return;
     setIsLoading(true);
-    setError(null);
     try {
-      await billingService.revokeKey(id);
-      setMessage('API key revoked.');
+      await billingService.revokeKey(pendingRevoke);
+      toast.success('API key revoked. Applications using it have lost access.');
       await fetchKeys(currentPage);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Revocation failed: ${message}`);
+      toast.error(`Revocation failed: ${message}`);
     } finally {
       setIsLoading(false);
+      setPendingRevoke(null);
     }
   };
 
   const handleUpdateKey = async (id, name, permissions) => {
     setIsLoading(true);
-    setError(null);
     try {
       await billingService.updateKey(id, { name, permissions });
-      setMessage('API key updated.');
+      toast.success('API key updated.');
       await fetchKeys(currentPage);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Update failed: ${message}`);
+      toast.error(`Update failed: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -213,25 +213,11 @@ export const APIKeysPage = () => {
         )}
       </div>
 
-      {/* Message Notifications */}
-      {message && (
-        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-          <span>{message}</span>
-        </div>
-      )}
-      {error && (
-        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-          <AlertCircle size={16} className="text-red-600 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
       {/* Key Table */}
       <KeyList
         keys={keys}
-        onRevoke={handleRevokeKey}
-        onRegenerate={handleRegenerateKey}
+        onRevoke={(id) => setPendingRevoke(id)}
+        onRegenerate={(id) => setPendingRegenerate(id)}
         onUpdate={handleUpdateKey}
         isLoading={isLoading}
         canManage={canManage}
@@ -280,6 +266,42 @@ export const APIKeysPage = () => {
           onClose={() => setRevealedKey(null)}
         />
       )}
+
+      {/* Revoke Confirm Dialog */}
+      <AlertDialog open={Boolean(pendingRevoke)} onOpenChange={(open) => { if (!open) setPendingRevoke(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will <strong className="text-red-600">immediately revoke</strong> this API key. Any application or script using it will lose access right away. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleRevokeKey} disabled={isLoading}>
+              {isLoading ? 'Revoking…' : 'Revoke key'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Regenerate Confirm Dialog */}
+      <AlertDialog open={Boolean(pendingRegenerate)} onOpenChange={(open) => { if (!open) setPendingRegenerate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The existing secret will be <strong className="text-red-600">immediately invalidated</strong> and a new one will be generated. Update any integrations using the old key before closing the reveal dialog.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleRegenerateKey} disabled={isLoading}>
+              {isLoading ? 'Regenerating…' : 'Regenerate key'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -16,10 +16,21 @@ import {
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
 import { extractErrorMessage } from '../../services/api';
+import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../ui/AlertDialog';
 
 export const DocumentPanel = ({ onDocumentsChange }) => {
   const { role } = useAuthStore();
@@ -35,6 +46,7 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
   const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(null);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = useState(null); // { id, title }
 
   const fetchDocuments = async () => {
     setIsLoading(true);
@@ -107,30 +119,30 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
 
   const handleProcess = async (id) => {
     setIsProcessing(id);
-    setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await aiService.processDocument(id);
       const count = res.chunks_count ?? res.chunk_count ?? 0;
-      setStatusMessage(`Document re-indexed into ${count} vector chunks.`);
+      toast.success(`Document re-indexed into ${count} vector chunks.`);
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMessage(`Processing error: ${message}`);
+      toast.error(`Processing error: ${message}`);
     } finally {
       setIsProcessing(null);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to remove this document from the knowledge base?')) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteDoc) return;
     try {
-      await aiService.deleteDocument(id);
-      setStatusMessage('Document removed from knowledge base.');
+      await aiService.deleteDocument(pendingDeleteDoc.id);
+      toast.success('Document removed from knowledge base.');
       await fetchDocuments();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setErrorMessage(`Failed to delete: ${message}`);
+      toast.error(`Failed to delete document: ${message}`);
+    } finally {
+      setPendingDeleteDoc(null);
     }
   };
 
@@ -354,7 +366,7 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={() => setPendingDeleteDoc({ id: doc.id, title: doc.title })}
                         className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
                         title="Delete document"
                       >
@@ -368,6 +380,28 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
           </div>
         )}
       </div>
+
+      {/* Delete Document AlertDialog */}
+      <AlertDialog
+        open={Boolean(pendingDeleteDoc)}
+        onOpenChange={(open) => { if (!open) setPendingDeleteDoc(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>&ldquo;{pendingDeleteDoc?.title}&rdquo;</strong> from the knowledge base?
+              All associated vector embeddings will be pruned and this document will no longer ground AI queries.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleConfirmDelete}>
+              Delete Document
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

@@ -4,6 +4,13 @@ import { extractErrorMessage } from '../../services/api';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../ui/Select';
 
 export const InviteModal = ({
   isOpen,
@@ -125,27 +132,20 @@ export const InviteModal = ({
 
           <div className="flex flex-col gap-1.5">
             <label
-              htmlFor="invite-role"
               className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
             >
               Assigned Organization Role
             </label>
-            <div className="relative">
-              <select
-                id="invite-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] appearance-none cursor-pointer"
-              >
-                <option value="admin">Admin (Manage members, keys & billing)</option>
-                <option value="member">Member (Can run AI queries & index docs)</option>
-                <option value="viewer">Viewer (Read-only access)</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 text-xs">
-                ▼
-              </div>
-            </div>
+            <Select value={role} onValueChange={setRole} disabled={isLoading}>
+              <SelectTrigger className="w-full h-10">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin (Manage members, keys & billing)</SelectItem>
+                <SelectItem value="member">Member (Can run AI queries & index docs)</SelectItem>
+                <SelectItem value="viewer">Viewer (Read-only access)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">

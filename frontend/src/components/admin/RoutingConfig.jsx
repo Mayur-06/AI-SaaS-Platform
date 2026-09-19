@@ -2,9 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Shuffle, Zap, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { extractErrorMessage } from '../../services/api';
+import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../ui/Select';
 
 export const RoutingConfig = () => {
   const [plans, setPlans] = useState([]);
@@ -106,10 +114,12 @@ export const RoutingConfig = () => {
         message: `Routing rules for ${planName} updated. Circuit breaker thresholds applied.`,
         plan: planName,
       });
+      toast.success(`Routing rules for ${planName} updated.`);
       await loadRouting();
     } catch (err) {
       const { message } = extractErrorMessage(err);
       setFeedback({ type: 'error', message: `Failed to save rule: ${message}`, plan: planName });
+      toast.error(`Failed to save rule: ${message}`);
     } finally {
       setSavingPlan(null);
     }
@@ -186,22 +196,25 @@ export const RoutingConfig = () => {
                   </td>
 
                   <td className="px-5 py-3.5">
-                    <select
+                    <Select
                       value={currentEdit.primaryModelId || ''}
-                      onChange={(e) => handlePrimaryChange(planName, e.target.value)}
+                      onValueChange={(val) => handlePrimaryChange(planName, val)}
                       disabled={isLoading || isSaving}
-                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] cursor-pointer"
                     >
-                      <option value="">Select Primary Model</option>
-                      {activeModels.map((m) => {
-                        const isPermitted = allowedNames.length === 0 || allowedNames.includes(m.name);
-                        return (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.provider}){isPermitted ? '' : ' [Restricted]'}
-                          </option>
-                        );
-                      })}
-                    </select>
+                      <SelectTrigger className="h-8 text-xs min-w-[180px]">
+                        <SelectValue placeholder="Select Primary Model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeModels.map((m) => {
+                          const isPermitted = allowedNames.length === 0 || allowedNames.includes(m.name);
+                          return (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} ({m.provider}){isPermitted ? '' : ' [Restricted]'}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   </td>
 
                   <td className="px-5 py-3.5">

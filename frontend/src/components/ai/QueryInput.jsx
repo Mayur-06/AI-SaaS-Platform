@@ -3,6 +3,13 @@ import { Send, RotateCcw, AlertTriangle, Lock, Cpu, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../ui/Select';
 
 export const QueryInput = ({
   onSubmit,
@@ -16,7 +23,7 @@ export const QueryInput = ({
   const { role } = useAuthStore();
   const isViewer = role === 'viewer';
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('');
+  const [model, setModel] = useState('auto');
 
   // Sync external prompt when loaded from history
   useEffect(() => {
@@ -29,7 +36,7 @@ export const QueryInput = ({
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!prompt.trim() || status === 'loading' || isViewer) return;
-    await onSubmit(prompt.trim(), model || undefined);
+    await onSubmit(prompt.trim(), model === 'auto' ? undefined : model);
   };
 
   const handleKeyDown = (e) => {
@@ -120,25 +127,17 @@ export const QueryInput = ({
           {/* Target Model Override */}
           <div className="flex items-center gap-2 max-w-xs w-full">
             <Cpu size={14} className="text-gray-400 shrink-0" />
-            <div className="relative w-full">
-              <select
-                id="model-select"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                disabled={status === 'loading' || isViewer}
-                className="w-full px-3 py-1.5 pr-8 border border-gray-200 rounded-lg text-xs bg-white text-[#292929]
-                           focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all
-                           disabled:bg-gray-50 disabled:text-gray-400 appearance-none cursor-pointer"
-              >
-                <option value="">Auto-Routing (Optimized)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Pro)</option>
-                <option value="gpt-4">GPT-4 (Enterprise)</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-gray-400 text-[10px]">
-                ▼
-              </div>
-            </div>
+            <Select value={model} onValueChange={setModel} disabled={status === 'loading' || isViewer}>
+              <SelectTrigger className="w-full h-8 text-xs">
+                <SelectValue placeholder="Auto-Routing (Optimized)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto-Routing (Optimized)</SelectItem>
+                <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini (Pro)</SelectItem>
+                <SelectItem value="gpt-4">GPT-4 (Enterprise)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Form Action Buttons */}
