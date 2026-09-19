@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 
 export const CreateKeyModal = ({
   isOpen,
@@ -7,7 +10,7 @@ export const CreateKeyModal = ({
   isLoading,
 }) => {
   const [name, setName] = useState('');
-  const [permissions, setPermissions] = useState('write'); // Default to write per §11.2
+  const [permissions, setPermissions] = useState('write');
   const [rateLimitOverride, setRateLimitOverride] = useState('');
   const [error, setError] = useState(null);
 
@@ -36,63 +39,79 @@ export const CreateKeyModal = ({
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '1rem' }}>Create New API Key</h3>
+    <Modal isOpen={isOpen} onClose={onClose} title="Generate New API Key" maxWidth="md">
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+          {error}
+        </div>
+      )}
 
-        {error && <div className="alert alert-error">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-4 text-left">
+        <Input
+          label="Key Identifier / Description"
+          placeholder="e.g. Production Backend, CI/CD Pipeline, Staging Server"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          disabled={isLoading}
+        />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="key-name">Key Name / Description</label>
-            <input
-              id="key-name"
-              type="text"
-              placeholder="e.g. Production Backend, CI Pipeline"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="key-perm">Permissions Level</label>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="key-perm"
+            className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
+          >
+            Permissions Scope
+          </label>
+          <div className="relative">
             <select
               id="key-perm"
               value={permissions}
               onChange={(e) => setPermissions(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] appearance-none cursor-pointer"
             >
-              <option value="write">Write (Standard - Run AI Queries & Access Features)</option>
-              <option value="read">Read Only (Read metadata, no AI generation)</option>
-              <option value="admin">Admin (Full access to keys & org)</option>
+              <option value="write">Write (Standard — Query AI endpoints & use RAG)</option>
+              <option value="read">Read Only (Telemetry and metadata inspection)</option>
+              <option value="admin">Admin (Full administrative credentials)</option>
             </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 text-xs">
+              ▼
+            </div>
           </div>
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="rate-limit">Optional Rate Limit Override (RPM)</label>
-            <input
-              id="rate-limit"
-              type="number"
-              min={1}
-              placeholder="Leave blank to use plan limit"
-              value={rateLimitOverride}
-              onChange={(e) => setRateLimitOverride(e.target.value)}
-            />
-            <span style={{ fontSize: '0.75rem', color: '#666' }}>
-              Override requests per minute for this specific key (must be lower than or equal to plan limit).
-            </span>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="rate-limit"
+            className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
+          >
+            Rate Limit Override (Optional RPM)
+          </label>
+          <input
+            id="rate-limit"
+            type="number"
+            min={1}
+            placeholder="Leave empty to inherit organization plan limit"
+            value={rateLimitOverride}
+            onChange={(e) => setRateLimitOverride(e.target.value)}
+            disabled={isLoading}
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-[#292929] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
+          />
+          <span className="text-[11px] text-gray-500">
+            Override maximum requests per minute for this specific key (capped by your plan).
+          </span>
+        </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-            <button type="button" onClick={onClose} disabled={isLoading}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>
-              {isLoading ? 'Creating...' : 'Generate API Key'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={isLoading}>
+            {isLoading ? 'Generating…' : 'Generate API Key →'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };

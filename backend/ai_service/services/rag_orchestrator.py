@@ -24,17 +24,22 @@ class RAGOrchestrator:
         self.organization = organization
         self.user = user
         self.api_key = api_key
-        self.embedder = Embedder()
+        try:
+            self.embedder = Embedder()
+        except Exception as exc:
+            logger.warning("Embedder initialization failed: %s", exc)
+            self.embedder = None
         self.document_store = DjangoDocumentStore(organization, self.embedder)
         self.model_router = ModelRouter(organization)
         self.semantic_cache = SemanticCache(organization)
         self.text_chunker = TextChunker()
 
+
     def _build_prompt(self, question: str, chunks: List[Dict]) -> tuple:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
-            doc_name = chunk.get("doc_id", "unknown")
-            context_parts.append(f"[Document {i}] (doc_id={doc_name})\n{chunk['text']}")
+            doc_name = chunk.get("doc_title") or chunk.get("doc_id", "unknown")
+            context_parts.append(f"[Document {i}] (source={doc_name})\n{chunk['text']}")
         context = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
 
         system_prompt = """You are a helpful and conversational AI assistant with access to uploaded documents.
@@ -50,11 +55,13 @@ Question: {question}"""
         return system_prompt, user_prompt
 
     def _run_query_async(self, question: str) -> Dict[str, Any]:
-        try:
-            query_embedding = self.embedder.encode(question)
-        except Exception as exc:
-            logger.warning("Embedding failed, proceeding without cache lookup: %s", exc)
-            query_embedding = None
+        query_embedding = None
+        if self.embedder is not None:
+            try:
+                query_embedding = self.embedder.encode(question)
+            except Exception as exc:
+                logger.warning("Embedding failed, proceeding without cache lookup: %s", exc)
+                query_embedding = None
 
         request_id = str(__import__("uuid").uuid4())
 
@@ -97,7 +104,7 @@ Question: {question}"""
                     "request_id": request_id,
                 }
 
-        chunks = self.document_store.search(query_embedding if query_embedding is not None else self.embedder.encode(question), top_k=3)
+        chunks = self.document_store.search(query_embedding, top_k=3) if query_embedding is not None else []
         system_prompt, user_prompt = self._build_prompt(question, chunks)
 
         llm_client = LLMClient(self.organization)
@@ -151,7 +158,8 @@ Question: {question}"""
 
         cited_chunks = [
             {
-                "document_title": c.get("doc_id", "Document"),
+                "document_title": c.get("doc_title") or c.get("doc_id", "Document"),
+                "chunk_index": c.get("chunk_index", 0),
                 "content": c.get("text", ""),
                 "score": round(float(c.get("score", 0)), 3),
             }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { REMEMBER_ME_KEY } from '../../services/api';
+import { REMEMBER_ME_KEY, extractErrorMessage } from '../../services/api';
+import { AuthLayout } from './AuthLayout';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -31,35 +32,64 @@ export const LoginForm = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
-        'Invalid email or password.';
-      setLocalError(msg);
+      const { message } = extractErrorMessage(err);
+      setLocalError(message || 'Invalid email or password.');
     }
   };
 
   return (
-    <div className="auth-card">
-      <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Sign In</h2>
+    <AuthLayout quote="The best insights shouldn't be buried under hundreds of pages.">
+      {/* Heading */}
+      <div className="mb-8">
+        <h1
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-3xl font-bold text-[#292929] mb-2"
+        >
+          Welcome back
+        </h1>
+        <p className="text-sm text-gray-500">Sign in to your Hapy account</p>
+      </div>
 
-      {localError && <div className="alert alert-error">{localError}</div>}
+      {/* Error */}
+      {localError && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          {localError}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email Address</label>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Email */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="text-sm font-semibold text-[#292929]">
+            Email address
+          </label>
           <input
             id="email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
+            placeholder="you@company.com"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
+                       bg-white placeholder-gray-400 text-[#292929]
+                       focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
+                       transition-shadow duration-150"
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
+        {/* Password */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="text-sm font-semibold text-[#292929]">
+              Password
+            </label>
+            <Link
+              to="/password-reset"
+              className="text-xs text-gray-400 hover:text-[#b2c147] transition-colors duration-150 no-underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <input
             id="password"
             type="password"
@@ -67,39 +97,50 @@ export const LoginForm = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
+                       bg-white placeholder-gray-400 text-[#292929]
+                       focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent
+                       transition-shadow duration-150"
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.75rem 0' }}>
+        {/* Remember me */}
+        <div className="flex items-center gap-2.5">
           <input
             id="remember"
             type="checkbox"
             checked={rememberMe}
             onChange={(e) => setRememberMe(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 accent-[#b2c147] cursor-pointer"
           />
-          <label htmlFor="remember" style={{ fontWeight: 'normal' }}>
+          <label htmlFor="remember" className="text-sm text-gray-500 cursor-pointer font-normal">
             Remember me
           </label>
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
-          className="btn-primary"
-          style={{ width: '100%', marginTop: '0.5rem' }}
           disabled={isLoading}
+          className="w-full mt-2 px-4 py-2.5 bg-[#b2c147] text-[#292929] font-semibold text-sm
+                     rounded-lg hover:brightness-110 active:scale-[0.99]
+                     transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+                     focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:ring-offset-2"
         >
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {isLoading ? 'Signing in…' : 'Sign In →'}
         </button>
       </form>
 
-      <div style={{ marginTop: '1rem', fontSize: '0.85rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div>
-          Don't have an account? <Link to="/register" style={{ textDecoration: 'underline' }}>Register</Link>
-        </div>
-        <div>
-          <Link to="/password-reset" style={{ textDecoration: 'underline' }}>Forgot your password?</Link>
-        </div>
-      </div>
-    </div>
+      {/* Footer link */}
+      <p className="mt-6 text-sm text-center text-gray-500">
+        Don&apos;t have an account?{' '}
+        <Link
+          to="/register"
+          className="text-[#292929] font-semibold hover:text-[#b2c147] transition-colors duration-150 no-underline"
+        >
+          Create one free
+        </Link>
+      </p>
+    </AuthLayout>
   );
 };

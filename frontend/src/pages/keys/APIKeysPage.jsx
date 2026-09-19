@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, ShieldAlert, Key, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { billingService } from '../../services/billingService';
 import { useAuthStore } from '../../store/authStore';
 import { KeyList } from '../../components/keys/KeyList';
 import { CreateKeyModal } from '../../components/keys/CreateKeyModal';
 import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
 import { extractErrorMessage } from '../../services/api';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
 
 export const APIKeysPage = () => {
   const { role, user, organization } = useAuthStore();
@@ -14,7 +17,7 @@ export const APIKeysPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Modal and dialog states
+  // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [revealedKey, setRevealedKey] = useState(null);
 
@@ -138,59 +141,93 @@ export const APIKeysPage = () => {
 
   if (!organization && user?.is_staff) {
     return (
-      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>🔑 Tenant API Keys Management</h2>
-        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
-          API keys are scoped to individual tenant organizations. You are currently logged in as a <strong>Platform Superadmin</strong> without a tenant organization context.
+      <Card variant="bordered" className="max-w-xl mx-auto text-center py-12 px-6 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center mx-auto">
+          <ShieldAlert size={24} />
+        </div>
+        <h2
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-2xl font-bold text-[#292929]"
+        >
+          Superadmin Console Mode
+        </h2>
+        <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
+          API keys are scoped to specific tenant organizations. You are currently logged in as a <strong>Platform Superadmin</strong> without an active tenant organization context.
         </p>
-        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.5rem' }}>
-          To inspect tenant fleets, infrastructure health, or configure model routing, visit the Superadmin Console.
-        </p>
-        <Link to="/admin" className="btn-primary" style={{ display: 'inline-block', padding: '0.6rem 1.2rem', textDecoration: 'none' }}>
-          🛡️ Go to Platform Admin Panel
-        </Link>
-      </div>
+        <div className="pt-2">
+          <Link to="/admin" className="no-underline">
+            <Button variant="dark" size="md">
+              Go to Superadmin Console →
+            </Button>
+          </Link>
+        </div>
+      </Card>
     );
   }
 
   if (!canManage) {
     return (
-      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>🔑 API Keys Management</h2>
-        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
-          Programmatic API keys allow administrative access to organization-wide AI endpoints, custom rate limits, and automated systems.
-        </p>
-        <div style={{ display: 'inline-block', marginBottom: '1.5rem', background: '#fff7e6', color: '#d46b08', border: '1px solid #ffd591', padding: '0.5rem 1rem', borderRadius: '4px', fontSize: '0.9rem' }}>
-          Role: <strong>{String(role || 'member').toUpperCase()}</strong> — Admin or Owner privileges required
+      <Card variant="bordered" className="max-w-xl mx-auto text-center py-12 px-6 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto">
+          <Lock size={24} />
         </div>
-        <p style={{ color: '#888', fontSize: '0.85rem' }}>
-          Please contact your organization administrator or owner to create or inspect API credentials.
+        <h2
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-2xl font-bold text-[#292929]"
+        >
+          API Key Management Restricted
+        </h2>
+        <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
+          Programmatic API keys provide administrative access to organization endpoints. Your current role is <strong className="uppercase font-mono">{role || 'member'}</strong>. Key generation and secret inspection require Admin or Owner permissions.
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>API Keys Management</h1>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
-            Manage programmatic API credentials with custom permissions, rate limit overrides, and cryptographic security.
+          <h1
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl sm:text-3xl font-extrabold text-[#292929] tracking-tight"
+          >
+            API Keys Management
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Generate and manage hashed secret credentials with organization-scoped rate limits.
           </p>
         </div>
 
         {canManage && (
-          <button onClick={() => setIsCreateModalOpen(true)} className="btn-primary">
-            + Generate New Key
-          </button>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="self-start sm:self-auto flex items-center gap-1.5"
+          >
+            <Plus size={16} />
+            <span>Generate New Key</span>
+          </Button>
         )}
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {/* Message Notifications */}
+      {message && (
+        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          <span>{message}</span>
+        </div>
+      )}
+      {error && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      {/* Key List */}
+      {/* Key Table */}
       <KeyList
         keys={keys}
         onRevoke={handleRevokeKey}
@@ -200,26 +237,30 @@ export const APIKeysPage = () => {
         canManage={canManage}
       />
 
-      {/* Pagination */}
-      <div className="pagination" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.85rem', color: '#666' }}>
-          Page {currentPage} of {totalPages} ({totalCount} keys total)
+      {/* Pagination Footer */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-500">
+        <span>
+          Showing page <strong className="text-[#292929]">{currentPage}</strong> of{' '}
+          <strong className="text-[#292929]">{totalPages}</strong> ({totalCount} keys total)
         </span>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage <= 1 || isLoading}
             onClick={() => fetchKeys(currentPage - 1)}
-            style={{ padding: '0.25rem 0.5rem' }}
           >
-            Previous
-          </button>
-          <button
+            ← Previous
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage >= totalPages || isLoading}
             onClick={() => fetchKeys(currentPage + 1)}
-            style={{ padding: '0.25rem 0.5rem' }}
           >
-            Next
-          </button>
+            Next →
+          </Button>
         </div>
       </div>
 

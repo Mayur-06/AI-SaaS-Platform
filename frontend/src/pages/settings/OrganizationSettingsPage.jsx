@@ -1,4 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  UserPlus,
+  ShieldAlert,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  AlertOctagon,
+  ArrowRightLeft,
+} from 'lucide-react';
 import { useOrgStore } from '../../store/orgStore';
 import { useAuthStore } from '../../store/authStore';
 import { MemberList } from '../../components/org/MemberList';
@@ -6,7 +16,9 @@ import { InvitationList } from '../../components/org/InvitationList';
 import { InviteModal } from '../../components/org/InviteModal';
 import { OwnershipTransferModal } from '../../components/org/OwnershipTransferModal';
 import { extractErrorMessage } from '../../services/api';
-import { useNavigate, Link } from 'react-router-dom';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 export const OrganizationSettingsPage = () => {
   const { user, role, logout } = useAuthStore();
@@ -68,7 +80,7 @@ export const OrganizationSettingsPage = () => {
         monthly_budget: Number(budget),
         budget_alert_threshold: Number(threshold),
       });
-      setSuccessMsg('Organization profile and budget preferences updated.');
+      setSuccessMsg('Organization profile and budget preferences saved successfully.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
       setErrorMsg(`Update failed: ${message}`);
@@ -97,168 +109,214 @@ export const OrganizationSettingsPage = () => {
 
   if (!organization && user?.is_staff) {
     return (
-      <div className="card" style={{ maxWidth: '700px', margin: '2rem auto', textAlign: 'center', padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>⚙️ Tenant Organization Settings</h2>
-        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.25rem' }}>
-          Organization profile, team invitations, and budget limits are scoped to tenant accounts. You are currently logged in as a <strong>Platform Superadmin</strong> without a tenant organization context.
+      <Card variant="bordered" className="max-w-xl mx-auto text-center py-12 px-6 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center mx-auto">
+          <ShieldAlert size={24} />
+        </div>
+        <h2
+          style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+          className="text-2xl font-bold text-[#292929]"
+        >
+          Superadmin Console Mode
+        </h2>
+        <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
+          Organization profiles, team access, and spend controls are scoped to tenant accounts. You are currently logged in as a <strong>Platform Superadmin</strong> without a tenant organization context.
         </p>
-        <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '1.5rem' }}>
-          To manage all registered tenant organizations, view platform economics, or configure routing rules, visit the Superadmin Console.
-        </p>
-        <Link to="/admin" className="btn-primary" style={{ display: 'inline-block', padding: '0.6rem 1.2rem', textDecoration: 'none' }}>
-          🛡️ Go to Platform Admin Panel
-        </Link>
-      </div>
+        <div className="pt-2">
+          <Link to="/admin" className="no-underline">
+            <Button variant="dark" size="md">
+              Go to Superadmin Console →
+            </Button>
+          </Link>
+        </div>
+      </Card>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>Organization Settings</h1>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
-            Manage organization identity, team access permissions, member invitations, and organization lifecycle.
+          <h1
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl sm:text-3xl font-extrabold text-[#292929] tracking-tight"
+          >
+            Organization Settings
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Manage your organization identity, team roles, access invitations, and safety controls.
           </p>
         </div>
 
         {canManage && (
-          <button onClick={() => setIsInviteOpen(true)} className="btn-primary">
-            + Invite Team Member
-          </button>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setIsInviteOpen(true)}
+            className="self-start sm:self-auto flex items-center gap-1.5"
+          >
+            <UserPlus size={16} />
+            <span>Invite Team Member</span>
+          </Button>
         )}
       </div>
 
-      {successMsg && <div className="alert alert-success">{successMsg}</div>}
-      {errorMsg && <div className="alert alert-error">{errorMsg}</div>}
+      {/* Notifications */}
+      {successMsg && (
+        <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Organization Details Form */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="card-header">
-          <h3>General Organization Profile</h3>
+      <Card variant="bordered" className="shadow-sm space-y-5">
+        <div className="pb-3 border-b border-gray-100">
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-lg font-bold text-[#292929] tracking-tight"
+          >
+            General Profile & Spending Ceilings
+          </h3>
+          <p className="text-xs text-gray-500">
+            Define tenant identity and configure monthly budget notifications
+          </p>
         </div>
 
-        <form onSubmit={handleUpdateOrg}>
-          <div className="grid-2">
-            <div className="form-group">
-              <label htmlFor="org-name-input">Organization Name</label>
-              <input
-                id="org-name-input"
-                type="text"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                disabled={!canManage || isLoading}
-                required
-              />
-            </div>
+        <form onSubmit={handleUpdateOrg} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Organization Name"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              disabled={!canManage || isLoading}
+              required
+            />
 
-            <div className="form-group">
-              <label htmlFor="org-slug-input">Tenant Slug (Identifier)</label>
-              <input
-                id="org-slug-input"
-                type="text"
-                readOnly
-                value={organization?.slug || ''}
-                style={{ background: '#f5f5f5' }}
-              />
-            </div>
+            <Input
+              label="Tenant Slug (Unique Key)"
+              readOnly
+              value={organization?.slug || ''}
+              helperText="Auto-generated slug identifier for organization resources"
+            />
           </div>
 
-          <div className="grid-2" style={{ marginTop: '0.5rem' }}>
-            <div className="form-group">
-              <label htmlFor="org-budget-input">Monthly Cost Budget ($ USD)</label>
-              <input
-                id="org-budget-input"
-                type="number"
-                min={0}
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                disabled={!canManage || isLoading}
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <Input
+              label="Monthly Spend Budget ($ USD)"
+              type="number"
+              min={0}
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              disabled={!canManage || isLoading}
+              helperText="Target maximum monthly dollar spend across all LLM inference"
+            />
 
-            <div className="form-group">
-              <label htmlFor="org-thresh-input">Budget Alert Threshold (%)</label>
-              <input
-                id="org-thresh-input"
-                type="number"
-                min={1}
-                max={100}
-                value={threshold}
-                onChange={(e) => setThreshold(e.target.value)}
-                disabled={!canManage || isLoading}
-              />
-            </div>
+            <Input
+              label="Budget Alert Threshold (%)"
+              type="number"
+              min={1}
+              max={100}
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              disabled={!canManage || isLoading}
+              helperText="Percentage of budget that triggers warning badges in the dashboard"
+            />
           </div>
 
           {canManage && (
-            <button type="submit" className="btn-primary" style={{ marginTop: '0.5rem' }} disabled={isLoading}>
-              Save Changes
-            </button>
+            <div className="pt-2">
+              <Button type="submit" variant="primary" size="md" disabled={isLoading} className="flex items-center gap-2">
+                <Save size={14} />
+                <span>Save Profile Changes</span>
+              </Button>
+            </div>
           )}
         </form>
-      </div>
+      </Card>
 
-      {/* Member Management */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <MemberList
-          members={members}
-          currentUserId={user?.id}
-          currentUserRole={role}
-          onUpdateRole={updateMemberRole}
-          onRemoveMember={removeMember}
+      {/* Member Management Table */}
+      <MemberList
+        members={members}
+        currentUserId={user?.id}
+        currentUserRole={role}
+        onUpdateRole={updateMemberRole}
+        onRemoveMember={removeMember}
+        isLoading={isLoading}
+      />
+
+      {/* Pending Invitations Table */}
+      {canManage && (
+        <InvitationList
+          invitations={invitations}
+          canManage={canManage}
+          onRevoke={revokeInvitation}
           isLoading={isLoading}
         />
-      </div>
-
-      {/* Pending Invitations */}
-      {canManage && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <InvitationList
-            invitations={invitations}
-            canManage={canManage}
-            onRevoke={revokeInvitation}
-            isLoading={isLoading}
-          />
-        </div>
       )}
 
-      {/* Ownership Transfer & Danger Zone */}
+      {/* Danger Zone (Owner Only) */}
       {isOwner && (
-        <div className="card" style={{ borderColor: '#ffa39e', marginBottom: '1.5rem' }}>
-          <div className="card-header" style={{ color: '#a8071a' }}>
-            <h3>Danger Zone (Owner Actions)</h3>
+        <Card variant="bordered" className="border-red-200 bg-red-50/20 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-red-200/80 text-red-800">
+            <AlertOctagon size={18} className="text-red-600" />
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-lg font-bold tracking-tight"
+            >
+              Danger Zone (Owner Privileges)
+            </h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="divide-y divide-red-100 text-xs">
+            {/* Transfer Ownership Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3">
               <div>
-                <strong>Transfer Organization Ownership</strong>
-                <p style={{ fontSize: '0.8rem', color: '#666' }}>
-                  Assign another team member as the primary organization owner.
+                <strong className="text-[#292929] block text-sm">Transfer Primary Ownership</strong>
+                <p className="text-gray-500">
+                  Assign another registered member to assume legal and administrative ownership of this organization.
                 </p>
               </div>
-              <button onClick={() => setIsTransferOpen(true)}>
-                Transfer Ownership
-              </button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsTransferOpen(true)}
+                className="self-start sm:self-auto flex items-center gap-1.5"
+              >
+                <ArrowRightLeft size={13} />
+                <span>Transfer Ownership</span>
+              </Button>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+            {/* Deactivate Organization Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
               <div>
-                <strong style={{ color: '#a8071a' }}>Deactivate Organization</strong>
-                <p style={{ fontSize: '0.8rem', color: '#666' }}>
-                  Soft-delete this organization and immediately revoke member access.
+                <strong className="text-red-700 block text-sm">Deactivate Organization</strong>
+                <p className="text-gray-500">
+                  Immediately soft-delete this tenant, revoke all API credentials, and disable access for all members.
                 </p>
               </div>
-              <button onClick={handleDeleteOrg} className="btn-danger">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteOrg}
+                className="self-start sm:self-auto"
+              >
                 Deactivate Organization
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Invite Modal */}
+      {/* Modals */}
       <InviteModal
         isOpen={isInviteOpen}
         onClose={() => {
@@ -269,7 +327,6 @@ export const OrganizationSettingsPage = () => {
         isLoading={isLoading}
       />
 
-      {/* Ownership Transfer Modal */}
       <OwnershipTransferModal
         isOpen={isTransferOpen}
         onClose={() => setIsTransferOpen(false)}

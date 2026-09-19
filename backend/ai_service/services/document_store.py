@@ -12,9 +12,20 @@ logger = logging.getLogger(__name__)
 class DjangoDocumentStore:
     def __init__(self, organization: Organization, embedder: Optional[Embedder] = None):
         self.organization = organization
-        self.embedder = embedder or Embedder()
+        self._embedder = embedder
 
-    def search(self, query_embedding: np.ndarray, top_k: int = 3) -> List[Dict[str, Any]]:
+    @property
+    def embedder(self) -> Optional[Embedder]:
+        if self._embedder is None:
+            try:
+                self._embedder = Embedder()
+            except Exception as exc:
+                logger.warning("Failed to initialize embedder for document store: %s", exc)
+        return self._embedder
+
+    def search(self, query_embedding: Optional[np.ndarray], top_k: int = 3) -> List[Dict[str, Any]]:
+        if query_embedding is None:
+            return []
         if isinstance(query_embedding, list):
             query_embedding = np.array(query_embedding, dtype=np.float32)
         from django.db import connection
@@ -42,10 +53,14 @@ class DjangoDocumentStore:
         scored.sort(key=lambda x: x[0], reverse=True)
         results = []
         for score, chunk in scored[:top_k]:
+            filename = chunk.document.filename if chunk.document else "Document"
+            clean_name = filename.split("/")[-1] if "/" in filename else (filename.split("\\")[-1] if "\\" in filename else filename)
             results.append({
                 "chunk_id": str(chunk.id),
                 "score": score,
-                "doc_id": str(chunk.document.id),
+                "doc_id": str(chunk.document.id) if chunk.document else "",
+                "doc_title": clean_name,
+                "chunk_index": getattr(chunk, "chunk_index", 0),
                 "text": chunk.chunk_text,
             })
         return results

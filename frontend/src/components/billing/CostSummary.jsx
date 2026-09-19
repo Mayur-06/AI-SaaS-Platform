@@ -1,5 +1,8 @@
 import React from 'react';
+import { Download, Zap, PiggyBank, Receipt } from 'lucide-react';
 import { billingService } from '../../services/billingService';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 
 export const CostSummary = ({ usage }) => {
   const handleExportCsv = async () => {
@@ -36,46 +39,93 @@ export const CostSummary = ({ usage }) => {
   };
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Cost & Cache Efficiency</h3>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleExportCsv} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-            📥 Export CSV
-          </button>
-          <button onClick={handleExportJson} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-            📥 Export JSON
-          </button>
+    <Card variant="bordered" className="shadow-sm space-y-5">
+      {/* Header with Export buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+        <div>
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-lg font-bold text-[#292929] tracking-tight"
+          >
+            Cost & Cache Efficiency
+          </h3>
+          <p className="text-xs text-gray-500">
+            Semantic caching savings compared to raw external LLM invocation costs
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5"
+          >
+            <Download size={13} />
+            <span>Export CSV</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportJson}
+            className="flex items-center gap-1.5"
+          >
+            <Download size={13} />
+            <span>Export JSON</span>
+          </Button>
         </div>
       </div>
 
-      <div className="grid-3">
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Cache Hit Rate</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+      {/* 3 Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
+            <Zap size={13} className="text-[#b2c147]" />
+            <span>Cache Hit Rate</span>
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-[#292929]"
+          >
             {usage ? `${usage.cache_hit_rate}%` : '-'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#777' }}>
-            {usage ? `${usage.cache_hits} cache hits` : ''}
+          <div className="text-[11px] text-gray-400 font-mono">
+            {usage ? `${usage.cache_hits} cached hits recorded` : ''}
           </div>
         </div>
 
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Estimated Cache Savings</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#237804' }}>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
+            <PiggyBank size={13} className="text-emerald-600" />
+            <span>Estimated Savings</span>
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-emerald-700"
+          >
             ${usage ? Number(usage.cache_savings || 0).toFixed(4) : '0.0000'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#777' }}>Direct LLM cost avoided</div>
+          <div className="text-[11px] text-gray-400 font-mono">
+            Direct external API fees avoided
+          </div>
         </div>
 
-        <div style={{ padding: '0.5rem', background: '#fafafa', border: '1px solid #ddd', borderRadius: '4px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#666' }}>Total Net Platform Cost</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
+            <Receipt size={13} className="text-gray-400" />
+            <span>Net Platform Cost</span>
+          </div>
+          <div
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-[#292929]"
+          >
             ${usage ? Number(usage.total_cost || 0).toFixed(4) : '0.0000'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#777' }}>Aggregated across all users</div>
+          <div className="text-[11px] text-gray-400 font-mono">
+            Aggregated across all org queries
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

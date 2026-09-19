@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Copy, Check, AlertTriangle, Key } from 'lucide-react';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 
 export const KeyRevealDialog = ({ fullKey, keyName, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -27,49 +30,69 @@ response = requests.post(url, json=payload, headers=headers)
 print(response.json())`;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '650px' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>🔑 API Key Generated</h3>
-
-        <div className="alert alert-warning" style={{ margin: '0.75rem 0' }}>
-          <strong>Important:</strong> Please copy this key now. For security reasons, it will <strong>never be shown again</strong>. Only the prefix is stored.
+    <Modal isOpen={true} onClose={onClose} title="API Key Generated" maxWidth="lg">
+      <div className="space-y-4 text-left">
+        {/* Security Alert Banner */}
+        <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2.5">
+          <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-amber-900 font-bold">Important Security Notice:</strong> Please copy and safely store this API secret key now. For your security, it will <strong>never be shown again</strong>. Only the prefix is preserved in the database.
+          </div>
         </div>
 
-        <div className="form-group">
-          <label>Key Name: <strong>{keyName}</strong></label>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+        {/* Key Display & Copy */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono">
+            Key: <span className="text-gray-600 font-normal">{keyName}</span>
+          </label>
+          <div className="flex items-center gap-2">
             <input
               type="text"
               readOnly
               value={fullKey}
-              style={{ fontFamily: 'monospace', fontWeight: 'bold', background: '#f5f5f5' }}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-[#292929] font-mono text-xs font-semibold focus:outline-none select-all"
             />
-            <button onClick={handleCopy} className="btn-primary">
-              {copied ? 'Copied! ✓' : 'Copy'}
-            </button>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              {copied ? <Check size={14} className="text-[#292929]" /> : <Copy size={14} />}
+              <span>{copied ? 'Copied' : 'Copy Key'}</span>
+            </Button>
           </div>
         </div>
 
-        <div style={{ marginTop: '1rem', borderTop: '1px solid #ccc', paddingTop: '0.75rem' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Usage Example (cURL):</h4>
-          <pre style={{ background: '#222', color: '#eee', padding: '0.75rem', borderRadius: '4px', fontSize: '0.75rem', overflowX: 'auto' }}>
-            {curlExample}
-          </pre>
+        {/* Integration Examples */}
+        <div className="space-y-3 pt-2">
+          <div>
+            <span className="text-xs font-mono font-semibold text-gray-600 block mb-1">
+              cURL Example:
+            </span>
+            <pre className="p-3 bg-[#292929] text-gray-200 rounded-xl text-[11px] font-mono overflow-x-auto selection:bg-[#b2c147] selection:text-[#292929]">
+              {curlExample}
+            </pre>
+          </div>
+
+          <div>
+            <span className="text-xs font-mono font-semibold text-gray-600 block mb-1">
+              Python Integration:
+            </span>
+            <pre className="p-3 bg-[#292929] text-gray-200 rounded-xl text-[11px] font-mono overflow-x-auto selection:bg-[#b2c147] selection:text-[#292929]">
+              {pythonExample}
+            </pre>
+          </div>
         </div>
 
-        <div style={{ marginTop: '0.75rem' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Usage Example (Python):</h4>
-          <pre style={{ background: '#222', color: '#eee', padding: '0.75rem', borderRadius: '4px', fontSize: '0.75rem', overflowX: 'auto' }}>
-            {pythonExample}
-          </pre>
-        </div>
-
-        <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
-          <button onClick={onClose} className="btn-primary">
-            I Have Saved This Key
-          </button>
+        {/* Close confirmation */}
+        <div className="pt-4 border-t border-gray-100 flex justify-end">
+          <Button variant="dark" onClick={onClose}>
+            I Have Stored This Key Safely →
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

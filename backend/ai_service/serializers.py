@@ -10,11 +10,15 @@ class DocumentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255, required=False, write_only=True)
     content = serializers.CharField(required=False, write_only=True)
     file = serializers.FileField(write_only=True, required=False)
+    chunk_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
-        fields = ["id", "filename", "title", "content", "file", "status", "created_at"]
-        read_only_fields = ["id", "status", "created_at"]
+        fields = ["id", "filename", "title", "content", "file", "status", "chunk_count", "created_at"]
+        read_only_fields = ["id", "status", "chunk_count", "created_at"]
+
+    def get_chunk_count(self, obj):
+        return obj.chunks.count()
 
     def validate(self, attrs):
         if not attrs.get("filename") and attrs.get("title"):
@@ -32,7 +36,10 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["title"] = instance.filename
+        filename = instance.filename or "Document"
+        clean_title = filename.split("/")[-1] if "/" in filename else (filename.split("\\")[-1] if "\\" in filename else filename)
+        data["title"] = clean_title
+        data["chunk_count"] = instance.chunks.count()
         return data
 
 

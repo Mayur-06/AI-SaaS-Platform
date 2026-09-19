@@ -1,4 +1,8 @@
 import React from 'react';
+import { Check } from 'lucide-react';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 
 export const PlanCard = ({
   plan,
@@ -10,66 +14,111 @@ export const PlanCard = ({
   const canUpgrade = userRole === 'owner' || userRole === 'admin';
 
   return (
-    <div
-      className="card"
-      style={{
-        border: isCurrent ? '2px solid #222' : '1px solid #ccc',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-      }}
+    <Card
+      variant="bordered"
+      className={`relative flex flex-col justify-between transition-all duration-200 ${
+        isCurrent
+          ? 'border-2 border-[#b2c147] shadow-xl ring-4 ring-[#b2c147]/10 bg-white'
+          : 'border-gray-200/90 shadow-sm hover:shadow-md bg-white'
+      }`}
     >
+      {/* Current Plan Top Badge */}
+      {isCurrent && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <Badge variant="lime">CURRENT ACTIVE PLAN</Badge>
+        </div>
+      )}
+
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <h3 style={{ fontSize: '1.2rem' }}>{plan.name}</h3>
-          {isCurrent && <span className="badge badge-active">CURRENT PLAN</span>}
+        {/* Plan Header */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl font-bold text-[#292929] capitalize"
+          >
+            {plan.name}
+          </h3>
+          <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+            Tier {plan.id}
+          </span>
         </div>
 
-        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0.5rem 0' }}>
-          ${Number(plan.price).toFixed(2)}
-          <span style={{ fontSize: '0.85rem', fontWeight: 'normal', color: '#666' }}> / month</span>
+        {/* Price */}
+        <div className="mb-5 pb-5 border-b border-gray-100">
+          <div className="flex items-baseline gap-1">
+            <span
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-4xl font-extrabold text-[#292929]"
+            >
+              ${Number(plan.price).toFixed(2)}
+            </span>
+            <span className="text-xs text-gray-500 font-medium">/ month</span>
+          </div>
         </div>
 
-        <ul style={{ listStyle: 'none', padding: 0, margin: '1rem 0', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <li>
-            ✓ <strong>{plan.monthly_request_limit.toLocaleString()}</strong> monthly requests
+        {/* Feature List */}
+        <ul className="space-y-3 mb-6 text-xs text-gray-600">
+          <li className="flex items-start gap-2.5">
+            <div className="w-4 h-4 rounded-full bg-[#b2c147]/20 text-[#292929] flex items-center justify-center shrink-0 mt-0.5">
+              <Check size={11} strokeWidth={3} />
+            </div>
+            <span>
+              <strong className="text-[#292929]">{plan.monthly_request_limit.toLocaleString()}</strong> monthly requests
+            </span>
           </li>
-          <li>
-            ✓ <strong>{plan.requests_per_minute}</strong> requests/min rate limit
+          <li className="flex items-start gap-2.5">
+            <div className="w-4 h-4 rounded-full bg-[#b2c147]/20 text-[#292929] flex items-center justify-center shrink-0 mt-0.5">
+              <Check size={11} strokeWidth={3} />
+            </div>
+            <span>
+              <strong className="text-[#292929]">{plan.requests_per_minute}</strong> req/min rate limit
+            </span>
           </li>
-          <li>
-            ✓ <strong>{(plan.cache_ttl_seconds / 3600).toFixed(0)}h</strong> semantic cache TTL
+          <li className="flex items-start gap-2.5">
+            <div className="w-4 h-4 rounded-full bg-[#b2c147]/20 text-[#292929] flex items-center justify-center shrink-0 mt-0.5">
+              <Check size={11} strokeWidth={3} />
+            </div>
+            <span>
+              <strong className="text-[#292929]">{(plan.cache_ttl_seconds / 3600).toFixed(0)}h</strong> semantic cache TTL
+            </span>
           </li>
-          <li>
-            ✓ Org-isolated RAG vector retrieval
+          <li className="flex items-start gap-2.5">
+            <div className="w-4 h-4 rounded-full bg-[#b2c147]/20 text-[#292929] flex items-center justify-center shrink-0 mt-0.5">
+              <Check size={11} strokeWidth={3} />
+            </div>
+            <span>Org-isolated RAG vector retrieval</span>
           </li>
         </ul>
       </div>
 
-      <div style={{ marginTop: '1rem' }}>
+      {/* Action Footer */}
+      <div className="pt-2">
         {isCurrent ? (
-          <button disabled style={{ width: '100%' }}>
+          <Button variant="secondary" size="md" disabled className="w-full font-bold">
             Active Plan
-          </button>
+          </Button>
         ) : canUpgrade ? (
-          <button
-            className="btn-primary"
-            style={{ width: '100%' }}
+          <Button
+            variant="primary"
+            size="md"
+            className="w-full"
             onClick={() => onUpgrade(plan.id)}
             disabled={isLoading}
           >
-            {isLoading ? 'Switching...' : `Switch to ${plan.name}`}
-          </button>
+            {isLoading ? 'Switching Tier…' : `Switch to ${plan.name} →`}
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="secondary"
+            size="md"
             disabled
-            style={{ width: '100%', opacity: 0.6, cursor: 'not-allowed' }}
-            title="Only Owner or Admin can change plans"
+            className="w-full text-gray-400"
+            title="Only Owner or Admin can modify plans"
           >
             Switch to {plan.name} (Admin Only)
-          </button>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 };

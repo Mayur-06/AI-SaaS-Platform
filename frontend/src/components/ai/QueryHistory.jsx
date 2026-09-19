@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import {
+  History,
+  RotateCw,
+  Clock,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
+  CornerDownLeft,
+} from 'lucide-react';
 import { aiService } from '../../services/aiService';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 
-export const QueryHistory = ({ refreshTrigger }) => {
+export const QueryHistory = ({
+  selectedId,
+  onSelectQuery,
+  onReusePrompt,
+  refreshTrigger,
+  isSidebar = true,
+}) => {
   const [history, setHistory] = useState([]);
-  const [ordering, setOrdering] = useState('-created_at');
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
     try {
-      const data = await aiService.getHistory({ page, ordering });
+      const data = await aiService.getHistory({ limit: 10, sort: 'date' });
       setHistory(data.results || []);
-      setTotalCount(data.count || 0);
     } catch (err) {
-      console.error('Failed to load history:', err);
+      console.error('Failed to load past 10 query history:', err);
     } finally {
       setIsLoading(false);
     }
@@ -24,129 +37,164 @@ export const QueryHistory = ({ refreshTrigger }) => {
 
   useEffect(() => {
     fetchHistory();
-  }, [page, ordering, refreshTrigger]);
+  }, [refreshTrigger]);
 
-  const totalPages = Math.ceil(totalCount / 10) || 1;
+  const formatTimestamp = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h3>Query History (Latest Queries)</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <label htmlFor="history-sort" style={{ fontSize: '0.85rem' }}>Sort by:</label>
-          <select
-            id="history-sort"
-            value={ordering}
-            onChange={(e) => {
-              setOrdering(e.target.value);
-              setPage(1);
-            }}
-            style={{ width: 'auto', padding: '0.25rem 0.5rem' }}
-          >
-            <option value="-created_at">Date (Newest first)</option>
-            <option value="created_at">Date (Oldest first)</option>
-            <option value="-estimated_cost">Cost (Highest first)</option>
-            <option value="estimated_cost">Cost (Lowest first)</option>
-            <option value="model_used">Model Name</option>
-          </select>
-          <button onClick={fetchHistory} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
-            Refresh
-          </button>
+    <Card variant="bordered" className="shadow-sm space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#b2c147]/20 text-[#292929] flex items-center justify-center">
+            <History size={15} />
+          </div>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-base font-bold text-[#292929] tracking-tight"
+            >
+              Query History
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              Past 10 queries • Click to re-view response
+            </p>
+          </div>
         </div>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={fetchHistory}
+          disabled={isLoading}
+          className="flex items-center gap-1 text-xs px-2.5 py-1"
+        >
+          <RotateCw size={12} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
-      {isLoading ? (
-        <p style={{ color: '#666', padding: '1rem' }}>Loading query history...</p>
+      {/* Query List */}
+      {isLoading && history.length === 0 ? (
+        <div className="py-10 text-center text-xs text-gray-400 space-y-2">
+          <svg className="animate-spin w-5 h-5 text-[#b2c147] mx-auto" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <p>Loading past queries…</p>
+        </div>
       ) : history.length === 0 ? (
-        <p style={{ color: '#777', fontStyle: 'italic', padding: '0.5rem' }}>No past queries recorded yet.</p>
+        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4">
+          <History size={22} className="mx-auto mb-2 text-gray-300" />
+          <p className="font-medium text-gray-600 mb-0.5">No queries yet</p>
+          <p className="text-[11px]">Type a question in the input box above to start.</p>
+        </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Query</th>
-                <th>Model</th>
-                <th>Tokens</th>
-                <th>Latency</th>
-                <th>Cost</th>
-                <th>Cache</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((item) => (
-                <React.Fragment key={item.id}>
-                  <tr>
-                    <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                      {new Date(item.created_at).toLocaleString()}
-                    </td>
-                    <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.query_text}>
-                      {item.query_text}
-                    </td>
-                    <td><span className="badge">{item.model_used}</span></td>
-                    <td>{item.total_tokens ?? ((item.input_tokens || 0) + (item.output_tokens || 0))}</td>
-                    <td>{item.latency_ms}ms</td>
-                    <td>${Number(item.estimated_cost).toFixed(5)}</td>
-                    <td>
-                      <span className="badge" style={{ background: item.cache_hit ? '#e6f7ff' : '#f0f0f0' }}>
-                        {item.cache_hit ? 'HIT' : 'MISS'}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                        style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                      >
-                        {expandedId === item.id ? 'Hide' : 'View'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedId === item.id && (
-                    <tr>
-                      <td colSpan={8} style={{ background: '#fafafa', padding: '1rem' }}>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <strong>Prompt:</strong>
-                          <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.25rem' }}>{item.query_text}</div>
-                        </div>
-                        <div>
-                          <strong>Response:</strong>
-                          <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.25rem', background: '#fff', padding: '0.5rem', border: '1px solid #ddd' }}>
-                            {item.response_text}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
+        <div
+          className={
+            isSidebar
+              ? 'space-y-2.5 max-h-[640px] overflow-y-auto pr-1'
+              : 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+          }
+        >
+          {history.map((item, index) => {
+            const isSelected = selectedId === item.id;
+            const totalTokens =
+              item.total_tokens ??
+              ((item.input_tokens || 0) + (item.output_tokens || 0));
+
+            return (
+              <div
+                key={item.id || index}
+                onClick={() => onSelectQuery && onSelectQuery(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (onSelectQuery) onSelectQuery(item);
+                  }
+                }}
+                className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer group relative ${
+                  isSelected
+                    ? 'border-[#b2c147] bg-[#b2c147]/10 ring-2 ring-[#b2c147]/30 shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-[#b2c147]/60 hover:bg-gray-50/70'
+                }`}
+              >
+                {/* Top Row: Index, Timestamp & Selection State */}
+                <div className="flex items-center justify-between gap-2 text-[11px] text-gray-400 font-mono mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-gray-500">#{index + 1}</span>
+                    <Clock size={11} className="text-gray-400" />
+                    <span>{formatTimestamp(item.created_at)}</span>
+                  </div>
+
+                  {isSelected ? (
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                      <CheckCircle2 size={11} />
+                      <span>Viewing</span>
+                    </span>
+                  ) : (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-gray-400 flex items-center gap-0.5">
+                      <span>Re-view</span>
+                      <ArrowRight size={10} />
+                    </span>
                   )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+                </div>
+
+                {/* Prompt Preview */}
+                <div className="text-xs font-medium text-[#292929] line-clamp-2 mb-2 leading-relaxed">
+                  {item.query_text}
+                </div>
+
+                {/* Bottom Badges Row */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+                  <Badge variant="gray" className="text-[10px] px-1.5 py-0">
+                    {item.model_used || 'gemini'}
+                  </Badge>
+
+                  <Badge variant={item.cache_hit ? 'lime' : 'gray'} className="text-[10px] px-1.5 py-0">
+                    {item.cache_hit ? '⚡ HIT' : 'MISS'}
+                  </Badge>
+
+                  <span className="text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {item.latency_ms ?? 0}ms
+                  </span>
+
+                  <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
+                    ${Number(item.estimated_cost || 0).toFixed(4)}
+                  </span>
+
+                  {onReusePrompt && (
+                    <button
+                      type="button"
+                      title="Load prompt into input box"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReusePrompt(item.query_text);
+                      }}
+                      className="ml-auto opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#292929] p-1 rounded hover:bg-gray-200 transition-all cursor-pointer"
+                    >
+                      <CornerDownLeft size={11} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {/* Pagination Controls */}
-      <div className="pagination" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.85rem', color: '#666' }}>
-          Showing page {page} of {totalPages} ({totalCount} total)
-        </span>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            style={{ padding: '0.25rem 0.5rem' }}
-          >
-            Previous
-          </button>
-          <button
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            style={{ padding: '0.25rem 0.5rem' }}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
+    </Card>
   );
 };

@@ -72,6 +72,8 @@ export const aiService = {
   async getHistory(params) {
     const response = await apiClient.get('/ai/history/', {
       params: {
+        limit: params?.limit || 10,
+        sort: params?.sort || 'date',
         page: params?.page || 1,
         ordering: params?.ordering || '-created_at',
       },

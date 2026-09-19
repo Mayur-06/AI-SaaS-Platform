@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Shuffle, Zap, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { extractErrorMessage } from '../../services/api';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 
 export const RoutingConfig = () => {
   const [plans, setPlans] = useState([]);
@@ -9,8 +13,8 @@ export const RoutingConfig = () => {
   const [permittedModels, setPermittedModels] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [savingPlan, setSavingPlan] = useState(null);
-  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string, plan: string }
-  const [editedRules, setEditedRules] = useState({}); // planName -> { primaryModelId, fallbackModelIds, timeoutSeconds }
+  const [feedback, setFeedback] = useState(null);
+  const [editedRules, setEditedRules] = useState({});
 
   const loadRouting = async () => {
     setIsLoading(true);
@@ -58,77 +62,54 @@ export const RoutingConfig = () => {
     setEditedRules((prev) => {
       const current = prev[planName] || { fallbackModelIds: [] };
       const currentFbs = current.fallbackModelIds || [];
-      const newFbs = currentFbs.includes(modelId)
+      const updated = currentFbs.includes(modelId)
         ? currentFbs.filter((id) => id !== modelId)
         : [...currentFbs, modelId];
       return {
         ...prev,
         [planName]: {
           ...current,
-          fallbackModelIds: newFbs,
+          fallbackModelIds: updated,
         },
       };
     });
   };
 
-  const handleTimeoutChange = (planName, val) => {
-    const num = Math.max(1, Math.min(60, parseInt(val, 10) || 10));
+  const handleTimeoutChange = (planName, value) => {
+    const val = parseInt(value, 10) || 10;
     setEditedRules((prev) => ({
       ...prev,
       [planName]: {
         ...prev[planName],
-        timeoutSeconds: num,
+        timeoutSeconds: val,
       },
     }));
   };
 
   const handleSave = async (planName) => {
-    setFeedback(null);
-    const config = editedRules[planName];
-    if (!config || !config.primaryModelId) {
-      setFeedback({ type: 'error', plan: planName, message: 'Please select a primary model.' });
-      return;
-    }
-
-    // Client-side validation for plan-permitted models (§11.8)
-    const selectedPrimary = models.find((m) => m.id === config.primaryModelId);
-    const allowed = permittedModels[planName.toLowerCase()] || [];
-    if (selectedPrimary && allowed.length > 0 && !allowed.includes(selectedPrimary.name)) {
-      setFeedback({
-        type: 'error',
-        plan: planName,
-        message: `Validation Error: Model "${selectedPrimary.name}" is not permitted for the ${planName.toUpperCase()} tier. Permitted models: ${allowed.join(', ')}.`,
-      });
-      return;
-    }
-
-    if (selectedPrimary && !selectedPrimary.is_active) {
-      setFeedback({
-        type: 'error',
-        plan: planName,
-        message: `Validation Error: Model "${selectedPrimary.name}" is currently inactive.`,
-      });
+    const edit = editedRules[planName];
+    if (!edit || !edit.primaryModelId) {
+      setFeedback({ type: 'error', message: 'Please designate a primary LLM model.', plan: planName });
       return;
     }
 
     setSavingPlan(planName);
+    setFeedback(null);
     try {
-      const res = await adminService.updateRouting({
-        plan_name: planName,
-        primary_model_id: config.primaryModelId,
-        fallback_model_ids: config.fallbackModelIds || [],
-        timeout_seconds: config.timeoutSeconds || 10,
+      await adminService.updateRoutingRule(planName, {
+        primary_model_id: edit.primaryModelId,
+        fallback_model_ids: edit.fallbackModelIds || [],
+        timeout_seconds: edit.timeoutSeconds || 10,
       });
-
       setFeedback({
         type: 'success',
+        message: `Routing rules for ${planName} updated. Circuit breaker thresholds applied.`,
         plan: planName,
-        message: res.message || `Successfully updated routing configuration for ${planName.toUpperCase()} tier!`,
       });
-      loadRouting();
+      await loadRouting();
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setFeedback({ type: 'error', plan: planName, message: `Update failed: ${message}` });
+      setFeedback({ type: 'error', message: `Failed to save rule: ${message}`, plan: planName });
     } finally {
       setSavingPlan(null);
     }
@@ -137,79 +118,94 @@ export const RoutingConfig = () => {
   const activeModels = models.filter((m) => m.is_active);
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h3>Dynamic Model Routing & Circuit Breaker Configuration</h3>
-          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
-            Editable multi-tier model routing with ordered fallback chains and automated circuit breakers (Ref: §9.2, §11.8).
-          </p>
+    <Card variant="bordered" className="shadow-sm space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-gray-100 flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#b2c147]/15 text-[#292929] flex items-center justify-center">
+            <Shuffle size={16} />
+          </div>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-lg font-bold text-[#292929] tracking-tight"
+            >
+              Model Routing & Dynamic Circuit Breakers
+            </h3>
+            <p className="text-xs text-gray-500">
+              Configure per-tier primary model execution order, automated fallbacks, and timeout ceilings
+            </p>
+          </div>
         </div>
-        <button onClick={loadRouting} disabled={isLoading} style={{ padding: '0.25rem 0.6rem', fontSize: '0.85rem' }}>
-          {isLoading ? 'Reloading...' : 'Reload Config'}
-        </button>
+
+        <span className="text-[11px] font-mono text-[#b2c147] bg-[#b2c147]/10 border border-[#b2c147]/20 px-2.5 py-1 rounded-full">
+          ⚡ Circuit Breaker: 3 Consecutive Failures
+        </span>
       </div>
 
       {feedback && (
         <div
-          className={`alert ${feedback.type === 'success' ? 'alert-success' : 'alert-error'}`}
-          style={{ marginBottom: '1rem' }}
+          className={`px-4 py-3 rounded-xl border text-xs flex items-center gap-2 ${
+            feedback.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-green-50 border-green-200 text-green-800'
+          }`}
         >
-          {feedback.message}
+          {feedback.type === 'error' ? (
+            <AlertCircle size={16} className="text-red-600 shrink-0" />
+          ) : (
+            <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          )}
+          <span>{feedback.message}</span>
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table>
-          <thead>
+      {/* Rules Table */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50/80 text-xs font-mono text-gray-500 uppercase tracking-wider border-b border-gray-200">
             <tr>
-              <th style={{ width: '15%' }}>Plan Tier</th>
-              <th style={{ width: '25%' }}>Primary Model</th>
-              <th style={{ width: '30%' }}>Fallback Sequence</th>
-              <th style={{ width: '15%' }}>Timeout (sec)</th>
-              <th style={{ width: '15%' }}>Action</th>
+              <th className="px-5 py-3.5">Plan Tier</th>
+              <th className="px-5 py-3.5">Primary Model</th>
+              <th className="px-5 py-3.5">Fallback Cascade</th>
+              <th className="px-5 py-3.5">Timeout</th>
+              <th className="px-5 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {['free', 'pro', 'enterprise'].map((planName) => {
-              const currentEdit = editedRules[planName] || {
-                primaryModelId: '',
-                fallbackModelIds: [],
-                timeoutSeconds: 10,
-              };
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {plans.map((p) => {
+              const planName = p.name || p;
+              const currentEdit = editedRules[planName] || {};
               const allowedNames = permittedModels[planName] || [];
               const isSaving = savingPlan === planName;
 
               return (
-                <tr key={planName}>
-                  <td>
-                    <strong>{planName.toUpperCase()}</strong>
-                    <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
-                      Allowed: {allowedNames.join(', ') || 'Any active'}
-                    </div>
+                <tr key={planName} className="hover:bg-gray-50/80 transition-colors">
+                  <td className="px-5 py-3.5 font-semibold text-xs text-[#292929]">
+                    <Badge variant="lime">{planName}</Badge>
                   </td>
 
-                  <td>
+                  <td className="px-5 py-3.5">
                     <select
-                      value={currentEdit.primaryModelId}
+                      value={currentEdit.primaryModelId || ''}
                       onChange={(e) => handlePrimaryChange(planName, e.target.value)}
                       disabled={isLoading || isSaving}
-                      style={{ padding: '0.3rem', width: '100%' }}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] cursor-pointer"
                     >
-                      <option value="">-- Select Primary Model --</option>
+                      <option value="">Select Primary Model</option>
                       {activeModels.map((m) => {
                         const isPermitted = allowedNames.length === 0 || allowedNames.includes(m.name);
                         return (
                           <option key={m.id} value={m.id}>
-                            {m.name} ({m.provider}){isPermitted ? '' : ' [Tier restricted]'}
+                            {m.name} ({m.provider}){isPermitted ? '' : ' [Restricted]'}
                           </option>
                         );
                       })}
                     </select>
                   </td>
 
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <td className="px-5 py-3.5">
+                    <div className="flex flex-col gap-1.5">
                       {activeModels
                         .filter((m) => m.id !== currentEdit.primaryModelId)
                         .map((m) => {
@@ -217,47 +213,48 @@ export const RoutingConfig = () => {
                           return (
                             <label
                               key={m.id}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                              className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => handleFallbackToggle(planName, m.id)}
                                 disabled={isLoading || isSaving}
+                                className="w-3.5 h-3.5 rounded border-gray-300 accent-[#b2c147]"
                               />
-                              <span>{m.name} <span style={{ color: '#888' }}>({m.provider})</span></span>
+                              <span>
+                                {m.name} <span className="text-gray-400 font-mono text-[10px]">({m.provider})</span>
+                              </span>
                             </label>
                           );
                         })}
                     </div>
                   </td>
 
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-1.5 font-mono text-xs">
                       <input
                         type="number"
                         min="1"
                         max="60"
-                        value={currentEdit.timeoutSeconds}
+                        value={currentEdit.timeoutSeconds || 10}
                         onChange={(e) => handleTimeoutChange(planName, e.target.value)}
                         disabled={isLoading || isSaving}
-                        style={{ width: '60px', padding: '0.25rem 0.4rem' }}
+                        className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs bg-white text-[#292929] focus:ring-2 focus:ring-[#b2c147] focus:outline-none"
                       />
-                      <span style={{ fontSize: '0.8rem', color: '#666' }}>s</span>
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#237804', marginTop: '4px' }}>
-                      ⚡ Circuit breaker active (3 errors)
+                      <span className="text-gray-400">sec</span>
                     </div>
                   </td>
 
-                  <td>
-                    <button
+                  <td className="px-5 py-3.5 text-right">
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleSave(planName)}
                       disabled={isLoading || isSaving}
-                      style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}
                     >
-                      {isSaving ? 'Saving...' : 'Save Tier'}
-                    </button>
+                      {isSaving ? 'Saving…' : 'Save Rule'}
+                    </Button>
                   </td>
                 </tr>
               );
@@ -266,14 +263,15 @@ export const RoutingConfig = () => {
         </table>
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', color: '#475569' }}>
-        <strong>Reliability & Fallback Rules (Fix #3 / §11.8):</strong>
-        <ul style={{ marginTop: '0.25rem', paddingLeft: '1.2rem', lineHeight: '1.4' }}>
-          <li>Primary models execute first. If a model fails or exceeds its timeout, the system automatically attempts the next fallback in order.</li>
-          <li>Circuit breakers trip after 3 consecutive failures within a 60-second window, skipping degraded providers to minimize client latency.</li>
-          <li>Plan tier enforcement guarantees tenants on restricted plans cannot be assigned unauthorized LLM models.</li>
+      {/* Guidance Note */}
+      <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 text-xs text-gray-600 space-y-1.5 leading-relaxed">
+        <strong className="text-[#292929] font-semibold block">Reliability & Circuit Breaker Invariants:</strong>
+        <ul className="list-disc list-inside space-y-1 text-gray-500 pl-1">
+          <li>Primary models execute first; on timeout or HTTP 5xx, the request cascades to the next configured fallback in real time.</li>
+          <li>Circuit breakers automatically trip after 3 consecutive failures within a 60-second window to prevent user wait times.</li>
+          <li>Plan tier restrictions prevent organizations on lower tiers from invoking unauthorized high-cost models.</li>
         </ul>
       </div>
-    </div>
+    </Card>
   );
 };

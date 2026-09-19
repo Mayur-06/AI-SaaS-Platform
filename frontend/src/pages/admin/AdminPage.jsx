@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { ShieldAlert, RotateCw, AlertCircle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { PlatformMetrics } from '../../components/admin/PlatformMetrics';
 import { HealthPanel } from '../../components/admin/HealthPanel';
 import { TenantTable } from '../../components/admin/TenantTable';
 import { RoutingConfig } from '../../components/admin/RoutingConfig';
 import { extractErrorMessage } from '../../services/api';
+import { Button } from '../../components/ui/Button';
 
 export const AdminPage = () => {
   const [metrics, setMetrics] = useState(null);
@@ -35,7 +37,7 @@ export const AdminPage = () => {
       }
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      setError(`Failed to load admin data: ${message}`);
+      setError(`Failed to load admin telemetry: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -56,49 +58,65 @@ export const AdminPage = () => {
   }, []);
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>Platform Superadmin Console</h1>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
-            System-wide multi-tenant fleet overview, service health status, platform economics, and LLM configuration.
+          <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full mb-2">
+            <ShieldAlert size={13} />
+            <span>Platform Superadmin Privileges</span>
+          </div>
+          <h1
+            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+            className="text-2xl sm:text-3xl font-extrabold text-[#292929] tracking-tight"
+          >
+            Superadmin Infrastructure Console
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Fleet telemetry, service health probes, multi-tenant accounts, and global LLM routing.
           </p>
         </div>
 
-        <button onClick={() => loadData(currentPage)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
-          Refresh All
-        </button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => loadData(currentPage)}
+          disabled={isLoading}
+          className="self-start sm:self-auto flex items-center gap-1.5"
+        >
+          <RotateCw size={14} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+          <span>Refresh Fleet Telemetry</span>
+        </Button>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Global Platform Metrics */}
       <PlatformMetrics metrics={metrics} />
 
       {/* Infrastructure & LLM Provider Health */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <HealthPanel
-          health={health}
-          onRefresh={handleRefreshHealth}
-          isLoading={isLoading}
-        />
-      </div>
+      <HealthPanel
+        health={health}
+        onRefresh={handleRefreshHealth}
+        isLoading={isLoading}
+      />
 
       {/* Tenant Fleet Table */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <TenantTable
-          tenants={tenants}
-          totalCount={tenantCount}
-          currentPage={currentPage}
-          onPageChange={(p) => loadData(p)}
-          isLoading={isLoading}
-        />
-      </div>
+      <TenantTable
+        tenants={tenants}
+        totalCount={tenantCount}
+        currentPage={currentPage}
+        onPageChange={(p) => loadData(p)}
+        isLoading={isLoading}
+      />
 
-      {/* Model Routing & Circuit Breakers */}
-      <div>
-        <RoutingConfig />
-      </div>
+      {/* Model Routing & Dynamic Circuit Breakers */}
+      <RoutingConfig />
     </div>
   );
 };

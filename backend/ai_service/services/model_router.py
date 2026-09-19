@@ -44,9 +44,10 @@ class ModelRouter:
 
     def get_route(self) -> Dict[str, Any]:
         if not self.organization:
+            openai_fallback = self.configs.filter(provider="openai").first()
             return {
                 "primary": self.configs.filter(provider="gemini").first(),
-                "fallbacks": self.configs.filter(provider="openai").first(),
+                "fallbacks": [openai_fallback] if openai_fallback else [],
             }
         try:
             rule = RoutingRule.objects.select_related("primary_model").prefetch_related("fallback_models").get(

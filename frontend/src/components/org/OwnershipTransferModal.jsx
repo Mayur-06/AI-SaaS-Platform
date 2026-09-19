@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, UserCheck } from 'lucide-react';
+import { extractErrorMessage } from '../../services/api';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 
 export const OwnershipTransferModal = ({
   isOpen,
@@ -18,7 +22,7 @@ export const OwnershipTransferModal = ({
     eligibleMembers.length > 0 ? getMemberUserId(eligibleMembers[0]) || '' : ''
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedUserId && eligibleMembers.length > 0) {
       setSelectedUserId(getMemberUserId(eligibleMembers[0]) || '');
     }
@@ -31,13 +35,13 @@ export const OwnershipTransferModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedUserId) {
-      setError('Please select a member to transfer ownership to.');
+      setError('Please select a member to receive organization ownership.');
       return;
     }
 
     if (
       !confirm(
-        'Warning: You will surrender primary owner permissions and become an Admin. This action cannot be undone by you. Continue?'
+        'Warning: You will surrender primary owner privileges and become an Admin. This action cannot be undone by you. Do you wish to continue?'
       )
     ) {
       return;
@@ -47,61 +51,80 @@ export const OwnershipTransferModal = ({
       await onTransfer(selectedUserId);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Transfer failed.');
+      const { message } = extractErrorMessage(err);
+      setError(message || 'Transfer failed.');
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '1rem', color: '#900' }}>⚠️ Transfer Organization Ownership</h3>
+    <Modal isOpen={isOpen} onClose={onClose} title="Transfer Organization Ownership" maxWidth="md">
+      <div className="space-y-4 text-left">
+        {error && (
+          <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+            {error}
+          </div>
+        )}
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <p style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
-          Select an active team member within your organization to receive primary ownership.
-        </p>
+        {/* Warning banner */}
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2.5">
+          <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+          <div>
+            <strong className="font-bold">Irreversible Action:</strong> By proceeding, you transfer primary legal ownership of this tenant. Your role will be transitioned to <span className="font-mono uppercase font-bold">ADMIN</span>.
+          </div>
+        </div>
 
         {eligibleMembers.length === 0 ? (
-          <div>
-            <p style={{ color: '#777', fontStyle: 'italic', marginBottom: '1rem' }}>
-              No other members exist in this organization. Invite at least one other member before transferring ownership.
+          <div className="py-4 text-center">
+            <p className="text-xs text-gray-500 italic mb-4">
+              No other eligible members exist in this organization. Invite at least one additional member before initiating an ownership transfer.
             </p>
-            <div style={{ textAlign: 'right' }}>
-              <button onClick={onClose}>Close</button>
-            </div>
+            <Button variant="secondary" onClick={onClose} className="w-full">
+              Close
+            </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="new-owner">New Organization Owner</label>
-              <select
-                id="new-owner"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="new-owner"
+                className="text-xs font-semibold uppercase tracking-wider text-[#292929] font-mono"
               >
-                {eligibleMembers.map((m) => {
-                  const uid = getMemberUserId(m);
-                  return (
-                    <option key={uid} value={uid}>
-                      {getMemberEmail(m)} ({m.role})
-                    </option>
-                  );
-                })}
-              </select>
+                Select New Primary Owner
+              </label>
+              <div className="relative">
+                <select
+                  id="new-owner"
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-red-500 appearance-none cursor-pointer"
+                >
+                  {eligibleMembers.map((m) => {
+                    const uid = getMemberUserId(m);
+                    return (
+                      <option key={uid} value={uid}>
+                        {getMemberEmail(m)} ({String(m.role).toUpperCase()})
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 text-xs">
+                  ▼
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              <button type="button" onClick={onClose} disabled={isLoading}>
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
+              <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
                 Cancel
-              </button>
-              <button type="submit" className="btn-danger" disabled={isLoading}>
-                {isLoading ? 'Transferring...' : 'Confirm Transfer'}
-              </button>
+              </Button>
+              <Button type="submit" variant="danger" disabled={isLoading}>
+                {isLoading ? 'Transferring…' : 'Confirm Ownership Transfer →'}
+              </Button>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   );
 };
