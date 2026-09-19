@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export const HeroSection = () => {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-white">
       {/* Subtle lime ambient light blob in background */}
@@ -48,10 +51,10 @@ export const HeroSection = () => {
             {/* Primary & Secondary CTAs */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-10">
               <Link
-                to="/register"
+                to={isAuthenticated ? "/dashboard" : "/register"}
                 className="inline-flex items-center justify-center px-6 py-3.5 text-base font-bold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-xl shadow-sm transition-all no-underline text-center"
               >
-                Start for Free →
+                {isAuthenticated ? "Go to Dashboard →" : "Start for Free →"}
               </Link>
               <a
                 href="#how-it-works"

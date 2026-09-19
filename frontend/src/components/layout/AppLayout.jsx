@@ -39,7 +39,7 @@ export const AppLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   const planName = currentPlan?.name || organization?.plan?.name || 'Free';

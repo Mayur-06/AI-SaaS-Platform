@@ -126,7 +126,7 @@ export const OrganizationSettingsPage = () => {
     try {
       await deleteOrg();
       toast.success('Organization deactivated and records cleaned up.');
-      navigate('/login');
+      navigate('/login', { replace: true });
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to deactivate organization: ${message}`);
