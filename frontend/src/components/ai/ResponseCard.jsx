@@ -91,8 +91,8 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
 
   if (!data) {
     return (
-      <Card variant="bordered" className="text-center py-10 border-dashed border-gray-200">
-        <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-2.5">
+      <Card variant="bordered" className="text-center py-7 px-5 border-dashed border-gray-200 bg-gray-50/50">
+        <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 text-gray-400 flex items-center justify-center mx-auto mb-2 shadow-2xs">
           <Bot size={20} />
         </div>
         <h3
@@ -101,9 +101,20 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         >
           Awaiting Query
         </h3>
-        <p className="text-xs text-gray-500 max-w-sm mx-auto">
+        <p className="text-xs text-gray-500 max-w-sm mx-auto mb-3">
           Submit a prompt using the box above to receive a grounded answer with cited document chunks and live token telemetry.
         </p>
+        <div className="flex items-center justify-center gap-2 flex-wrap text-[11px] text-gray-500 font-mono">
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Sub-ms Semantic Cache
+          </span>
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Vector Grounded
+          </span>
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Source Citations
+          </span>
+        </div>
       </Card>
     );
   }

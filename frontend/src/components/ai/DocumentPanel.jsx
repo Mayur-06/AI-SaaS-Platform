@@ -34,12 +34,16 @@ import {
 import { ScrollArea } from '../ui/ScrollArea';
 import { SimpleTooltip } from '../ui/Tooltip';
 
-export const DocumentPanel = ({ onDocumentsChange }) => {
+export const DocumentPanel = ({
+  onDocumentsChange,
+  isEmbedded = false,
+  isSplit = false,
+}) => {
   const { role } = useAuthStore();
   const canManageDocs = role === 'owner' || role === 'admin' || role === 'member';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showUploadForm, setShowUploadForm] = useState(true);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'text'
 
   const [title, setTitle] = useState('');
@@ -149,9 +153,17 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
   };
 
   const totalChunks = documents.reduce((acc, d) => acc + (d.chunk_count || 0), 0);
+  const Container = isEmbedded ? 'div' : Card;
+  const containerProps = isEmbedded
+    ? { className: 'space-y-4' }
+    : { variant: 'bordered', className: 'shadow-sm space-y-4' };
+
+  const scrollAreaHeight = isSplit
+    ? (showUploadForm ? 'h-[180px]' : 'h-[240px]')
+    : (showUploadForm ? 'h-[240px]' : 'h-[380px]');
 
   return (
-    <Card variant="bordered" className="shadow-sm space-y-4">
+    <Container {...containerProps}>
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -314,13 +326,31 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
         </div>
 
         {documents.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4">
-            <FileText size={20} className="mx-auto mb-1.5 text-gray-300" />
-            <p className="font-medium text-gray-600">No documents uploaded yet</p>
-            <p className="text-[11px]">Upload a document above to connect it to your AI query assistant.</p>
+          <div className="text-center py-7 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 px-4 space-y-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+              <FileText size={18} />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700 text-xs">No documents uploaded yet</p>
+              <p className="text-[11px] text-gray-400 max-w-xs mx-auto mt-0.5">
+                Upload company documents to ground AI queries with vector citations.
+              </p>
+            </div>
+            {!showUploadForm && canManageDocs && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setShowUploadForm(true)}
+                className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5"
+              >
+                <Plus size={13} />
+                <span>Upload First Document</span>
+              </Button>
+            )}
           </div>
         ) : (
-          <ScrollArea className="h-[360px] pr-2">
+          <ScrollArea className={`${scrollAreaHeight} pr-2`}>
             <div className="space-y-2">
               {documents.map((doc) => (
                 <div
@@ -408,6 +438,6 @@ export const DocumentPanel = ({ onDocumentsChange }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </Container>
   );
 };

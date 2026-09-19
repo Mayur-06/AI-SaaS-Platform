@@ -21,6 +21,9 @@ export const QueryHistory = ({
   onReusePrompt,
   refreshTrigger,
   isSidebar = true,
+  isEmbedded = false,
+  isSplit = false,
+  onHistoryChange,
 }) => {
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +32,9 @@ export const QueryHistory = ({
     setIsLoading(true);
     try {
       const data = await aiService.getHistory({ limit: 10, sort: 'date' });
-      setHistory(data.results || []);
+      const items = data.results || [];
+      setHistory(items);
+      if (onHistoryChange) onHistoryChange(items);
     } catch (err) {
       console.error('Failed to load past 10 query history:', err);
     } finally {
@@ -54,8 +59,15 @@ export const QueryHistory = ({
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const Container = isEmbedded ? 'div' : Card;
+  const containerProps = isEmbedded
+    ? { className: 'space-y-4' }
+    : { variant: 'bordered', className: 'shadow-sm space-y-4' };
+
+  const scrollAreaHeight = isSplit ? 'h-[240px]' : 'h-[440px]';
+
   return (
-    <Card variant="bordered" className="shadow-sm space-y-4">
+    <Container {...containerProps}>
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -103,7 +115,7 @@ export const QueryHistory = ({
           <p className="text-[11px]">Type a question in the input box above to start.</p>
         </div>
       ) : isSidebar ? (
-        <ScrollArea className="h-[580px] pr-2">
+        <ScrollArea className={`${scrollAreaHeight} pr-2`}>
           <div className="space-y-2.5">
             {history.map((item, index) => {
               const isSelected = selectedId === item.id;
@@ -240,6 +252,6 @@ export const QueryHistory = ({
           })}
         </div>
       )}
-    </Card>
+    </Container>
   );
 };
