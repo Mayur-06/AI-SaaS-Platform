@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
 
 export const PricingSection = () => {
-  const [annual, setAnnual] = useState(false);
-
   const plans = [
     {
       name: 'Free',
       badge: 'Starter',
       priceMonthly: 0,
-      priceAnnual: 0,
       desc: 'Ideal for small projects and exploring document intelligence.',
       requests: '100 monthly requests',
       rateLimit: '60 requests / minute',
@@ -29,7 +26,6 @@ export const PricingSection = () => {
       name: 'Pro',
       badge: 'Most Popular',
       priceMonthly: 29,
-      priceAnnual: 23,
       desc: 'Designed for fast-growing businesses analyzing reports daily.',
       requests: '1,000 monthly requests',
       rateLimit: '60 requests / minute',
@@ -49,7 +45,6 @@ export const PricingSection = () => {
       name: 'Enterprise',
       badge: 'High Volume',
       priceMonthly: 99,
-      priceAnnual: 79,
       desc: 'Unlimited scale and premium throughput for mission-critical apps.',
       requests: '999,999 monthly requests',
       rateLimit: '300 requests / minute',
@@ -72,7 +67,7 @@ export const PricingSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#b2c147]/15 text-[#292929] text-xs font-semibold uppercase tracking-wider mb-4">
             Transparent Pricing
           </div>
@@ -85,41 +80,12 @@ export const PricingSection = () => {
           <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
             Predictable billing grounded in usage. No hidden overage surprises.
           </p>
-
-          {/* Billing Cycle Toggle */}
-          <div className="mt-8 inline-flex items-center gap-3 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setAnnual(false)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                !annual
-                  ? 'bg-[#292929] text-white shadow-sm'
-                  : 'text-gray-600 hover:text-[#292929]'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnnual(true)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-1.5 ${
-                annual
-                  ? 'bg-[#292929] text-white shadow-sm'
-                  : 'text-gray-600 hover:text-[#292929]'
-              }`}
-            >
-              <span>Annual</span>
-              <span className="text-[11px] bg-[#b2c147] text-[#292929] font-bold px-1.5 py-0.2 rounded-full">
-                Save 20%
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* 3 Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
           {plans.map((p) => {
-            const price = annual ? p.priceAnnual : p.priceMonthly;
+            const price = p.priceMonthly;
 
             return (
               <div
@@ -167,11 +133,6 @@ export const PricingSection = () => {
                       </span>
                       <span className="text-sm text-gray-500 font-medium">/ month</span>
                     </div>
-                    {annual && p.priceMonthly > 0 && (
-                      <div className="text-xs text-emerald-600 font-medium mt-1">
-                        Billed annually (${price * 12}/yr)
-                      </div>
-                    )}
                   </div>
 
                   {/* Feature Checklist */}

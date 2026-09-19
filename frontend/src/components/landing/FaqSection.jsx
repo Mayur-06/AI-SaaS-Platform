@@ -60,20 +60,20 @@ export const FaqSection = () => {
         </div>
 
         {/* Radix FAQ Accordion */}
-        <Accordion type="single" collapsible defaultValue="rag" className="space-y-3">
+        <Accordion type="single" collapsible defaultValue="rag" className="space-y-4">
           {faqs.map((faq) => (
             <AccordionItem
               key={faq.id}
               value={faq.id}
-              className="rounded-2xl border border-gray-200 hover:border-gray-300 bg-white px-6 transition-all data-[state=open]:border-[#b2c147] data-[state=open]:bg-[#b2c147]/5 data-[state=open]:shadow-sm"
+              className="rounded-2xl border border-gray-200 hover:border-gray-300 bg-white transition-all duration-200 data-[state=open]:border-[#b2c147] data-[state=open]:bg-[#b2c147]/5 data-[state=open]:shadow-sm overflow-hidden"
             >
               <AccordionTrigger
                 style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-                className="text-base sm:text-lg font-bold text-[#292929] hover:no-underline"
+                className="w-full px-6 py-5 text-base sm:text-lg font-bold text-[#292929] hover:no-underline"
               >
                 {faq.q}
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-gray-600 leading-relaxed pt-1">
+              <AccordionContent className="px-6 pb-5 pt-0 text-sm text-gray-600 leading-relaxed">
                 {faq.a}
               </AccordionContent>
             </AccordionItem>

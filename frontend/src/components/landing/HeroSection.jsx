@@ -16,12 +16,6 @@ export const HeroSection = () => {
           
           {/* Left / Main Text Column */}
           <div className="lg:col-span-6 xl:col-span-6 animate-fade-up">
-            {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#b2c147]/15 border border-[#b2c147]/30 text-[#292929] text-xs font-semibold uppercase tracking-wider mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#b2c147] animate-pulse" />
-              AI-Powered Document Intelligence
-            </div>
-
             {/* Main Display Headline */}
             <h1
               style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
