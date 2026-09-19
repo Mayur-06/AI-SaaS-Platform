@@ -99,6 +99,7 @@ export const DashboardPage = () => {
           value={requestsUsed?.toLocaleString?.() ?? requestsUsed}
           subtitle={`Limit: ${requestLimit?.toLocaleString?.() ?? requestLimit}`}
           progress={{ used: requestsUsed, max: requestLimit }}
+          isLoading={isLoading && !usage}
         />
         <KpiCard
           title="Remaining Quota"
@@ -106,16 +107,19 @@ export const DashboardPage = () => {
           subtitle={`${usage?.usage_percent ?? 0}% quota consumed`}
           badge={usage && usage.usage_percent >= 80 ? 'QUOTA ALERT' : undefined}
           progress={{ used: usage?.usage_percent ?? 0, max: 100 }}
+          isLoading={isLoading && !usage}
         />
         <KpiCard
           title="Cache Hit Rate"
           value={cacheHitRate}
           subtitle={`${usage?.cache_hits ?? 0} direct cache hits`}
+          isLoading={isLoading && !usage}
         />
         <KpiCard
           title="Estimated Cost"
           value={totalCost}
           subtitle={`Budget remaining: $${Number(usage?.budget_remaining || 0).toFixed(2)}`}
+          isLoading={isLoading && !usage}
         />
       </div>
 

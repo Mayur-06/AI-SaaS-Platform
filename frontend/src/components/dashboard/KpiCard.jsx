@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
+import { Skeleton } from '../ui/Skeleton';
 
 export const KpiCard = ({
   title,
@@ -9,7 +10,21 @@ export const KpiCard = ({
   subtitle,
   badge,
   progress,
+  isLoading = false,
 }) => {
+  if (isLoading) {
+    return (
+      <Card variant="bordered" className="flex flex-col justify-between p-6 space-y-3.5">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-4 w-12 rounded-full" />
+        </div>
+        <Skeleton className="h-8 w-28 my-1" />
+        <Skeleton className="h-3 w-36" />
+      </Card>
+    );
+  }
+
   return (
     <Card
       variant="bordered"

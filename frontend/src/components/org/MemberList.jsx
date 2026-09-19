@@ -3,6 +3,7 @@ import { Users, Calendar, MoreHorizontal, Trash2, ShieldCheck } from 'lucide-rea
 import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
+import { Avatar, AvatarFallback } from '../ui/Avatar';
 import {
   Select,
   SelectTrigger,
@@ -93,9 +94,9 @@ export const MemberList = ({
                   <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#b2c147]/20 text-[#292929] font-bold text-xs flex items-center justify-center shrink-0">
-                          {initials}
-                        </div>
+                        <Avatar className="w-8 h-8 shrink-0">
+                          <AvatarFallback variant="lime">{initials}</AvatarFallback>
+                        </Avatar>
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold text-xs text-[#292929]">
                             {memberEmail}

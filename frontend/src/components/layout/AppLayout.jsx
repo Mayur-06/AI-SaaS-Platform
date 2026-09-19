@@ -9,11 +9,12 @@ import {
   ShieldAlert,
   LogOut,
   Menu,
-  X,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBillingStore } from '../../store/billingStore';
 import { orgService } from '../../services/orgService';
+import { Avatar, AvatarFallback } from '../ui/Avatar';
+import { Sheet, SheetTrigger, SheetContent } from '../ui/Sheet';
 
 export const AppLayout = () => {
   const { user, organization, role, logout, setOrganization } = useAuthStore();
@@ -136,10 +137,10 @@ export const AppLayout = () => {
       {/* User Footer & Logout */}
       <div className="p-4 border-t border-white/10 bg-black/20">
         <div className="flex items-center gap-3 mb-3 px-1">
-          {/* Avatar circle */}
-          <div className="w-8 h-8 rounded-full bg-[#b2c147] text-[#292929] font-bold text-xs flex items-center justify-center shrink-0">
-            {initials}
-          </div>
+          {/* Avatar Component */}
+          <Avatar className="h-8 w-8">
+            <AvatarFallback variant="brand">{initials}</AvatarFallback>
+          </Avatar>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold text-white truncate">
               {user?.email}
@@ -175,30 +176,21 @@ export const AppLayout = () => {
             Hapy<span className="text-[#b2c147]">●</span>
           </span>
         </Link>
-        <button
-          type="button"
-          onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none"
-          aria-label="Toggle navigation drawer"
-        >
-          {mobileDrawerOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
-      </div>
-
-      {/* Mobile Sliding Drawer Overlay */}
-      {mobileDrawerOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in"
-          onClick={() => setMobileDrawerOpen(false)}
-        >
-          <div
-            className="w-72 h-full bg-[#292929] shadow-2xl animate-fade-up"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none"
+              aria-label="Toggle navigation drawer"
+            >
+              <Menu size={22} />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72">
             <SidebarContent />
-          </div>
-        </div>
-      )}
+          </SheetContent>
+        </Sheet>
+      </div>
 
       {/* Desktop Persistent Sidebar (>= md screens) */}
       <aside className="hidden md:flex md:w-64 flex-col shrink-0 min-h-screen sticky top-0 h-screen">

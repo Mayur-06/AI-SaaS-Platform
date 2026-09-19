@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, RotateCw, AlertCircle } from 'lucide-react';
+import { ShieldAlert, RotateCw, AlertCircle, Building2, Activity, Shuffle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { PlatformMetrics } from '../../components/admin/PlatformMetrics';
 import { HealthPanel } from '../../components/admin/HealthPanel';
@@ -7,6 +7,7 @@ import { TenantTable } from '../../components/admin/TenantTable';
 import { RoutingConfig } from '../../components/admin/RoutingConfig';
 import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
 
 export const AdminPage = () => {
   const [metrics, setMetrics] = useState(null);
@@ -58,7 +59,7 @@ export const AdminPage = () => {
   }, []);
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
@@ -96,27 +97,49 @@ export const AdminPage = () => {
         </div>
       )}
 
-      {/* Global Platform Metrics */}
-      <PlatformMetrics metrics={metrics} />
+      {/* Tabs Navigation */}
+      <Tabs defaultValue="fleet" className="space-y-6">
+        <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full max-w-xl">
+          <TabsTrigger value="fleet" className="flex items-center gap-1.5">
+            <Building2 size={13} />
+            <span>Fleet &amp; Tenants ({tenantCount})</span>
+          </TabsTrigger>
+          <TabsTrigger value="health" className="flex items-center gap-1.5">
+            <Activity size={13} />
+            <span>Service Health</span>
+          </TabsTrigger>
+          <TabsTrigger value="routing" className="flex items-center gap-1.5">
+            <Shuffle size={13} />
+            <span>Model Routing</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Infrastructure & LLM Provider Health */}
-      <HealthPanel
-        health={health}
-        onRefresh={handleRefreshHealth}
-        isLoading={isLoading}
-      />
+        {/* Tab 1: Fleet & Tenants */}
+        <TabsContent value="fleet" className="space-y-6">
+          <PlatformMetrics metrics={metrics} />
+          <TenantTable
+            tenants={tenants}
+            totalCount={tenantCount}
+            currentPage={currentPage}
+            onPageChange={(p) => loadData(p)}
+            isLoading={isLoading}
+          />
+        </TabsContent>
 
-      {/* Tenant Fleet Table */}
-      <TenantTable
-        tenants={tenants}
-        totalCount={tenantCount}
-        currentPage={currentPage}
-        onPageChange={(p) => loadData(p)}
-        isLoading={isLoading}
-      />
+        {/* Tab 2: Service Health Probes */}
+        <TabsContent value="health" className="space-y-4">
+          <HealthPanel
+            health={health}
+            onRefresh={handleRefreshHealth}
+            isLoading={isLoading}
+          />
+        </TabsContent>
 
-      {/* Model Routing & Dynamic Circuit Breakers */}
-      <RoutingConfig />
+        {/* Tab 3: Model Routing & Circuit Breakers */}
+        <TabsContent value="routing" className="space-y-4">
+          <RoutingConfig />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
