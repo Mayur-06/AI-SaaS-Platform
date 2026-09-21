@@ -192,7 +192,7 @@ export const OrganizationSettingsPage = () => {
 
       {/* Tabs Layout */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl gap-1">
           <TabsTrigger value="general" className="flex items-center gap-1.5">
             <Building2 size={13} />
             <span>Profile &amp; Budget</span>

@@ -32,13 +32,13 @@ export const Modal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
         className={`bg-white rounded-2xl shadow-2xl border border-gray-100 w-full ${
           widths[maxWidth] || widths.md
-        } p-6 sm:p-7 animate-fade-up relative`}
+        } p-4 sm:p-6 md:p-7 animate-fade-up relative`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

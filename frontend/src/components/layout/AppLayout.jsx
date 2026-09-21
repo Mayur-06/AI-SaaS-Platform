@@ -176,20 +176,38 @@ export const AppLayout = () => {
             Hapy<span className="text-[#b2c147]">●</span>
           </span>
         </Link>
-        <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none"
-              aria-label="Toggle navigation drawer"
-            >
-              <Menu size={22} />
-            </button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72">
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
+        {/* Mobile Context & Drawer Trigger */}
+        <div className="flex items-center gap-2.5">
+          {organization && (
+            <div className="text-right max-w-[120px] sm:max-w-[160px] truncate">
+              <div className="text-[11px] font-semibold text-gray-200 truncate leading-tight">
+                {organization.name}
+              </div>
+              <div className="text-[9px] text-[#b2c147] uppercase font-mono tracking-wider leading-tight">
+                {planName}
+              </div>
+            </div>
+          )}
+
+          <Avatar className="h-7 w-7">
+            <AvatarFallback variant="brand" className="text-[10px]">{initials}</AvatarFallback>
+          </Avatar>
+
+          <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none cursor-pointer"
+                aria-label="Toggle navigation drawer"
+              >
+                <Menu size={22} />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72">
+              <SidebarContent />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       {/* Desktop Persistent Sidebar (>= md screens) */}
