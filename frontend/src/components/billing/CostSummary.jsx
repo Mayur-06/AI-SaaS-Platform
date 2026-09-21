@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Zap, PiggyBank, Receipt } from 'lucide-react';
+import { Download, Zap, PiggyBank } from 'lucide-react';
 import { toast } from 'sonner';
 import { billingService } from '../../services/billingService';
 import { Card } from '../ui/Card';
@@ -79,8 +79,8 @@ export const CostSummary = ({ usage }) => {
         </div>
       </div>
 
-      {/* 3 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 2 Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
             <Zap size={13} className="text-[#b2c147]" />
@@ -110,22 +110,6 @@ export const CostSummary = ({ usage }) => {
           </div>
           <div className="text-[11px] text-gray-400 font-mono">
             Direct external API fees avoided
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
-            <Receipt size={13} className="text-gray-400" />
-            <span>Net Platform Cost</span>
-          </div>
-          <div
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-2xl font-bold text-[#292929]"
-          >
-            ${usage ? Number(usage.total_cost || 0).toFixed(4) : '0.0000'}
-          </div>
-          <div className="text-[11px] text-gray-400 font-mono">
-            Aggregated across all org queries
           </div>
         </div>
       </div>

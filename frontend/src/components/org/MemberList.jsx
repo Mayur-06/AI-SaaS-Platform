@@ -111,7 +111,7 @@ export const MemberList = ({
                     </td>
 
                     <td className="px-5 py-3.5">
-                      {canEditThisMember ? (
+                      {canEditThisMember && m?.role !== 'admin' ? (
                         <Select
                           value={m.role}
                           onValueChange={(value) => {
@@ -124,7 +124,6 @@ export const MemberList = ({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="member">Member</SelectItem>
                             <SelectItem value="viewer">Viewer</SelectItem>
                           </SelectContent>
