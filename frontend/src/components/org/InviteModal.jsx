@@ -11,6 +11,8 @@ import {
   SelectContent,
   SelectItem,
 } from '../ui/Select';
+import { toast } from 'sonner';
+import { copyToClipboard } from '../../lib/utils';
 
 export const InviteModal = ({
   isOpen,
@@ -51,11 +53,16 @@ export const InviteModal = ({
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!createdInvite?.inviteUrl) return;
-    navigator.clipboard.writeText(createdInvite.inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const success = await copyToClipboard(createdInvite.inviteUrl);
+    if (success) {
+      setCopied(true);
+      toast.success('Invitation link copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Failed to copy invitation link');
+    }
   };
 
   const handleClose = () => {

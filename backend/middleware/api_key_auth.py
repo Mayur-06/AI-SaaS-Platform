@@ -52,20 +52,29 @@ class APIKeyAuthentication(BaseAuthentication):
     keyword = "ApiKey"
 
     def authenticate(self, request):
+        raw_key = None
         auth = get_authorization_header(request).split()
-        if not auth:
+        if auth:
+            prefix = auth[0].lower()
+            if prefix == self.keyword.lower().encode() or (prefix == b"bearer" and len(auth) >= 2 and auth[1].startswith(b"sk_live_")):
+                if len(auth) == 1:
+                    raise exceptions.AuthenticationFailed("Invalid API key header. No credentials provided.")
+                if len(auth) > 2:
+                    raise exceptions.AuthenticationFailed("Invalid API key header. Token string should not contain spaces.")
+                try:
+                    raw_key = auth[1].decode()
+                except UnicodeDecodeError:
+                    raise exceptions.AuthenticationFailed("Invalid API key encoding.")
+
+        # Also support standard X-API-Key header for external API clients
+        if not raw_key:
+            x_api_key = request.META.get("HTTP_X_API_KEY")
+            if x_api_key:
+                raw_key = x_api_key.strip()
+
+        if not raw_key:
             return None
-        prefix = auth[0].lower()
-        if prefix != self.keyword.lower().encode():
-            if prefix == b"bearer" and len(auth) >= 2 and auth[1].startswith(b"sk_live_"):
-                pass
-            else:
-                return None
-        if len(auth) == 1:
-            raise exceptions.AuthenticationFailed("Invalid API key header. No credentials provided.")
-        if len(auth) > 2:
-            raise exceptions.AuthenticationFailed("Invalid API key header. Token string should not contain spaces.")
-        raw_key = auth[1].decode()
+
         from billing.models import APIKey
         api_key = APIKey.verify_key(raw_key, None)
         if not api_key:
