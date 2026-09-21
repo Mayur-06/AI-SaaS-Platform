@@ -58,7 +58,7 @@ Follow these rules:
 5. If the question is ambiguous, ask the user for clarification when
    appropriate.
 
-6. Be conversational, concise, and helpful.
+6. Format your answer using clean, professional Markdown (use headings `###`, bullet points `-`, bold `**key terms**`, and inline `code` where appropriate). Be conversational, concise, and structured.
 """
 
         user_prompt = f"""

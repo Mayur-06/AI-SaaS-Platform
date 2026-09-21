@@ -22,6 +22,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '../../components/ui/AlertDialog';
+import { copyToClipboard } from '../../lib/utils';
 
 export const APIKeysPage = () => {
   const { role, user, organization } = useAuthStore();
@@ -39,11 +40,15 @@ export const APIKeysPage = () => {
   const [pendingRegenerate, setPendingRegenerate] = useState(null); // keyId
   const [copiedSnippet, setCopiedSnippet] = useState(null);
 
-  const copySnippet = (text, key) => {
-    navigator.clipboard.writeText(text);
-    setCopiedSnippet(key);
-    toast.success('Code snippet copied to clipboard.');
-    setTimeout(() => setCopiedSnippet(null), 2000);
+  const copySnippet = async (text, key) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedSnippet(key);
+      toast.success('Code snippet copied to clipboard.');
+      setTimeout(() => setCopiedSnippet(null), 2000);
+    } else {
+      toast.error('Failed to copy code snippet.');
+    }
   };
 
   const canManage = role === 'owner' || role === 'admin';

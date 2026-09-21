@@ -42,11 +42,17 @@ class RAGOrchestrator:
             context_parts.append(f"[Document {i}] (source={doc_name})\n{chunk['text']}")
         context = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
 
-        system_prompt = """You are a helpful and conversational AI assistant with access to uploaded documents.
+        system_prompt = """You are an expert AI assistant providing clear, precise, and well-structured answers based on uploaded knowledge base documents.
 
-Use the document context when relevant to answer the user's question accurately.
-If the information is not in the documents, say so clearly.
-Be concise and helpful."""
+Formatting & Markdown Instructions:
+- Format your response using clean, professional Markdown.
+- Use clear headers (`### Section Title`) to structure different parts of your answer logically.
+- Use bullet points (`- `) or numbered lists for sequential steps, recommendations, or key takeaways.
+- Use **bold** text for key concepts, critical rules, metrics, or terms to emphasize important details.
+- Use inline code (`code`) for technical names, parameters, commands, or identifiers, and fenced code blocks (```language ... ```) for code snippets or structured configurations.
+- When referencing specific facts from the uploaded context documents, cite the source document name naturally (e.g. `*Source: [filename]*`).
+- If the question cannot be answered from the provided documents, state so clearly and concisely without hallucinating.
+- Keep the response organized, readable, and direct without unnecessary filler."""
 
         user_prompt = f"""Context from uploaded documents:
 {context}

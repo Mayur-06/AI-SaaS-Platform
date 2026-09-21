@@ -6,6 +6,8 @@ import { extractErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { toast } from 'sonner';
+import { copyToClipboard } from '../../lib/utils';
 
 export const QuickActions = ({ onQueryComplete }) => {
   const { role } = useAuthStore();
@@ -37,11 +39,20 @@ export const QuickActions = ({ onQueryComplete }) => {
     }
   };
 
-  const handleCopy = () => {
-    if (!result?.response) return;
-    navigator.clipboard.writeText(result.response);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    const text = result?.response || result?.answer || result?.response_text || '';
+    if (!text) {
+      toast.error('Nothing to copy');
+      return;
+    }
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopied(true);
+      toast.success('Response copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   return (

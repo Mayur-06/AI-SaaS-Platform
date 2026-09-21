@@ -73,24 +73,28 @@ class APIKey(models.Model):
         super().save(*args, **kwargs)
 
     @staticmethod
-    def verify_key(raw_key, organization):
+    def verify_key(raw_key, organization=None):
         prefix = raw_key[:12]
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        import hmac
         try:
-            api_key = APIKey.objects.select_related("organization").get(
-                key_prefix=prefix,
-                organization=organization,
-                is_active=True,
-            )
-            import hmac
+            filters = {"key_prefix": prefix, "is_active": True}
+            if organization is not None:
+                filters["organization"] = organization
+            api_key = APIKey.objects.select_related("organization", "organization__plan").get(**filters)
             if hmac.compare_digest(api_key.key_hash, key_hash):
                 api_key.last_used_at = timezone.now()
                 api_key.save(update_fields=["last_used_at"])
                 return api_key
-        except APIKey.DoesNotExist:
+        except (APIKey.DoesNotExist, APIKey.MultipleObjectsReturned):
             pass
         try:
-            api_key = APIKey.objects.select_related("organization").get(key_hash=key_hash, is_active=True)
+            filters = {"key_hash": key_hash, "is_active": True}
+            if organization is not None:
+                filters["organization"] = organization
+            api_key = APIKey.objects.select_related("organization", "organization__plan").get(**filters)
+            api_key.last_used_at = timezone.now()
+            api_key.save(update_fields=["last_used_at"])
             return api_key
         except APIKey.DoesNotExist:
             return None

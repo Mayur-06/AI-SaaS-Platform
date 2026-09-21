@@ -22,15 +22,17 @@ class HasRole(permissions.BasePermission):
     def has_permission(self, request, view):
         if getattr(request, "api_key", None):
             key_perm = getattr(request.api_key, "permissions", "write")
-            if self.allowed_roles == ["owner"] or self.allowed_roles == ["owner", "admin"]:
-                return key_perm == "admin"
+            if "viewer" in self.allowed_roles:
+                return key_perm in ["read", "write", "admin"]
             if "member" in self.allowed_roles:
                 return key_perm in ["write", "admin"]
-            return key_perm in ["read", "write", "admin"]
+            return key_perm == "admin"
 
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
         org = getattr(request, "organization", None)
         if not org and hasattr(user, "memberships"):
             membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
@@ -97,6 +99,8 @@ class IsSuperAdmin(permissions.BasePermission):
 
 class IsOrgOwner(permissions.BasePermission):
     def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            return getattr(request.api_key, "permissions", None) == "admin"
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False

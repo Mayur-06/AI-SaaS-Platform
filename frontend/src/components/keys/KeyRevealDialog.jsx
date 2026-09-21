@@ -2,14 +2,22 @@ import React, { useState } from 'react';
 import { Copy, Check, AlertTriangle, Key } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { toast } from 'sonner';
+import { copyToClipboard } from '../../lib/utils';
 
 export const KeyRevealDialog = ({ fullKey, keyName, onClose }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(fullKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    if (!fullKey) return;
+    const success = await copyToClipboard(fullKey);
+    if (success) {
+      setCopied(true);
+      toast.success('API key copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Failed to copy API key');
+    }
   };
 
   const curlExample = `curl -X POST http://localhost:8000/api/ai/query/ \\

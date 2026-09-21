@@ -96,6 +96,16 @@ class DocumentViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             logger.warning("Auto-processing document %s failed: %s", instance.id, exc)
 
+    def perform_destroy(self, instance):
+        if instance.filename:
+            try:
+                from django.core.files.storage import default_storage
+                if default_storage.exists(instance.filename):
+                    default_storage.delete(instance.filename)
+            except Exception as exc:
+                logger.warning("Failed to delete document file %s: %s", instance.filename, exc)
+        instance.delete()
+
     @action(detail=True, methods=["post"])
     def process(self, request, pk=None):
         document = self.get_object()
