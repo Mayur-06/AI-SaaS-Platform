@@ -1,19 +1,285 @@
 import React, { useState } from 'react';
 import { Bot, Copy, Check, AlertCircle, FileText, Sparkles, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/Collapsible';
 import { SimpleTooltip } from '../ui/Tooltip';
 
+// Lightweight, zero-dependency Markdown parser & renderer
+const renderInlineMarkdown = (text) => {
+  if (!text) return null;
+  const tokens = [];
+  const inlineRegex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = inlineRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(text.substring(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith('`') && token.endsWith('`')) {
+      tokens.push(
+        <code
+          key={key++}
+          className="font-mono text-xs text-[#b2c147] bg-white/10 px-1.5 py-0.5 rounded border border-white/5"
+        >
+          {token.slice(1, -1)}
+        </code>
+      );
+    } else if (token.startsWith('**') && token.endsWith('**')) {
+      tokens.push(
+        <strong key={key++} className="font-bold text-white">
+          {token.slice(2, -2)}
+        </strong>
+      );
+    } else if (token.startsWith('*') && token.endsWith('*')) {
+      tokens.push(
+        <em key={key++} className="italic text-gray-300">
+          {token.slice(1, -1)}
+        </em>
+      );
+    }
+    lastIndex = inlineRegex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    tokens.push(text.substring(lastIndex));
+  }
+
+  return tokens.length > 0 ? tokens : text;
+};
+
+const MarkdownContent = ({ content }) => {
+  if (!content) return null;
+
+  const blocks = [];
+  const lines = content.split('\n');
+  let inCodeBlock = false;
+  let codeLang = '';
+  let codeLines = [];
+  let currentList = null;
+
+  const flushList = () => {
+    if (currentList) {
+      if (currentList.type === 'ul') {
+        blocks.push(
+          <ul key={blocks.length} className="list-disc list-inside space-y-1.5 my-2.5 text-gray-200">
+            {currentList.items.map((item, idx) => (
+              <li key={idx} className="leading-relaxed text-sm">
+                {renderInlineMarkdown(item)}
+              </li>
+            ))}
+          </ul>
+        );
+      } else {
+        blocks.push(
+          <ol key={blocks.length} className="list-decimal list-inside space-y-1.5 my-2.5 text-gray-200">
+            {currentList.items.map((item, idx) => (
+              <li key={idx} className="leading-relaxed text-sm">
+                {renderInlineMarkdown(item)}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      currentList = null;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim().startsWith('```')) {
+      flushList();
+      if (inCodeBlock) {
+        const codeText = codeLines.join('\n');
+        blocks.push(
+          <div key={blocks.length} className="my-3 rounded-xl bg-black/60 border border-white/10 overflow-hidden">
+            {codeLang && (
+              <div className="px-3.5 py-1 bg-white/5 border-b border-white/10 text-[10px] font-mono uppercase text-[#b2c147] tracking-wider">
+                {codeLang}
+              </div>
+            )}
+            <pre className="p-3.5 text-xs font-mono text-gray-200 overflow-x-auto selection:bg-[#b2c147] selection:text-[#292929]">
+              <code>{codeText}</code>
+            </pre>
+          </div>
+        );
+        codeLines = [];
+        inCodeBlock = false;
+        codeLang = '';
+      } else {
+        inCodeBlock = true;
+        codeLang = line.trim().slice(3).trim();
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      continue;
+    }
+
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    // Headings
+    if (trimmed.startsWith('#### ')) {
+      flushList();
+      blocks.push(
+        <h5 key={blocks.length} className="text-xs font-bold text-[#b2c147] uppercase tracking-wide mt-3 mb-1 font-mono">
+          {renderInlineMarkdown(trimmed.slice(5))}
+        </h5>
+      );
+      continue;
+    }
+    if (trimmed.startsWith('### ')) {
+      flushList();
+      blocks.push(
+        <h4 key={blocks.length} className="text-sm font-bold text-white mt-3.5 mb-1.5 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#b2c147] shrink-0" />
+          {renderInlineMarkdown(trimmed.slice(4))}
+        </h4>
+      );
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      flushList();
+      blocks.push(
+        <h3 key={blocks.length} className="text-base font-bold text-white mt-4 mb-2 pb-1 border-b border-white/10">
+          {renderInlineMarkdown(trimmed.slice(3))}
+        </h3>
+      );
+      continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      flushList();
+      blocks.push(
+        <h2 key={blocks.length} className="text-lg font-bold text-white mt-4 mb-2">
+          {renderInlineMarkdown(trimmed.slice(2))}
+        </h2>
+      );
+      continue;
+    }
+
+    // Bullet list: - or *
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const itemText = trimmed.slice(2);
+      if (!currentList || currentList.type !== 'ul') {
+        flushList();
+        currentList = { type: 'ul', items: [itemText] };
+      } else {
+        currentList.items.push(itemText);
+      }
+      continue;
+    }
+
+    // Numbered list: 1. 2. etc.
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      const itemText = numMatch[2];
+      if (!currentList || currentList.type !== 'ol') {
+        flushList();
+        currentList = { type: 'ol', items: [itemText] };
+      } else {
+        currentList.items.push(itemText);
+      }
+      continue;
+    }
+
+    // Blockquote: >
+    if (trimmed.startsWith('> ')) {
+      flushList();
+      blocks.push(
+        <blockquote key={blocks.length} className="border-l-2 border-[#b2c147] pl-3 py-1 my-2 bg-white/[0.02] text-xs text-gray-300 italic">
+          {renderInlineMarkdown(trimmed.slice(2))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Divider: ---
+    if (trimmed === '---' || trimmed === '***') {
+      flushList();
+      blocks.push(<hr key={blocks.length} className="border-white/10 my-3" />);
+      continue;
+    }
+
+    // Standard paragraph
+    flushList();
+    blocks.push(
+      <p key={blocks.length} className="text-sm text-gray-200 leading-relaxed my-2">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  }
+
+  flushList();
+
+  if (inCodeBlock && codeLines.length > 0) {
+    blocks.push(
+      <div key={blocks.length} className="my-3 rounded-xl bg-black/60 border border-white/10 overflow-hidden">
+        <pre className="p-3.5 text-xs font-mono text-gray-200 overflow-x-auto">
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  return <div className="space-y-0.5">{blocks}</div>;
+};
+
 export const ResponseCard = ({ data, errorInfo, isLoading }) => {
   const [copied, setCopied] = useState(false);
   const [isChunksOpen, setIsChunksOpen] = useState(true);
 
-  const handleCopy = () => {
-    if (!data?.response) return;
-    navigator.clipboard.writeText(data.response);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    const textToCopy = data?.response || data?.answer || data?.response_text || '';
+    if (!textToCopy) {
+      toast.error('No response text to copy');
+      return;
+    }
+
+    let success = false;
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        success = true;
+      } catch (err) {
+        // Fallback below
+      }
+    }
+
+    if (!success) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error('Fallback copy failed:', err);
+      }
+    }
+
+    if (success) {
+      setCopied(true);
+      toast.success('Response copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Failed to copy text to clipboard');
+    }
   };
 
   if (isLoading) {
@@ -119,12 +385,14 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
     );
   }
 
+  const rawContent = data.response || data.answer || data.response_text || '';
+
   return (
     <Card variant="dark" className="border border-white/10 shadow-2xl relative overflow-hidden">
       {/* Subtle Lime Accent Glow */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-[#b2c147]/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header Bar: Status, Model & Action Badges */}
+      {/* Header Bar: Essential Status Badges & Action */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-white/10">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#b2c147] text-[#292929] flex items-center justify-center font-bold shadow-sm">
@@ -143,37 +411,20 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
           </div>
         </div>
 
-        {/* Telemetry metadata tags */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge variant="dark">{data.model_used || data.model || 'Auto'}</Badge>
-          {data.provider && (
-            <Badge variant="gray" className="uppercase text-[10px]">
-              {data.provider}
-            </Badge>
-          )}
-          <SimpleTooltip content={data.cache_hit ? 'Served instantly from semantic vector cache' : 'Executed against live external LLM'}>
-            <div>
-              <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
-                {data.cache_hit ? 'CACHE HIT' : 'LIVE LLM'}
-              </Badge>
-            </div>
-          </SimpleTooltip>
-          <span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/5">
-            {data.latency_ms ?? 0} ms
-          </span>
-          <SimpleTooltip content="Estimated cost for this single completion">
-            <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold border border-[#b2c147]/20">
-              ${Number(data.estimated_cost || 0).toFixed(5)}
-            </span>
-          </SimpleTooltip>
-          <SimpleTooltip content="Copy markdown response to clipboard">
+        {/* Clean, essential badges & copy action */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="dark">{data.model_used || data.model || 'AI Model'}</Badge>
+          <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
+            {data.cache_hit ? 'CACHE HIT' : 'LIVE LLM'}
+          </Badge>
+          <SimpleTooltip content="Copy response to clipboard">
             <button
               type="button"
               onClick={handleCopy}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer border border-white/5"
+              className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer border border-white/10 hover:border-white/20 active:scale-95"
             >
-              {copied ? <Check size={12} className="text-[#b2c147]" /> : <Copy size={12} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
+              {copied ? <Check size={13} className="text-[#b2c147]" /> : <Copy size={13} />}
+              <span>{copied ? 'Copied!' : 'Copy'}</span>
             </button>
           </SimpleTooltip>
         </div>
@@ -201,41 +452,13 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         </div>
       )}
 
-      {/* Main Response Output */}
+      {/* Main Response Output with Clean Markdown Formatting */}
       <div className="space-y-1 mb-4">
         <span className="text-gray-400 font-mono text-[10px] uppercase tracking-wider block">
           Model Response
         </span>
-        <div className="text-sm text-gray-200 leading-relaxed font-sans whitespace-pre-wrap selection:bg-[#b2c147] selection:text-[#292929] bg-black/40 p-4 sm:p-5 rounded-xl border border-white/10">
-          {data.response || data.answer}
-        </div>
-      </div>
-
-      {/* Token & Telemetry Breakdown Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs text-gray-400 font-mono">
-        <div>
-          <span className="text-gray-500 block text-[10px] uppercase">Prompt Tokens</span>
-          <span className="text-white font-semibold">
-            {data.tokens?.prompt_tokens ?? data.input_tokens ?? '-'}
-          </span>
-        </div>
-        <div>
-          <span className="text-gray-500 block text-[10px] uppercase">Completion Tokens</span>
-          <span className="text-white font-semibold">
-            {data.tokens?.completion_tokens ?? data.output_tokens ?? '-'}
-          </span>
-        </div>
-        <div>
-          <span className="text-gray-500 block text-[10px] uppercase">Total Tokens</span>
-          <span className="text-white font-semibold">
-            {data.tokens?.total_tokens ?? (Number(data.input_tokens || 0) + Number(data.output_tokens || 0)) ?? '-'}
-          </span>
-        </div>
-        <div>
-          <span className="text-gray-500 block text-[10px] uppercase">Request ID</span>
-          <span className="text-gray-300 truncate block font-mono text-[11px]" title={data.request_id}>
-            {data.request_id || '-'}
-          </span>
+        <div className="bg-black/40 p-4 sm:p-5 rounded-xl border border-white/10">
+          <MarkdownContent content={rawContent} />
         </div>
       </div>
 

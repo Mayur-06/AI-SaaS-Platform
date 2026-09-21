@@ -27,13 +27,19 @@ def get_cache_ttl(org: Organization) -> int:
 
 
 def get_default_threshold() -> float:
-    return 0.95
+    return 0.85
 
 
 class SemanticCache:
     def __init__(self, organization: Organization, threshold: Optional[float] = None):
         self.organization = organization
-        self.threshold = threshold if threshold is not None else float(organization.cache_threshold)
+        cache_thresh = getattr(organization, "cache_threshold", None)
+        if threshold is not None:
+            self.threshold = float(threshold)
+        elif cache_thresh is not None:
+            self.threshold = float(cache_thresh)
+        else:
+            self.threshold = get_default_threshold()
         self._redis = get_redis_client() if get_redis_client else None
 
     def _namespace(self, cache_key: str) -> str:

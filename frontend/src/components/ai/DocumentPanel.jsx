@@ -40,14 +40,12 @@ export const DocumentPanel = ({
   isSplit = false,
 }) => {
   const { role } = useAuthStore();
-  const canManageDocs = role === 'owner' || role === 'admin' || role === 'member';
+  const canManageDocs = role !== 'viewer';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'text'
 
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
   const [file, setFile] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -84,10 +82,12 @@ export const DocumentPanel = ({
 
   const handleCreateDocument = async (e) => {
     e.preventDefault();
-    if (!title.trim() || (!content.trim() && !file)) {
-      setErrorMessage('Please provide a title and document content (or select a file).');
+    if (!file) {
+      setErrorMessage('Please select a document file (.pdf, .txt, or .md) to upload.');
       return;
     }
+
+    const docTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
 
     setErrorMessage(null);
     setStatusMessage(null);
@@ -95,24 +95,12 @@ export const DocumentPanel = ({
 
     try {
       const doc = await aiService.createDocument({
-        title,
-        content: content || undefined,
-        file: file || undefined,
+        title: docTitle,
+        file,
       });
 
-      setStatusMessage(`Document "${doc.title || title}" uploaded. Indexing vector chunks…`);
-      try {
-        const procRes = await aiService.processDocument(doc.id, content);
-        const count = procRes.chunks_count ?? procRes.chunk_count ?? 0;
-        setStatusMessage(
-          `Document indexed successfully! (${count} vector chunks connected to AI)`
-        );
-      } catch (procErr) {
-        setStatusMessage('Document uploaded. Auto-processing completed.');
-      }
-
+      setStatusMessage(`Document "${doc.title || docTitle}" uploaded and indexed into vector knowledge base.`);
       setTitle('');
-      setContent('');
       setFile(null);
       await fetchDocuments();
     } catch (err) {
@@ -228,27 +216,31 @@ export const DocumentPanel = ({
         <form onSubmit={handleCreateDocument} className="p-3.5 sm:p-4 rounded-xl bg-gray-50/80 border border-gray-200 space-y-3">
           <div className="flex items-center justify-between pb-1 border-b border-gray-200/60">
             <span className="text-xs font-semibold text-[#292929] uppercase tracking-wider font-mono">
-              Upload & Connect Document
+              Upload Document
             </span>
-            <div className="flex items-center gap-1 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setUploadMode('file')}
-                className={`px-2 py-0.5 rounded cursor-pointer ${
-                  uploadMode === 'file' ? 'bg-[#292929] text-white font-medium' : 'text-gray-500 hover:text-black'
-                }`}
-              >
-                File (.pdf, .txt, .md)
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMode('text')}
-                className={`px-2 py-0.5 rounded cursor-pointer ${
-                  uploadMode === 'text' ? 'bg-[#292929] text-white font-medium' : 'text-gray-500 hover:text-black'
-                }`}
-              >
-                Paste Text
-              </button>
+            <span className="text-[11px] text-gray-500 font-mono">
+              .pdf, .txt, .md
+            </span>
+          </div>
+
+          <div className="relative border-2 border-dashed border-[#b2c147]/60 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-5 text-center transition-colors cursor-pointer group">
+            <input
+              type="file"
+              accept=".txt,.md,.pdf"
+              onChange={handleFileChange}
+              disabled={isLoading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+              <div className="w-9 h-9 rounded-xl bg-[#b2c147]/20 text-[#292929] flex items-center justify-center group-hover:scale-105 transition-transform">
+                <UploadCloud size={20} />
+              </div>
+              <span className="text-xs font-semibold text-[#292929]">
+                {file ? file.name : 'Click to select or drag and drop document'}
+              </span>
+              <span className="text-[11px] text-gray-500 font-mono">
+                {file ? `${(file.size / 1024).toFixed(1)} KB — ready to upload` : 'Supports PDF, TXT, and Markdown files'}
+              </span>
             </div>
           </div>
 
@@ -257,50 +249,14 @@ export const DocumentPanel = ({
             placeholder="e.g. Refund Policy, Company FAQ, Pricing Guide"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            required
             disabled={isLoading}
             className="text-xs py-1.5"
           />
 
-          {uploadMode === 'file' ? (
-            <div className="relative border-2 border-dashed border-[#b2c147]/60 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-4 text-center transition-colors cursor-pointer group">
-              <input
-                type="file"
-                accept=".txt,.md,.pdf"
-                onChange={handleFileChange}
-                disabled={isLoading}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-              <div className="flex flex-col items-center justify-center gap-1 pointer-events-none">
-                <UploadCloud size={20} className="text-[#292929] group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-medium text-[#292929]">
-                  {file ? file.name : 'Click or drag file here (.pdf, .txt, .md)'}
-                </span>
-                <span className="text-[10px] text-gray-400 font-mono">
-                  {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Auto-chunked & indexed into vector store'}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 font-mono">
-                Document Content / Text
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Paste raw documentation, policies, notes, or knowledge here..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white placeholder-gray-400 text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147] transition-all resize-y"
-              />
-            </div>
-          )}
-
           <Button
             type="submit"
             variant="primary"
-            disabled={isLoading || !title.trim() || (!content.trim() && !file)}
+            disabled={isLoading || !file}
             className="w-full py-2 text-xs font-medium flex items-center justify-center gap-2"
           >
             {isLoading ? (
@@ -387,24 +343,26 @@ export const DocumentPanel = ({
                     </Badge>
 
                     {canManageDocs && (
-                      <div className="flex items-center gap-1 ml-1">
+                      <div className="flex items-center gap-1.5 ml-1">
                         <SimpleTooltip content="Re-index into vector chunks">
                           <button
                             type="button"
                             onClick={() => handleProcess(doc.id)}
                             disabled={isProcessing === doc.id}
-                            className="px-2 py-0.5 text-[10px] font-medium text-gray-500 hover:text-black bg-gray-100 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-medium text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
                           >
                             {isProcessing === doc.id ? '…' : 'Sync'}
                           </button>
                         </SimpleTooltip>
-                        <SimpleTooltip content="Remove document from knowledge base">
+                        <SimpleTooltip content="Delete document from knowledge base">
                           <button
                             type="button"
                             onClick={() => setPendingDeleteDoc({ id: doc.id, title: doc.title })}
-                            className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer"
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer border border-transparent hover:border-red-200"
+                            title="Delete Document"
+                            aria-label={`Delete ${doc.title}`}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         </SimpleTooltip>
                       </div>

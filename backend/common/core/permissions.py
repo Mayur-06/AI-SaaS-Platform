@@ -31,6 +31,8 @@ class HasRole(permissions.BasePermission):
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
         org = getattr(request, "organization", None)
         if not org and hasattr(user, "memberships"):
             membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
