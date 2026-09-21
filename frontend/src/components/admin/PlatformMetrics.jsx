@@ -61,7 +61,7 @@ export const PlatformMetrics = ({ metrics }) => {
           {Number(requestsMonth).toLocaleString()}
         </div>
         <div className="text-[11px] text-gray-400 font-mono">
-          {Number(requestsToday).toLocaleString()} executed today
+          {Number(requestsToday).toLocaleString()} executed today · {metrics.cache_hit_rate_percent ?? 0}% cached
         </div>
       </Card>
 
