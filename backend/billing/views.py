@@ -35,6 +35,21 @@ def get_request_org(request):
     return None
 
 
+def ensure_default_plans():
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_FREE,
+        defaults={"monthly_request_limit": 100, "requests_per_minute": 10, "price": 0, "cache_ttl_seconds": 3600},
+    )
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_PRO,
+        defaults={"monthly_request_limit": 1000, "requests_per_minute": 60, "price": 29, "cache_ttl_seconds": 86400},
+    )
+    Plan.objects.get_or_create(
+        name=Plan.PLAN_ENTERPRISE,
+        defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 99, "cache_ttl_seconds": 604800},
+    )
+
+
 class BillingPlanView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
 
@@ -42,6 +57,7 @@ class BillingPlanView(APIView):
         org = get_request_org(request)
         if not org:
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
+        ensure_default_plans()
         serializer = PlanSerializer(org.plan) if org.plan else None
         plans = Plan.objects.all().order_by("price")
         data = {
@@ -183,8 +199,31 @@ class BillingUsageView(APIView):
         return response
 
 
+from rest_framework.renderers import BaseRenderer, JSONRenderer, BrowsableAPIRenderer
+
+
+class PassthroughCSVRenderer(BaseRenderer):
+    media_type = "text/csv"
+    format = "csv"
+    charset = "utf-8"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        if isinstance(data, (bytes, bytearray)):
+            return data
+        if isinstance(data, str):
+            return data.encode(self.charset or "utf-8")
+        return str(data).encode(self.charset or "utf-8")
+
+
 class BillingUsageExportView(APIView):
     permission_classes = [IsAuthenticatedAndActive]
+    renderer_classes = [PassthroughCSVRenderer, JSONRenderer, BrowsableAPIRenderer]
+
+    def perform_content_negotiation(self, request, force=False):
+        fmt = (request.query_params.get("format") or "csv").lower()
+        if fmt == "json":
+            return JSONRenderer(), "application/json"
+        return PassthroughCSVRenderer(), "text/csv"
 
     def get(self, request):
         org = get_request_org(request)
@@ -192,15 +231,15 @@ class BillingUsageExportView(APIView):
             return Response({"detail": "No active organization."}, status=status.HTTP_404_NOT_FOUND)
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
-        fmt = request.query_params.get("format", "csv")
-        logs = UsageLog.objects.filter(organization=org)
+        fmt = (request.query_params.get("format") or "csv").lower()
+        logs = UsageLog.objects.filter(organization=org).order_by("-timestamp")
         if start_date:
             logs = logs.filter(timestamp__date__gte=start_date)
         if end_date:
             logs = logs.filter(timestamp__date__lte=end_date)
         if fmt == "json":
             serializer = UsageLogSerializer(logs, many=True)
-            return Response(serializer.data)
+            return Response(serializer.data, content_type="application/json")
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(["timestamp", "endpoint", "model_used", "input_tokens", "output_tokens", "latency_ms", "estimated_cost", "cache_hit"])
@@ -210,7 +249,7 @@ class BillingUsageExportView(APIView):
                 log.input_tokens, log.output_tokens, log.latency_ms,
                 log.estimated_cost, log.cache_hit,
             ])
-        response = HttpResponse(output.getvalue(), content_type="text/csv")
+        response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = "attachment; filename=usage_export.csv"
         return response
 

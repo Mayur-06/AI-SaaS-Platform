@@ -4,3 +4,4 @@ export { Badge } from './Badge';
 export { Input } from './Input';
 export { ProgressBar } from './ProgressBar';
 export { Modal } from './Modal';
+export { Spinner, FullPageSpinner } from './Spinner';

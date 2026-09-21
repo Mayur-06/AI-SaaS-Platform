@@ -39,10 +39,8 @@ export const AuthLayout = ({ children, quote }) => {
           </p>
         </div>
 
-        {/* Bottom tag */}
-        <p className="relative z-10 text-white/30 text-xs">
-          © 2026 Hapy. All rights reserved.
-        </p>
+        {/* Spacer to preserve vertical balance */}
+        <div className="relative z-10" aria-hidden="true" />
       </div>
 
       {/* ── RIGHT PANEL ── */}

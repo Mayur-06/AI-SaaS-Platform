@@ -3,6 +3,7 @@ import { Building2, Users } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { Skeleton } from '../ui/Skeleton';
 
 export const TenantTable = ({
   tenants,
@@ -27,9 +28,7 @@ export const TenantTable = ({
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-10 text-xs text-gray-400">Loading registered tenant organizations…</div>
-      ) : !tenants || tenants.length === 0 ? (
+      {!isLoading && (!tenants || tenants.length === 0) ? (
         <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
           No tenant organizations registered on this platform yet.
         </div>
@@ -48,7 +47,20 @@ export const TenantTable = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {tenants.map((t) => (
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-5 py-4 text-right"><Skeleton className="h-5 w-16 ml-auto rounded-full" /></td>
+                  </tr>
+                ))
+              ) : (
+                (tenants || []).map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50/80 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
@@ -88,7 +100,7 @@ export const TenantTable = ({
                     </Badge>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

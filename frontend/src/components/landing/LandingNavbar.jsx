@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export const LandingNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-gray-100 transition-all">
@@ -47,18 +49,29 @@ export const LandingNavbar = () => {
 
         {/* Auth CTA Actions */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            to="/login"
-            className="px-4 py-2 text-sm font-semibold text-[#292929] hover:text-black hover:bg-gray-50 rounded-lg transition-colors no-underline"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/register"
-            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-lg shadow-sm transition-all no-underline"
-          >
-            Start for Free →
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-lg shadow-sm transition-all no-underline"
+            >
+              Go to Dashboard →
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-4 py-2 text-sm font-semibold text-[#292929] hover:text-black hover:bg-gray-50 rounded-lg transition-colors no-underline"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-lg shadow-sm transition-all no-underline"
+              >
+                Start for Free →
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Hamburger Button */}
@@ -114,18 +127,32 @@ export const LandingNavbar = () => {
             FAQ
           </a>
           <div className="pt-4 border-t border-gray-100 flex flex-col gap-2">
-            <Link
-              to="/login"
-              className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-gray-50 hover:bg-gray-100 rounded-lg no-underline"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/register"
-              className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 rounded-lg no-underline"
-            >
-              Start for Free →
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 rounded-lg no-underline"
+              >
+                Go to Dashboard →
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-gray-50 hover:bg-gray-100 rounded-lg no-underline"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 rounded-lg no-underline"
+                >
+                  Start for Free →
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

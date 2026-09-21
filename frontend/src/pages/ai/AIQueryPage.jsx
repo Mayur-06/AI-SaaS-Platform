@@ -24,9 +24,10 @@ export const AIQueryPage = () => {
   const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0);
   const [quotaWarning, setQuotaWarning] = useState(null);
 
-  // Right sidebar tab: 'knowledge' | 'history' | 'both'
-  const [sidebarTab, setSidebarTab] = useState('both');
+  // Right sidebar tab: 'knowledge' | 'history' | 'split'
+  const [sidebarTab, setSidebarTab] = useState('knowledge');
   const [docCount, setDocCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(0);
 
   const handleRunQuery = async (prompt, model) => {
     setQueryStatus('loading');
@@ -154,57 +155,18 @@ export const AIQueryPage = () => {
           </p>
         </div>
 
-        {/* Right Sidebar Controls */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 self-start sm:self-auto text-xs">
-          <button
-            type="button"
-            onClick={() => setSidebarTab('knowledge')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-              sidebarTab === 'knowledge'
-                ? 'bg-white text-[#292929] shadow-xs'
-                : 'text-gray-500 hover:text-[#292929]'
-            }`}
-            title="Show Knowledge Base card"
-          >
-            <Database size={13} />
-            <span>Knowledge Base {docCount > 0 ? `(${docCount})` : ''}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSidebarTab('history')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-              sidebarTab === 'history'
-                ? 'bg-white text-[#292929] shadow-xs'
-                : 'text-gray-500 hover:text-[#292929]'
-            }`}
-            title="Show Query History panel"
-          >
-            <History size={13} />
-            <span>Past Queries</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSidebarTab('both')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-              sidebarTab === 'both'
-                ? 'bg-white text-[#292929] shadow-xs'
-                : 'text-gray-500 hover:text-[#292929]'
-            }`}
-            title="Show both Knowledge Base and History"
-          >
-            <Columns2 size={13} />
-            <span className="hidden md:inline">Both</span>
-          </button>
+        {/* Status Indicator */}
+        <div className="flex items-center gap-2 text-xs font-mono text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-2xs">
+          <span className="w-2 h-2 rounded-full bg-[#b2c147]" />
+          <span>{docCount} {docCount === 1 ? 'doc' : 'docs'} indexed</span>
         </div>
       </div>
 
       {/* Main 2-Column Responsive Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (Cols 1-7): Query Input at Top + Response Card Below */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* 1. Input box + send button at top */}
+        <div className="lg:col-span-7 space-y-5">
+          {/* 1. Sleek Query Input Console */}
           <QueryInput
             onSubmit={handleRunQuery}
             status={queryStatus}
@@ -215,7 +177,7 @@ export const AIQueryPage = () => {
             onPromptLoaded={() => setPromptToLoad('')}
           />
 
-          {/* 2. Response card below (with all metadata badges and cited sources) */}
+          {/* 2. Response Card (with telemetry badges & cited chunks) */}
           <ResponseCard
             data={responseResult}
             errorInfo={errorInfo}
@@ -223,25 +185,96 @@ export const AIQueryPage = () => {
           />
         </div>
 
-        {/* Right Column (Cols 8-12): Knowledge Base Card & Past 10 Query History */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Knowledge Base Card (Upload + Previous Uploaded Documents) */}
-          {(sidebarTab === 'knowledge' || sidebarTab === 'both') && (
-            <DocumentPanel
-              onDocumentsChange={(docs) => setDocCount(docs.length)}
-            />
-          )}
+        {/* Right Column (Cols 8-12): Unified Context & History Hub */}
+        <div className="lg:col-span-5">
+          <Card variant="bordered" className="shadow-sm p-0 overflow-hidden">
+            {/* Header Tabs: Knowledge Base | Past Queries | Split View */}
+            <div className="px-4 py-3 bg-gray-50/75 border-b border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 bg-gray-200/70 p-1 rounded-xl w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('knowledge')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    sidebarTab === 'knowledge'
+                      ? 'bg-white text-[#292929] shadow-xs'
+                      : 'text-gray-500 hover:text-[#292929]'
+                  }`}
+                >
+                  <Database size={13} />
+                  <span>Knowledge Base {docCount > 0 ? `(${docCount})` : ''}</span>
+                </button>
 
-          {/* Query History Panel (Past 10, clickable to re-view response) */}
-          {(sidebarTab === 'history' || sidebarTab === 'both') && (
-            <QueryHistory
-              selectedId={selectedHistoryId}
-              onSelectQuery={handleSelectHistoryQuery}
-              onReusePrompt={handleReusePrompt}
-              refreshTrigger={refreshHistoryTrigger}
-              isSidebar={true}
-            />
-          )}
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('history')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    sidebarTab === 'history'
+                      ? 'bg-white text-[#292929] shadow-xs'
+                      : 'text-gray-500 hover:text-[#292929]'
+                  }`}
+                >
+                  <History size={13} />
+                  <span>Past Queries {historyCount > 0 ? `(${historyCount})` : ''}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('split')}
+                  className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    sidebarTab === 'split'
+                      ? 'bg-white text-[#292929] shadow-xs'
+                      : 'text-gray-500 hover:text-[#292929]'
+                  }`}
+                  title="Side-by-side split view"
+                >
+                  <Columns2 size={13} />
+                  <span className="hidden xl:inline">Split</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Hub Body */}
+            <div className="p-4 sm:p-5">
+              {sidebarTab === 'knowledge' && (
+                <DocumentPanel
+                  isEmbedded={true}
+                  onDocumentsChange={(docs) => setDocCount(docs.length)}
+                />
+              )}
+
+              {sidebarTab === 'history' && (
+                <QueryHistory
+                  isEmbedded={true}
+                  selectedId={selectedHistoryId}
+                  onSelectQuery={handleSelectHistoryQuery}
+                  onReusePrompt={handleReusePrompt}
+                  refreshTrigger={refreshHistoryTrigger}
+                  onHistoryChange={(items) => setHistoryCount(items.length)}
+                />
+              )}
+
+              {sidebarTab === 'split' && (
+                <div className="space-y-6">
+                  <DocumentPanel
+                    isEmbedded={true}
+                    isSplit={true}
+                    onDocumentsChange={(docs) => setDocCount(docs.length)}
+                  />
+                  <div className="border-t border-gray-100 pt-5">
+                    <QueryHistory
+                      isEmbedded={true}
+                      isSplit={true}
+                      selectedId={selectedHistoryId}
+                      onSelectQuery={handleSelectHistoryQuery}
+                      onReusePrompt={handleReusePrompt}
+                      refreshTrigger={refreshHistoryTrigger}
+                      onHistoryChange={(items) => setHistoryCount(items.length)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
     </div>

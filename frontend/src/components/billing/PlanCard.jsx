@@ -2,7 +2,6 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
 
 export const PlanCard = ({
   plan,
@@ -12,6 +11,8 @@ export const PlanCard = ({
   userRole,
 }) => {
   const canUpgrade = userRole === 'owner' || userRole === 'admin';
+  const planDisplayName = plan.name ? plan.name.charAt(0).toUpperCase() + plan.name.slice(1) : 'Plan';
+  const isUnlimited = plan.monthly_request_limit >= 999999;
 
   return (
     <Card
@@ -22,13 +23,6 @@ export const PlanCard = ({
           : 'border-gray-200/90 shadow-sm hover:shadow-md bg-white'
       }`}
     >
-      {/* Current Plan Top Badge */}
-      {isCurrent && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <Badge variant="lime">CURRENT ACTIVE PLAN</Badge>
-        </div>
-      )}
-
       <div>
         {/* Plan Header */}
         <div className="flex items-center justify-between gap-2 mb-2">
@@ -38,9 +32,6 @@ export const PlanCard = ({
           >
             {plan.name}
           </h3>
-          <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-            Tier {plan.id}
-          </span>
         </div>
 
         {/* Price */}
@@ -63,7 +54,10 @@ export const PlanCard = ({
               <Check size={11} strokeWidth={3} />
             </div>
             <span>
-              <strong className="text-[#292929]">{plan.monthly_request_limit.toLocaleString()}</strong> monthly requests
+              <strong className="text-[#292929]">
+                {isUnlimited ? 'Unlimited' : plan.monthly_request_limit.toLocaleString()}
+              </strong>{' '}
+              monthly requests
             </span>
           </li>
           <li className="flex items-start gap-2.5">
@@ -105,7 +99,7 @@ export const PlanCard = ({
             onClick={() => onUpgrade(plan.id)}
             disabled={isLoading}
           >
-            {isLoading ? 'Switching Tier…' : `Switch to ${plan.name} →`}
+            {isLoading ? 'Switching Tier…' : `Switch to ${planDisplayName} →`}
           </Button>
         ) : (
           <Button
@@ -115,7 +109,7 @@ export const PlanCard = ({
             className="w-full text-gray-400"
             title="Only Owner or Admin can modify plans"
           >
-            Switch to {plan.name} (Admin Only)
+            Switch to {planDisplayName} (Admin Only)
           </Button>
         )}
       </div>

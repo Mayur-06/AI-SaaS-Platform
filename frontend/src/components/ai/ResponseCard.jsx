@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Bot, Copy, Check, AlertCircle, FileText, Sparkles } from 'lucide-react';
+import { Bot, Copy, Check, AlertCircle, FileText, Sparkles, ChevronDown } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/Collapsible';
+import { SimpleTooltip } from '../ui/Tooltip';
 
 export const ResponseCard = ({ data, errorInfo, isLoading }) => {
   const [copied, setCopied] = useState(false);
+  const [isChunksOpen, setIsChunksOpen] = useState(true);
 
   const handleCopy = () => {
     if (!data?.response) return;
@@ -88,8 +91,8 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
 
   if (!data) {
     return (
-      <Card variant="bordered" className="text-center py-10 border-dashed border-gray-200">
-        <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-2.5">
+      <Card variant="bordered" className="text-center py-7 px-5 border-dashed border-gray-200 bg-gray-50/50">
+        <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 text-gray-400 flex items-center justify-center mx-auto mb-2 shadow-2xs">
           <Bot size={20} />
         </div>
         <h3
@@ -98,61 +101,81 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         >
           Awaiting Query
         </h3>
-        <p className="text-xs text-gray-500 max-w-sm mx-auto">
-          Enter a prompt above to view model output, grounded knowledge citations, and token telemetry.
+        <p className="text-xs text-gray-500 max-w-sm mx-auto mb-3">
+          Submit a prompt using the box above to receive a grounded answer with cited document chunks and live token telemetry.
         </p>
+        <div className="flex items-center justify-center gap-2 flex-wrap text-[11px] text-gray-500 font-mono">
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Sub-ms Semantic Cache
+          </span>
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Vector Grounded
+          </span>
+          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
+            Source Citations
+          </span>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card variant="dark" className="border border-white/10 shadow-xl relative overflow-hidden">
-      {/* Subtle lime ambient light */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-[#b2c147]/5 rounded-full blur-3xl pointer-events-none -z-10" />
+    <Card variant="dark" className="border border-white/10 shadow-2xl relative overflow-hidden">
+      {/* Subtle Lime Accent Glow */}
+      <div className="absolute top-0 right-0 w-48 h-48 bg-[#b2c147]/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header Bar with Badges */}
+      {/* Header Bar: Status, Model & Action Badges */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#b2c147] text-[#292929] flex items-center justify-center font-bold text-xs">
-            <Sparkles size={14} />
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#b2c147] text-[#292929] flex items-center justify-center font-bold shadow-sm">
+            <Sparkles size={16} />
           </div>
-          <span
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-base font-bold text-white tracking-tight"
-          >
-            Synthesized Answer
-          </span>
+          <div>
+            <h3
+              style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
+              className="text-base font-bold text-white tracking-tight"
+            >
+              Synthesized Response
+            </h3>
+            <p className="text-[11px] text-gray-400 font-mono">
+              Grounded AI output with vector citations
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {data.isHistorical && (
-            <span className="text-[11px] font-mono font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
-              Historical Query
-            </span>
-          )}
+        {/* Telemetry metadata tags */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Badge variant="dark">{data.model_used || data.model || 'Auto'}</Badge>
           {data.provider && (
             <Badge variant="gray" className="uppercase text-[10px]">
               {data.provider}
             </Badge>
           )}
-          <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
-            {data.cache_hit ? '⚡ CACHE HIT' : '🔄 LIVE LLM'}
-          </Badge>
+          <SimpleTooltip content={data.cache_hit ? 'Served instantly from semantic vector cache' : 'Executed against live external LLM'}>
+            <div>
+              <Badge variant={data.cache_hit ? 'lime' : 'gray'}>
+                {data.cache_hit ? 'CACHE HIT' : 'LIVE LLM'}
+              </Badge>
+            </div>
+          </SimpleTooltip>
           <span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/5">
-            ⏱️ {data.latency_ms ?? 0} ms
+            {data.latency_ms ?? 0} ms
           </span>
-          <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold border border-[#b2c147]/20">
-            ${Number(data.estimated_cost || 0).toFixed(5)}
-          </span>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer border border-white/5"
-          >
-            {copied ? <Check size={12} className="text-[#b2c147]" /> : <Copy size={12} />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
+          <SimpleTooltip content="Estimated cost for this single completion">
+            <span className="text-xs font-mono text-[#b2c147] bg-[#b2c147]/10 px-2 py-0.5 rounded font-semibold border border-[#b2c147]/20">
+              ${Number(data.estimated_cost || 0).toFixed(5)}
+            </span>
+          </SimpleTooltip>
+          <SimpleTooltip content="Copy markdown response to clipboard">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ml-1 cursor-pointer border border-white/5"
+            >
+              {copied ? <Check size={12} className="text-[#b2c147]" /> : <Copy size={12} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </SimpleTooltip>
         </div>
       </div>
 
@@ -216,15 +239,33 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
         </div>
       </div>
 
-      {/* Cited RAG Chunks */}
+      {/* Cited RAG Chunks (Collapsible) */}
       {data.cited_chunks && data.cited_chunks.length > 0 && (
-        <div className="pt-4 border-t border-white/10 space-y-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#b2c147] uppercase tracking-wider font-mono">
-            <FileText size={14} />
-            <span>Cited Knowledge Sources ({data.cited_chunks.length})</span>
+        <Collapsible
+          open={isChunksOpen}
+          onOpenChange={setIsChunksOpen}
+          className="pt-4 border-t border-white/10 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#b2c147] uppercase tracking-wider font-mono">
+              <FileText size={14} />
+              <span>Cited Knowledge Sources ({data.cited_chunks.length})</span>
+            </div>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer py-1 px-2 rounded hover:bg-white/5"
+              >
+                <span>{isChunksOpen ? 'Collapse' : 'Expand'}</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${isChunksOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+            </CollapsibleTrigger>
           </div>
 
-          <div className="space-y-2.5">
+          <CollapsibleContent className="space-y-2.5">
             {data.cited_chunks.map((chunk, idx) => (
               <div
                 key={idx}
@@ -246,8 +287,8 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
                 </p>
               </div>
             ))}
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </Card>
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AppRoutes } from './routes';
 import { useAuthStore } from './store/authStore';
 import './index.css';
@@ -55,6 +56,18 @@ const App = () => {
   return (
     <BrowserRouter>
       <AppRoutes />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        toastOptions={{
+          style: {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '13px',
+            borderRadius: '12px',
+          },
+        }}
+      />
     </BrowserRouter>
   );
 };

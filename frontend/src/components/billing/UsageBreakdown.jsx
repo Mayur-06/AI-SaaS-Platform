@@ -33,15 +33,8 @@ export const UsageBreakdown = ({ usage }) => {
           </p>
         </div>
 
-        <div>
-          {isAtLimit ? (
-            <Badge variant="red">QUOTA EXCEEDED (100%)</Badge>
-          ) : isNearLimit ? (
-            <Badge variant="red">WARNING: 80%+ CONSUMED</Badge>
-          ) : (
-            <Badge variant="lime">{percent}% UTILIZED</Badge>
-          )}
-        </div>
+        {isAtLimit && <Badge variant="red">QUOTA EXCEEDED (100%)</Badge>}
+        {isNearLimit && <Badge variant="red">WARNING: 80%+ CONSUMED</Badge>}
       </div>
 
       {/* Warnings if limit reached */}

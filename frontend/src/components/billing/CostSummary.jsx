@@ -1,5 +1,6 @@
 import React from 'react';
 import { Download, Zap, PiggyBank, Receipt } from 'lucide-react';
+import { toast } from 'sonner';
 import { billingService } from '../../services/billingService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -16,8 +17,9 @@ export const CostSummary = ({ usage }) => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('CSV usage report downloaded successfully.');
     } catch (err) {
-      alert('Failed to download CSV export. Please ensure you have permission.');
+      toast.error('Failed to download CSV export. Please ensure you have permission.');
     }
   };
 
@@ -33,8 +35,9 @@ export const CostSummary = ({ usage }) => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('JSON telemetry report downloaded successfully.');
     } catch (err) {
-      alert('Failed to export JSON.');
+      toast.error('Failed to export JSON.');
     }
   };
 

@@ -22,9 +22,11 @@ export const authService = {
 
   async register(payload) {
     const response = await apiClient.post('/auth/register/', payload);
-    const { tokens, user, organization } = response.data;
-    if (tokens?.access) {
-      setAuthTokens(tokens.access, tokens.refresh);
+    const { tokens, access, refresh, user, organization } = response.data;
+    const acc = tokens?.access || access;
+    const ref = tokens?.refresh || refresh;
+    if (acc) {
+      setAuthTokens(acc, ref);
       localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
       localStorage.setItem(ORG_INFO_KEY, JSON.stringify(organization));
     }
