@@ -153,10 +153,34 @@ class AIQueryView(APIView):
         serializer = AIQueryRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
+        requested_model = serializer.validated_data.get("model")
+
+        # Validate requested model against organization's plan tier
+        plan_name = (org.plan.name if org.plan and org.plan.name else "free").lower().strip()
+        from ai_service.services.model_router import PLAN_PERMITTED_MODELS
+        permitted = PLAN_PERMITTED_MODELS.get(plan_name, ["gemini-2.5-flash"])
+
+        if requested_model and requested_model != "auto":
+            if requested_model not in permitted:
+                required_tier = "Enterprise" if requested_model == "gpt-4" else "Pro"
+                return Response(
+                    {
+                        "error": {
+                            "code": "MODEL_NOT_PERMITTED",
+                            "message": f"Model '{requested_model}' is not available on the {plan_name.capitalize()} tier. Please upgrade to {required_tier} to use this model.",
+                            "plan": plan_name,
+                            "required_plan": required_tier.lower(),
+                            "permitted_models": permitted,
+                            "request_id": getattr(request, "request_id", str(__import__("uuid").uuid4())),
+                        }
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         try:
             orchestrator = RAGOrchestrator(organization=org, user=request.user, api_key=getattr(request, "api_key", None))
             start = time.time()
-            result = orchestrator.query(question)
+            result = orchestrator.query(question, model=requested_model)
             result["response"] = result.get("answer")
             result["model_used"] = result.get("model")
             result["tokens"] = {

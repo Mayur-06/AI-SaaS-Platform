@@ -7,6 +7,12 @@ from billing.models import ModelConfig, RoutingRule
 
 logger = logging.getLogger(__name__)
 
+PLAN_PERMITTED_MODELS = {
+    "free": ["gemini-2.5-flash"],
+    "pro": ["gemini-2.5-flash", "gpt-4o-mini"],
+    "enterprise": ["gemini-2.5-flash", "gpt-4o-mini", "gpt-4"],
+}
+
 
 class CircuitBreaker:
     def __init__(self, failure_threshold: int = 3, window_seconds: int = 60):
@@ -147,6 +153,7 @@ class ModelRouter:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.2,
+        target_model: Optional[str] = None,
         simulate_failure_models: Optional[List[str]] = None,
         simulate_timeout_models: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
@@ -154,6 +161,12 @@ class ModelRouter:
         primary = route.get("primary")
         fallbacks = route.get("fallbacks", [])
         timeout = route.get("timeout", 10)
+
+        # Allow explicit target_model if requested and active
+        if target_model and target_model != "auto":
+            override = ModelConfig.objects.filter(name=target_model, is_active=True).first()
+            if override:
+                primary = override
 
         # Build deduplicated candidate list of active models
         raw_candidates = ([primary] if primary and primary.is_active else []) + [
