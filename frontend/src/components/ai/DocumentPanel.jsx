@@ -39,8 +39,8 @@ export const DocumentPanel = ({
   isEmbedded = false,
   isSplit = false,
 }) => {
-  const { role } = useAuthStore();
-  const canManageDocs = role !== 'viewer';
+  const { role, user } = useAuthStore();
+  const canManageDocs = user?.is_staff || user?.is_superuser || role !== 'viewer';
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -306,29 +306,29 @@ export const DocumentPanel = ({
             )}
           </div>
         ) : (
-          <ScrollArea className={`${scrollAreaHeight} pr-2`}>
-            <div className="space-y-2">
+          <ScrollArea className={`${scrollAreaHeight} pr-2 w-full [&>div]:!block`}>
+            <div className="space-y-2 w-full min-w-0">
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs"
+                  className="w-full p-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors flex items-center justify-between gap-3 text-xs overflow-hidden"
                 >
                   {/* Left: Icon, Title, Date */}
-                  <div className="min-w-0 flex items-start gap-2.5">
+                  <div className="min-w-0 flex-1 flex items-start gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
                       <FileText size={15} />
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-xs text-[#292929] truncate" title={doc.title}>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-xs text-[#292929] truncate block" title={doc.title}>
                         {doc.title}
                       </div>
                       <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
-                        <span className="flex items-center gap-0.5">
+                        <span className="flex items-center gap-0.5 shrink-0">
                           <Clock size={10} />
                           {new Date(doc.created_at).toLocaleDateString()}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.2 rounded">
+                        <span className="shrink-0">•</span>
+                        <span className="flex items-center gap-0.5 text-gray-600 font-semibold bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
                           <Layers size={9} />
                           {doc.chunk_count ?? 0} chunks
                         </span>
@@ -337,13 +337,13 @@ export const DocumentPanel = ({
                   </div>
 
                   {/* Right: Status badge & Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <Badge variant={doc.status === 'failed' ? 'red' : 'green'} className="text-[10px] px-1.5 py-0 shrink-0">
                       {doc.status || 'ready'}
                     </Badge>
 
                     {canManageDocs && (
-                      <div className="flex items-center gap-1.5 ml-1">
+                      <div className="flex items-center gap-1 ml-1 shrink-0">
                         <SimpleTooltip content="Re-index into vector chunks">
                           <button
                             type="button"
@@ -362,7 +362,7 @@ export const DocumentPanel = ({
                             title="Delete Document"
                             aria-label={`Delete ${doc.title}`}
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={14} className="text-gray-500 hover:text-red-600" />
                           </button>
                         </SimpleTooltip>
                       </div>

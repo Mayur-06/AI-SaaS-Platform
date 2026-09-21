@@ -165,7 +165,7 @@ export const AIQueryPage = () => {
       {/* Main 2-Column Responsive Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (Cols 1-7): Query Input at Top + Response Card Below */}
-        <div className="lg:col-span-7 space-y-5">
+        <div className="lg:col-span-7 min-w-0 space-y-5">
           {/* 1. Sleek Query Input Console */}
           <QueryInput
             onSubmit={handleRunQuery}
@@ -186,7 +186,7 @@ export const AIQueryPage = () => {
         </div>
 
         {/* Right Column (Cols 8-12): Unified Context & History Hub */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 min-w-0">
           <Card variant="bordered" className="shadow-sm p-0 overflow-hidden">
             {/* Header Tabs: Knowledge Base | Past Queries | Split View */}
             <div className="px-4 py-3 bg-gray-50/75 border-b border-gray-100 flex items-center justify-between gap-2">
