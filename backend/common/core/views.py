@@ -209,11 +209,8 @@ class AdminRoutingView(APIView):
         from common.core.permissions import IsSuperAdmin
         return [IsSuperAdmin()]
 
-    PLAN_PERMITTED_MODELS = {
-        "free": ["gemini-2.5-flash"],
-        "pro": ["gemini-2.5-flash", "gpt-4o-mini"],
-        "enterprise": ["gemini-2.5-flash", "gpt-4o-mini", "gpt-4"],
-    }
+    from ai_service.services.model_router import PLAN_PERMITTED_MODELS
+    PLAN_PERMITTED_MODELS = PLAN_PERMITTED_MODELS
 
     def get(self, request):
         from billing.models import Plan, ModelConfig, RoutingRule

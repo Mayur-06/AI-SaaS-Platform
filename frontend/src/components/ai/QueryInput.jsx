@@ -17,6 +17,15 @@ const SUGGESTIONS = [
   'Summarize company guidelines',
 ];
 
+const MODEL_CONFIGS = [
+  { value: 'auto', label: 'Auto-Routing (Optimized)', minTier: 'free' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Fast)', minTier: 'free' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Pro)', minTier: 'pro' },
+  { value: 'gpt-4', label: 'GPT-4 (Enterprise)', minTier: 'enterprise' },
+];
+
+const TIER_RANK = { free: 0, pro: 1, enterprise: 2 };
+
 export const QueryInput = ({
   onSubmit,
   status,
@@ -26,10 +35,31 @@ export const QueryInput = ({
   externalPrompt,
   onPromptLoaded,
 }) => {
-  const { role } = useAuthStore();
+  const { role, organization } = useAuthStore();
   const isViewer = role === 'viewer';
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('auto');
+
+  // Normalize organization plan name and compute allowed models
+  const currentPlanName = (
+    (typeof organization?.plan === 'string' ? organization.plan : organization?.plan?.name) || 'free'
+  ).toLowerCase().trim();
+
+  const userTierRank = TIER_RANK[currentPlanName] ?? 0;
+
+  const isModelPermitted = (minTier) => {
+    return userTierRank >= (TIER_RANK[minTier] ?? 0);
+  };
+
+  // Reset model to auto if currently selected model exceeds tier
+  useEffect(() => {
+    if (model !== 'auto') {
+      const opt = MODEL_CONFIGS.find((m) => m.value === model);
+      if (opt && !isModelPermitted(opt.minTier)) {
+        setModel('auto');
+      }
+    }
+  }, [currentPlanName]);
 
   // Sync external prompt when loaded from history
   useEffect(() => {
@@ -160,10 +190,26 @@ export const QueryInput = ({
                 <SelectValue placeholder="Auto-Routing (Optimized)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto-Routing (Optimized)</SelectItem>
-                <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
-                <SelectItem value="gpt-4o-mini">GPT-4o Mini (Pro)</SelectItem>
-                <SelectItem value="gpt-4">GPT-4 (Enterprise)</SelectItem>
+                {MODEL_CONFIGS.map((opt) => {
+                  const allowed = isModelPermitted(opt.minTier);
+                  return (
+                    <SelectItem
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={!allowed}
+                      className={!allowed ? 'opacity-40 cursor-not-allowed' : ''}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span>{opt.label}</span>
+                        {!allowed && (
+                          <span className="text-[9px] font-mono uppercase bg-gray-100 text-gray-500 px-1 py-0.5 rounded border border-gray-200 shrink-0">
+                            {opt.minTier} only 🔒
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

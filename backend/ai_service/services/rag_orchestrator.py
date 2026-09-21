@@ -60,7 +60,7 @@ Formatting & Markdown Instructions:
 Question: {question}"""
         return system_prompt, user_prompt
 
-    def _run_query_async(self, question: str) -> Dict[str, Any]:
+    def _run_query_async(self, question: str, target_model: Optional[str] = None) -> Dict[str, Any]:
         query_embedding = None
         if self.embedder is not None:
             try:
@@ -73,7 +73,13 @@ Question: {question}"""
 
         if query_embedding is not None or question:
             cache_result = self.semantic_cache.lookup(query_embedding, question)
-            if cache_result:
+            cached_model = cache_result.get("model") if cache_result else None
+            is_model_match = (
+                not target_model
+                or target_model == "auto"
+                or (cached_model and cached_model == target_model)
+            )
+            if cache_result and is_model_match:
                 out_tokens = len(cache_result["answer"].split())
                 log_usage(
                     organization=self.organization,
@@ -114,7 +120,7 @@ Question: {question}"""
         system_prompt, user_prompt = self._build_prompt(question, chunks)
 
         llm_client = LLMClient(self.organization)
-        result = llm_client.generate(system_prompt, user_prompt)
+        result = llm_client.generate(system_prompt, user_prompt, target_model=target_model)
         answer = result["answer"]
         model = result["model"]
         provider = result["provider"]
@@ -186,8 +192,8 @@ Question: {question}"""
             "cited_chunks": cited_chunks,
         }
 
-    def query(self, question: str) -> Dict[str, Any]:
+    def query(self, question: str, model: Optional[str] = None) -> Dict[str, Any]:
         try:
-            return self._run_query_async(question)
+            return self._run_query_async(question, target_model=model)
         except RuntimeError:
-            return self._run_query_async(question)
+            return self._run_query_async(question, target_model=model)
