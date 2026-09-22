@@ -77,8 +77,8 @@ class MembershipCreateSerializer(serializers.ModelSerializer):
         email = attrs.get("email")
         if not user_id and not email:
             raise serializers.ValidationError("Either user_id or email is required to add a member.")
-        if attrs.get("role") == Membership.ROLE_OWNER:
-            raise serializers.ValidationError("Cannot create owner member directly. Use transfer ownership.")
+        if attrs.get("role") in [Membership.ROLE_OWNER, Membership.ROLE_ADMIN]:
+            raise serializers.ValidationError("Role cannot be 'owner' or 'admin'. Only 'member' and 'viewer' are allowed.")
         return attrs
 
     def create(self, validated_data):
@@ -104,6 +104,11 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
         model = Invitation
         fields = ["id", "email", "role", "organization_name", "expires_at", "accepted_at", "raw_token"]
         read_only_fields = ["id", "expires_at", "accepted_at", "organization_name"]
+
+    def validate_role(self, value):
+        if value in [Membership.ROLE_OWNER, Membership.ROLE_ADMIN]:
+            raise serializers.ValidationError("Cannot invite with 'admin' or 'owner' role. Please choose 'member' or 'viewer'.")
+        return value
 
     def create(self, validated_data):
         raw_token = secrets.token_urlsafe(32)

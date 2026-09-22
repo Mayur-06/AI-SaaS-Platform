@@ -158,7 +158,7 @@ export const QueryInput = ({
             disabled={status === 'loading' || isViewer}
             className="w-full px-3.5 py-3 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 text-[#292929]
                        focus:outline-none focus:ring-2 focus:ring-[#b2c147] focus:border-transparent transition-all
-                       disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-y min-h-[85px]"
+                       disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-y min-h-[85px] max-h-48 overflow-y-auto"
           />
 
           {/* Quick Starter Suggestions */}
@@ -215,17 +215,6 @@ export const QueryInput = ({
 
           {/* Form Action Buttons */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            {lastFailedPrompt && status === 'error' && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setPrompt(lastFailedPrompt)}
-              >
-                Restore Last
-              </Button>
-            )}
-
             {status === 'error' && onRetry && (
               <Button
                 type="button"

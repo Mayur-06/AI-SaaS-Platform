@@ -57,8 +57,9 @@ export const APIKeysPage = () => {
     setIsLoading(true);
     try {
       const res = await billingService.getKeys(page);
-      setKeys(res.results || []);
-      setTotalCount(res.count || 0);
+      const activeKeys = (res.results || []).filter((k) => k.is_active !== false);
+      setKeys(activeKeys);
+      setTotalCount(res.count !== undefined ? activeKeys.length : activeKeys.length);
       setCurrentPage(page);
     } catch (err) {
       const { message } = extractErrorMessage(err);
@@ -100,9 +101,11 @@ export const APIKeysPage = () => {
 
   const handleRegenerateKey = async () => {
     if (!pendingRegenerate) return;
+    const oldId = pendingRegenerate;
     setIsLoading(true);
     try {
-      const regenerated = await billingService.regenerateKey(pendingRegenerate);
+      const regenerated = await billingService.regenerateKey(oldId);
+      setKeys((prev) => prev.filter((k) => k.id !== oldId));
       await fetchKeys(currentPage);
 
       if (regenerated.full_key) {
@@ -124,9 +127,11 @@ export const APIKeysPage = () => {
 
   const handleRevokeKey = async () => {
     if (!pendingRevoke) return;
+    const targetId = pendingRevoke;
     setIsLoading(true);
     try {
-      await billingService.revokeKey(pendingRevoke);
+      await billingService.revokeKey(targetId);
+      setKeys((prev) => prev.filter((k) => k.id !== targetId));
       toast.success('API key revoked. Applications using it have lost access.');
       await fetchKeys(currentPage);
     } catch (err) {

@@ -47,9 +47,7 @@ export const DocumentPanel = ({
 
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
-  const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(null);
   const [pendingDeleteDoc, setPendingDeleteDoc] = useState(null); // { id, title }
 
   const fetchDocuments = async () => {
@@ -90,7 +88,6 @@ export const DocumentPanel = ({
     const docTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
 
     setErrorMessage(null);
-    setStatusMessage(null);
     setIsLoading(true);
 
     try {
@@ -99,7 +96,7 @@ export const DocumentPanel = ({
         file,
       });
 
-      setStatusMessage(`Document "${doc.title || docTitle}" uploaded and indexed into vector knowledge base.`);
+      toast.success(`Document "${doc.title || docTitle}" uploaded and indexed into knowledge base.`);
       setTitle('');
       setFile(null);
       await fetchDocuments();
@@ -108,21 +105,6 @@ export const DocumentPanel = ({
       setErrorMessage(`Error adding document: ${message}`);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleProcess = async (id) => {
-    setIsProcessing(id);
-    try {
-      const res = await aiService.processDocument(id);
-      const count = res.chunks_count ?? res.chunk_count ?? 0;
-      toast.success(`Document re-indexed into ${count} vector chunks.`);
-      await fetchDocuments();
-    } catch (err) {
-      const { message } = extractErrorMessage(err);
-      toast.error(`Processing error: ${message}`);
-    } finally {
-      setIsProcessing(null);
     }
   };
 
@@ -198,12 +180,6 @@ export const DocumentPanel = ({
       </div>
 
       {/* Status Alerts */}
-      {statusMessage && (
-        <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-          <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-          <span>{statusMessage}</span>
-        </div>
-      )}
       {errorMessage && (
         <div className="px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
           <AlertCircle size={15} className="text-red-600 shrink-0" />
@@ -344,16 +320,6 @@ export const DocumentPanel = ({
 
                     {canManageDocs && (
                       <div className="flex items-center gap-1 ml-1 shrink-0">
-                        <SimpleTooltip content="Re-index into vector chunks">
-                          <button
-                            type="button"
-                            onClick={() => handleProcess(doc.id)}
-                            disabled={isProcessing === doc.id}
-                            className="px-2 py-1 text-[11px] font-medium text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
-                          >
-                            {isProcessing === doc.id ? '…' : 'Sync'}
-                          </button>
-                        </SimpleTooltip>
                         <SimpleTooltip content="Delete document from knowledge base">
                           <button
                             type="button"

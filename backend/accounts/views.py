@@ -195,22 +195,32 @@ class OrganizationView(APIView):
 
 
 def perform_delete_organization(org):
-    from billing.models import APIKey
-    from ai_service.models import CacheEntry
+    from billing.models import APIKey, UsageLog, UsageAggregate, Invoice
+    from ai_service.models import CacheEntry, Document, DocumentChunk, AIQuery
     from middleware.redis_utils import get_redis_client
+    from django.core.files.storage import default_storage
 
-    # 1. Soft-delete the organization record
-    org.is_active = False
-    org.save(update_fields=["is_active"])
+    # 1. Clean up stored document files on disk/storage
+    try:
+        docs = list(Document.objects.filter(organization=org))
+        for doc in docs:
+            if doc.filename:
+                try:
+                    if default_storage.exists(doc.filename):
+                        default_storage.delete(doc.filename)
+                except Exception as file_err:
+                    logger.warning("Failed to delete document file %s: %s", doc.filename, file_err)
+    except Exception as exc:
+        logger.warning("Error cleaning up document files for org %s: %s", org.id, exc)
 
-    # 2. Update and deactivate all active memberships for this tenant
-    org.memberships.filter(is_active=True).update(is_active=False)
+    # 2. Ensure all DocumentChunk records are completely deleted for this organization
+    DocumentChunk.objects.filter(organization=org).delete()
 
-    # 3. Update and deactivate all active API keys
-    APIKey.objects.filter(organization=org, is_active=True).update(is_active=False)
+    # 3. Ensure all Document records are completely deleted
+    Document.objects.filter(organization=org).delete()
 
-    # 4. Remove all pending invitations
-    org.invitations.all().delete()
+    # 4. Remove all AIQuery records
+    AIQuery.objects.filter(organization=org).delete()
 
     # 5. Remove all semantic cache entries
     CacheEntry.objects.filter(organization=org).delete()
@@ -222,8 +232,28 @@ def perform_delete_organization(org):
             keys = r.keys(f"semcache:{org.id}:*")
             if keys:
                 r.delete(*keys)
+            keys_all = r.keys(f"*{org.id}*")
+            if keys_all:
+                r.delete(*keys_all)
     except Exception as exc:
         logger.debug("Failed to flush redis cache on org delete: %s", exc)
+
+    # 7. Delete all API keys
+    APIKey.objects.filter(organization=org).delete()
+
+    # 8. Delete usage logs, usage aggregates, and invoices
+    UsageLog.objects.filter(organization=org).delete()
+    UsageAggregate.objects.filter(organization=org).delete()
+    Invoice.objects.filter(organization=org).delete()
+
+    # 9. Delete pending invitations
+    org.invitations.all().delete()
+
+    # 10. Delete memberships
+    org.memberships.all().delete()
+
+    # 11. Full record delete of the organization itself
+    org.delete()
 
 
 def perform_transfer_ownership(current_user, target_id, organization=None):
@@ -250,7 +280,7 @@ def perform_transfer_ownership(current_user, target_id, organization=None):
     if not new_membership.user.is_active or not getattr(new_membership.user, "is_verified", False):
         return Response({"detail": "Target user account is inactive or not verified."}, status=status.HTTP_400_BAD_REQUEST)
 
-    membership.role = Membership.ROLE_ADMIN
+    membership.role = Membership.ROLE_VIEWER
     membership.save(update_fields=["role"])
     new_membership.role = Membership.ROLE_OWNER
     new_membership.save(update_fields=["role"])
@@ -258,14 +288,14 @@ def perform_transfer_ownership(current_user, target_id, organization=None):
     refresh = RefreshToken.for_user(current_user)
     refresh["user_id"] = str(current_user.id)
     refresh["org_id"] = str(membership.organization_id)
-    refresh["role"] = Membership.ROLE_ADMIN
+    refresh["role"] = Membership.ROLE_VIEWER
 
     return Response({
         "detail": "Ownership transferred successfully.",
         "previous_owner_id": str(current_user.id),
         "new_owner_id": str(new_membership.user_id),
         "organization_id": str(membership.organization_id),
-        "role": Membership.ROLE_ADMIN,
+        "role": Membership.ROLE_VIEWER,
         "access": str(refresh.access_token),
         "refresh": str(refresh),
     }, status=status.HTTP_200_OK)
@@ -358,6 +388,8 @@ class MemberViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         membership = self.get_object()
         new_role = request.data.get("role")
+        if new_role == Membership.ROLE_ADMIN:
+            return Response({"detail": "Admin role choice is not available. Only Member or Viewer may be assigned."}, status=status.HTTP_400_BAD_REQUEST)
         if membership.role == Membership.ROLE_OWNER:
             return Response({"detail": "Cannot modify owner role. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
         if new_role == Membership.ROLE_OWNER:
@@ -368,6 +400,8 @@ class MemberViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         membership = self.get_object()
         new_role = request.data.get("role")
+        if new_role == Membership.ROLE_ADMIN:
+            return Response({"detail": "Admin role choice is not available. Only Member or Viewer may be assigned."}, status=status.HTTP_400_BAD_REQUEST)
         if membership.role == Membership.ROLE_OWNER:
             return Response({"detail": "Cannot modify owner role. Use transfer ownership."}, status=status.HTTP_400_BAD_REQUEST)
         if new_role == Membership.ROLE_OWNER:

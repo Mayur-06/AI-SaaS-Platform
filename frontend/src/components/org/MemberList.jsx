@@ -85,8 +85,7 @@ export const MemberList = ({
                 const memberUserId = m?.user?.id || m?.user_id;
                 const memberEmail = m?.user?.email || m?.user_email || 'Member';
                 const isSelf = Boolean(memberUserId && currentUserId && memberUserId === currentUserId);
-                const canEditThisMember =
-                  canManage && !isOwner && !(currentUserRole === 'admin' && m?.role === 'admin' && !isSelf);
+                const canEditThisMember = canManage && !isOwner;
 
                 const initials = memberEmail.slice(0, 2).toUpperCase();
 
@@ -111,9 +110,9 @@ export const MemberList = ({
                     </td>
 
                     <td className="px-5 py-3.5">
-                      {canEditThisMember && m?.role !== 'admin' ? (
+                      {canEditThisMember ? (
                         <Select
-                          value={m.role}
+                          value={m.role === 'admin' ? 'member' : (m.role || 'member')}
                           onValueChange={(value) => {
                             onUpdateRole(m.id, value);
                             toast.success(`Role updated to ${value}.`);
@@ -129,7 +128,7 @@ export const MemberList = ({
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Badge variant={isOwner ? 'lime' : m.role === 'admin' ? 'purple' : 'gray'}>
+                        <Badge variant={isOwner ? 'lime' : 'gray'}>
                           {String(m.role || 'member').toUpperCase()}
                         </Badge>
                       )}

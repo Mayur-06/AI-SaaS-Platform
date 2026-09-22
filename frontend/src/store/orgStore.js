@@ -87,6 +87,9 @@ export const useOrgStore = create((set, get) => ({
     if (res?.access) {
       setAuthTokens(res.access, res.refresh);
     }
+    if (res?.role) {
+      useAuthStore.setState({ role: res.role });
+    }
     await get().fetchMembers();
     await get().fetchOrg();
     return res;

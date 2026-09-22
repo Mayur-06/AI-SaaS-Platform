@@ -128,7 +128,7 @@ export const OrganizationSettingsPage = () => {
   const handleTransferOwnership = async (newOwnerId) => {
     try {
       await transferOwnership(newOwnerId);
-      toast.success('Ownership successfully transferred. Your role is now Admin.');
+      toast.success('Ownership successfully transferred. Your role is now Viewer.');
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to transfer ownership: ${message}`);
