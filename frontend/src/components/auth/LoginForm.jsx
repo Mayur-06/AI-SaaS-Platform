@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { REMEMBER_ME_KEY, extractErrorMessage } from '../../services/api';
+import { REMEMBER_ME_KEY, REMEMBERED_EMAIL_KEY, extractErrorMessage } from '../../services/api';
 import { AuthLayout } from './AuthLayout';
 
 export const LoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(
     () => localStorage.getItem(REMEMBER_ME_KEY) === 'true'
   );
+  const [email, setEmail] = useState(() => {
+    const isRemembered = localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+    return isRemembered ? (localStorage.getItem(REMEMBERED_EMAIL_KEY) || '') : '';
+  });
+  const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 

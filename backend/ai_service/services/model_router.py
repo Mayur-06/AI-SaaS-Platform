@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 PLAN_PERMITTED_MODELS = {
     "free": ["gemini-2.5-flash"],
-    "pro": ["gemini-2.5-flash", "gpt-4o-mini"],
-    "enterprise": ["gemini-2.5-flash", "gpt-4o-mini", "gpt-4"],
+    "pro": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini"],
+    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini", "gpt-4"],
 }
 
 
@@ -85,10 +85,10 @@ class ModelRouter:
     def get_route(self) -> Dict[str, Any]:
         if not self.organization or not getattr(self.organization, "plan", None):
             primary = self.configs.filter(provider="gemini").first() or self.configs.first()
-            openai_fallback = self.configs.filter(provider="openai").first()
+            gemini_fallback = self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None)).first()
             return {
                 "primary": primary,
-                "fallbacks": [openai_fallback] if openai_fallback and openai_fallback != primary else [],
+                "fallbacks": [gemini_fallback] if gemini_fallback else [],
                 "timeout": 10,
             }
         try:
@@ -108,7 +108,7 @@ class ModelRouter:
             logger.warning("Failed to fetch routing rule for org %s: %s", self.organization.id, exc)
 
         primary = self.configs.filter(provider="gemini").first() or self.configs.first()
-        fallbacks = self.configs.filter(provider="openai").exclude(id=getattr(primary, "id", None))[:1]
+        fallbacks = self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None))[:1]
         return {"primary": primary, "fallbacks": list(fallbacks), "timeout": 10}
 
     def _get_provider_instance(self, model_config: ModelConfig):
@@ -118,8 +118,17 @@ class ModelRouter:
         from config import settings as django_settings
         import os
 
+        gemini_key = getattr(django_settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY")
+        if not gemini_key:
+            from pathlib import Path
+            from dotenv import load_dotenv
+            env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+            if env_file.exists():
+                load_dotenv(dotenv_path=env_file)
+                gemini_key = os.getenv("GEMINI_API_KEY")
+
         api_key_map = {
-            "gemini": getattr(django_settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY"),
+            "gemini": gemini_key,
             "openai": getattr(django_settings, "OPENAI_API_KEY", None) or os.getenv("OPENAI_API_KEY"),
             "anthropic": getattr(django_settings, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY"),
             "groq": getattr(django_settings, "GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY"),

@@ -29,15 +29,25 @@ export const REFRESH_TOKEN_KEY = 'ai_saas_refresh_token';
 export const USER_INFO_KEY = 'ai_saas_user';
 export const ORG_INFO_KEY = 'ai_saas_org';
 export const REMEMBER_ME_KEY = 'ai_saas_remember_me';
+export const REMEMBERED_EMAIL_KEY = 'ai_saas_remembered_email';
 
-// Token helpers
-export const getAccessToken = () => localStorage.getItem(ACCESS_TOKEN_KEY);
-export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY);
+// Token helpers: check localStorage first (persistent), then sessionStorage (session-only)
+export const getAccessToken = () =>
+  localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY);
+export const getRefreshToken = () =>
+  localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
 
-export const setAuthTokens = (access, refresh) => {
-  localStorage.setItem(ACCESS_TOKEN_KEY, access);
-  if (refresh) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+export const setAuthTokens = (access, refresh, rememberMe = true) => {
+  if (rememberMe) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, access);
+    if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  } else {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, access);
+    if (refresh) sessionStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
   }
 };
 
@@ -46,6 +56,10 @@ export const clearAuthTokens = () => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_INFO_KEY);
   localStorage.removeItem(ORG_INFO_KEY);
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  sessionStorage.removeItem(USER_INFO_KEY);
+  sessionStorage.removeItem(ORG_INFO_KEY);
 };
 
 // Request Interceptor: Inject Bearer Token
@@ -133,7 +147,8 @@ apiClient.interceptors.response.use(
 
         const newAccess = refreshResponse.data.access;
         const newRefresh = refreshResponse.data.refresh;
-        setAuthTokens(newAccess, newRefresh);
+        const isRemembered = localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+        setAuthTokens(newAccess, newRefresh, isRemembered);
 
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newAccess}`;

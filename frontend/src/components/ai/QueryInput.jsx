@@ -20,8 +20,7 @@ const SUGGESTIONS = [
 const MODEL_CONFIGS = [
   { value: 'auto', label: 'Auto-Routing (Optimized)', minTier: 'free' },
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Fast)', minTier: 'free' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Pro)', minTier: 'pro' },
-  { value: 'gpt-4', label: 'GPT-4 (Enterprise)', minTier: 'enterprise' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Advanced Reasoning)', minTier: 'pro' },
 ];
 
 const TIER_RANK = { free: 0, pro: 1, enterprise: 2 };

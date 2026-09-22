@@ -28,7 +28,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ["id", "name", "slug", "plan", "monthly_budget", "budget_alert_threshold", "is_active", "created_at"]
+        fields = ["id", "name", "slug", "plan", "monthly_budget", "budget_alert_threshold", "cache_threshold", "is_active", "created_at"]
         read_only_fields = ["id", "created_at"]
 
     def validate_budget_alert_threshold(self, value):

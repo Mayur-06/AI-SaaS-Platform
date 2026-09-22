@@ -298,14 +298,13 @@ class AdminRoutingView(APIView):
                 timeout = 10
             elif p_name == "pro":
                 default_primary = ModelConfig.objects.filter(name="gemini-2.5-flash").first() or ModelConfig.objects.first()
-                fb = ModelConfig.objects.filter(name="gpt-4o-mini").first()
+                fb = ModelConfig.objects.filter(name="gemini-2.5-pro").first()
                 default_fallbacks = [fb] if fb else []
                 timeout = 10
             else:  # enterprise
-                default_primary = ModelConfig.objects.filter(name="gpt-4o-mini").first() or ModelConfig.objects.first()
+                default_primary = ModelConfig.objects.filter(name="gemini-2.5-pro").first() or ModelConfig.objects.first()
                 fb1 = ModelConfig.objects.filter(name="gemini-2.5-flash").first()
-                fb2 = ModelConfig.objects.filter(name="gpt-4").first()
-                default_fallbacks = [f for f in [fb1, fb2] if f]
+                default_fallbacks = [fb1] if fb1 else []
                 timeout = 15
 
             rule = RoutingRule.objects.filter(plan=plan).first()

@@ -108,6 +108,14 @@ class SemanticCache:
 
     def clear(self):
         CacheEntry.objects.filter(organization=self.organization).delete()
+        if self._redis:
+            try:
+                pattern = f"semantic:{self.organization.id}:*"
+                keys = self._redis.keys(pattern)
+                if keys:
+                    self._redis.delete(*keys)
+            except Exception as exc:
+                logger.warning("Failed to clear Redis semantic keys: %s", exc)
         logger.info("Cache cleared for org %s", self.organization.id)
 
     def get_stats(self) -> Dict[str, Any]:

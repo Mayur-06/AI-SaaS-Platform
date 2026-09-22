@@ -279,7 +279,6 @@ export const AIQueryPage = () => {
                   isEmbedded={true}
                   selectedId={selectedHistoryId}
                   onSelectQuery={handleSelectHistoryQuery}
-                  onReusePrompt={handleReusePrompt}
                   refreshTrigger={refreshHistoryTrigger}
                   onHistoryChange={(items) => setHistoryCount(items.length)}
                 />
@@ -298,7 +297,6 @@ export const AIQueryPage = () => {
                       isSplit={true}
                       selectedId={selectedHistoryId}
                       onSelectQuery={handleSelectHistoryQuery}
-                      onReusePrompt={handleReusePrompt}
                       refreshTrigger={refreshHistoryTrigger}
                       onHistoryChange={(items) => setHistoryCount(items.length)}
                     />

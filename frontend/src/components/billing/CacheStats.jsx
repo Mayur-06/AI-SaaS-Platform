@@ -19,8 +19,8 @@ import {
 
 export const CacheStats = ({ userRole, isActive }) => {
   const [stats, setStats] = useState(null);
-  const [savedThreshold, setSavedThreshold] = useState(0.95);
-  const [thresholdInput, setThresholdInput] = useState('0.95');
+  const [savedThreshold, setSavedThreshold] = useState(null);
+  const [thresholdInput, setThresholdInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
 
@@ -53,13 +53,17 @@ export const CacheStats = ({ userRole, isActive }) => {
   }, [isActive]);
 
   const handleClearCache = async () => {
+    setIsLoading(true);
     try {
       const res = await aiService.clearCache();
-      toast.success(res.message || 'Semantic cache purged successfully.');
+      toast.success(res?.message || res?.detail || 'Semantic cache purged successfully.');
+      setIsPurgeDialogOpen(false);
       await fetchStats();
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to clear cache: ${message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,7 +72,9 @@ export const CacheStats = ({ userRole, isActive }) => {
     const val = parseFloat(thresholdInput);
     if (isNaN(val) || val < 0.80 || val > 0.99) {
       toast.error('Match Threshold must be between 0.80 and 0.99.');
-      setThresholdInput(String(savedThreshold));
+      if (savedThreshold !== null) {
+        setThresholdInput(String(savedThreshold));
+      }
       return;
     }
 
@@ -83,7 +89,9 @@ export const CacheStats = ({ userRole, isActive }) => {
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to update threshold: ${message}`);
-      setThresholdInput(String(savedThreshold));
+      if (savedThreshold !== null) {
+        setThresholdInput(String(savedThreshold));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +148,7 @@ export const CacheStats = ({ userRole, isActive }) => {
             style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
             className="text-2xl font-bold text-[#292929]"
           >
-            {savedThreshold}
+            {savedThreshold !== null ? savedThreshold : (isLoading ? '...' : '—')}
           </div>
           <div className="text-[11px] text-gray-400 font-mono">Cosine similarity required</div>
         </div>
@@ -177,6 +185,7 @@ export const CacheStats = ({ userRole, isActive }) => {
                 step="0.01"
                 min="0.80"
                 max="0.99"
+                placeholder={savedThreshold !== null ? String(savedThreshold) : '0.95'}
                 value={thresholdInput}
                 onChange={(e) => setThresholdInput(e.target.value)}
                 className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
