@@ -99,7 +99,7 @@ export const AdminPage = () => {
 
       {/* Tabs Navigation */}
       <Tabs defaultValue="fleet" className="space-y-6">
-        <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full max-w-xl">
+        <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full max-w-xl gap-1">
           <TabsTrigger value="fleet" className="flex items-center gap-1.5">
             <Building2 size={13} />
             <span>Fleet &amp; Tenants ({tenantCount})</span>

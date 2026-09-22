@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, Database, History, Columns2, Rows3 } from 'lucide-react';
+import { ShieldAlert, Database, History, Columns2, Rows3, BrainCircuit } from 'lucide-react';
 import { QueryInput } from '../../components/ai/QueryInput';
 import { ResponseCard } from '../../components/ai/ResponseCard';
 import { QueryHistory } from '../../components/ai/QueryHistory';
@@ -28,6 +28,7 @@ export const AIQueryPage = () => {
   const [sidebarTab, setSidebarTab] = useState('knowledge');
   const [docCount, setDocCount] = useState(0);
   const [historyCount, setHistoryCount] = useState(0);
+  const [mobileSection, setMobileSection] = useState('query');
 
   const handleRunQuery = async (prompt, model) => {
     setQueryStatus('loading');
@@ -36,6 +37,7 @@ export const AIQueryPage = () => {
     setSelectedHistoryId(null);
     setLastPrompt(prompt);
     setLastModel(model);
+    setMobileSection('query');
 
     try {
       const data = await aiService.queryAI(prompt, model);
@@ -101,10 +103,12 @@ export const AIQueryPage = () => {
       created_at: item.created_at,
       isHistorical: true,
     });
+    setMobileSection('query');
   };
 
   const handleReusePrompt = (text) => {
     setPromptToLoad(text);
+    setMobileSection('query');
   };
 
   const handleRetry = () => {
@@ -162,10 +166,38 @@ export const AIQueryPage = () => {
         </div>
       </div>
 
+      {/* Mobile / Tablet Workspace Section Switcher (< lg) */}
+      <div className="flex lg:hidden items-center p-1 bg-gray-200/80 rounded-xl max-w-md w-full mx-auto">
+        <button
+          type="button"
+          onClick={() => setMobileSection('query')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            mobileSection === 'query'
+              ? 'bg-white text-[#292929] shadow-xs'
+              : 'text-gray-500 hover:text-[#292929]'
+          }`}
+        >
+          <BrainCircuit size={14} />
+          <span>Query Console</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('context')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            mobileSection === 'context'
+              ? 'bg-white text-[#292929] shadow-xs'
+              : 'text-gray-500 hover:text-[#292929]'
+          }`}
+        >
+          <Database size={14} />
+          <span>Context &amp; History ({docCount + historyCount})</span>
+        </button>
+      </div>
+
       {/* Main 2-Column Responsive Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (Cols 1-7): Query Input at Top + Response Card Below */}
-        <div className="lg:col-span-7 min-w-0 space-y-5">
+        <div className={`lg:col-span-7 min-w-0 space-y-5 ${mobileSection === 'context' ? 'hidden lg:block' : 'block'}`}>
           {/* 1. Sleek Query Input Console */}
           <QueryInput
             onSubmit={handleRunQuery}
@@ -186,7 +218,7 @@ export const AIQueryPage = () => {
         </div>
 
         {/* Right Column (Cols 8-12): Unified Context & History Hub */}
-        <div className="lg:col-span-5 min-w-0">
+        <div className={`lg:col-span-5 min-w-0 ${mobileSection === 'query' ? 'hidden lg:block' : 'block'}`}>
           <Card variant="bordered" className="shadow-sm p-0 overflow-hidden">
             {/* Header Tabs: Knowledge Base | Past Queries | Split View */}
             <div className="px-4 py-3 bg-gray-50/75 border-b border-gray-100 flex items-center justify-between gap-2">

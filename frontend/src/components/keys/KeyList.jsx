@@ -65,7 +65,127 @@ export const KeyList = ({
 
   return (
     <Card variant="bordered" className="shadow-sm overflow-hidden p-0">
-      <div className="overflow-x-auto">
+      {/* Mobile Card List (< md) */}
+      <div className="block md:hidden divide-y divide-gray-100">
+        {keys.map((k) => (
+          <div key={k.id} className={`p-4 space-y-2.5 ${!k.is_active ? 'opacity-60 bg-gray-50/40' : ''}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Key size={16} className="text-gray-400 shrink-0" />
+                {editingId === k.id ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="px-2.5 py-1 border border-gray-300 rounded-lg text-xs w-full max-w-[150px] bg-white focus:ring-2 focus:ring-[#b2c147] focus:outline-none"
+                  />
+                ) : (
+                  <span className="font-semibold text-xs text-[#292929] truncate">{k.name}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant={k.is_active ? 'green' : 'red'}>
+                  {k.is_active ? 'ACTIVE' : 'REVOKED'}
+                </Badge>
+                {canManage && k.is_active && (
+                  editingId === k.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(k.id)}
+                        disabled={isLoading}
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Save changes"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="p-1.5 text-gray-400 hover:text-[#292929] hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Key Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => startEdit(k)}>
+                          <Edit2 size={13} />
+                          Edit Name &amp; Permissions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onRegenerate(k.id)}>
+                          <RefreshCw size={13} />
+                          Regenerate Secret
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem destructive onClick={() => onRevoke(k.id)}>
+                          <Trash2 size={13} />
+                          Revoke Key
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Prefix & Permission Row */}
+            <div className="flex items-center justify-between text-xs font-mono pt-0.5">
+              <span className="text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-[11px]">
+                <code>{k.key_prefix}••••••••</code>
+              </span>
+              <div className="flex items-center gap-1.5">
+                {editingId === k.id ? (
+                  <Select value={editPerm} onValueChange={setEditPerm}>
+                    <SelectTrigger className="h-7 text-xs w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="write">write</SelectItem>
+                      <SelectItem value="read">read</SelectItem>
+                      <SelectItem value="admin">admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge variant={k.permissions === 'admin' ? 'purple' : 'gray'}>
+                    {k.permissions}
+                  </Badge>
+                )}
+                <span className="text-gray-400 font-mono text-[11px]">
+                  {k.rate_limit_override ? `${k.rate_limit_override} RPM` : 'Plan limit'}
+                </span>
+              </div>
+            </div>
+
+            {/* Timestamps Row */}
+            <div className="flex items-center justify-between text-[11px] text-gray-400 font-mono pt-0.5">
+              <span className="flex items-center gap-1">
+                <Calendar size={11} />
+                {new Date(k.created_at).toLocaleDateString()}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock size={11} />
+                {k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : 'Never'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View (>= md) */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50/80 text-xs font-mono text-gray-500 uppercase tracking-wider border-b border-gray-200">
             <tr>

@@ -87,11 +87,24 @@ export const OrganizationSettingsPage = () => {
 
   const handleUpdateOrg = async (e) => {
     e.preventDefault();
+    const cleanThresholdStr = String(threshold).replace(/%/g, '').trim();
+    const numThreshold = Number(cleanThresholdStr);
+    const numBudget = Number(budget);
+
+    if (isNaN(numThreshold) || numThreshold < 1 || numThreshold > 100) {
+      toast.error('Budget Alert Threshold must be between 1% and 100%.');
+      return;
+    }
+    if (isNaN(numBudget) || numBudget < 0) {
+      toast.error('Monthly Spend Budget must be a non-negative number.');
+      return;
+    }
+
     try {
       await updateOrg({
         name: orgName,
-        monthly_budget: Number(budget),
-        budget_alert_threshold: Number(threshold),
+        monthly_budget: numBudget,
+        budget_alert_threshold: numThreshold,
       });
       toast.success('Organization profile saved successfully.');
     } catch (err) {
@@ -99,6 +112,7 @@ export const OrganizationSettingsPage = () => {
       toast.error(`Update failed: ${message}`);
     }
   };
+
 
   const handleRemoveMember = async (memberId) => {
     try {
@@ -192,7 +206,7 @@ export const OrganizationSettingsPage = () => {
 
       {/* Tabs Layout */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl gap-1">
           <TabsTrigger value="general" className="flex items-center gap-1.5">
             <Building2 size={13} />
             <span>Profile &amp; Budget</span>
@@ -230,7 +244,7 @@ export const OrganizationSettingsPage = () => {
               </p>
             </div>
 
-            <form onSubmit={handleUpdateOrg} className="space-y-4">
+            <form noValidate onSubmit={handleUpdateOrg} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Organization Name"
@@ -261,13 +275,15 @@ export const OrganizationSettingsPage = () => {
 
                 <Input
                   label="Budget Alert Threshold (%)"
-                  type="number"
-                  min={1}
-                  max={100}
+                  type="text"
+                  inputMode="numeric"
                   value={threshold}
-                  onChange={(e) => setThreshold(e.target.value)}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/%/g, '');
+                    setThreshold(cleaned);
+                  }}
                   disabled={!canManage || isLoading}
-                  helperText="Percentage of budget that triggers warning badges in the dashboard"
+                  helperText="Percentage of budget that triggers warning badges in dashboard (1 – 100%)"
                 />
               </div>
 

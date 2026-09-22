@@ -7,7 +7,7 @@ from accounts.models import Organization
 
 class DocumentSerializer(serializers.ModelSerializer):
     filename = serializers.CharField(max_length=255, required=False)
-    title = serializers.CharField(max_length=255, required=False, write_only=True)
+    title = serializers.CharField(max_length=255, required=False, allow_blank=True)
     content = serializers.CharField(required=False, write_only=True)
     file = serializers.FileField(write_only=True, required=False)
     chunk_count = serializers.SerializerMethodField()
@@ -27,20 +27,22 @@ class DocumentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Either 'filename' (or 'title') or 'file' is required.")
         if not attrs.get("filename") and attrs.get("file"):
             attrs["filename"] = attrs["file"].name
+        if not attrs.get("title") and attrs.get("filename"):
+            attrs["title"] = attrs["filename"]
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop("title", None)
         validated_data.pop("content", None)
         return super().create(validated_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         filename = instance.filename or "Document"
-        clean_title = filename.split("/")[-1] if "/" in filename else (filename.split("\\")[-1] if "\\" in filename else filename)
-        data["title"] = clean_title
+        clean_name = filename.split("/")[-1] if "/" in filename else (filename.split("\\")[-1] if "\\" in filename else filename)
+        data["title"] = instance.title if instance.title else clean_name
         data["chunk_count"] = instance.chunks.count()
         return data
+
 
 
 class DocumentUploadSerializer(serializers.Serializer):
@@ -99,4 +101,12 @@ class CacheStatsSerializer(serializers.Serializer):
 
 
 class CacheThresholdSerializer(serializers.Serializer):
-    threshold = serializers.FloatField(min_value=0.0, max_value=1.0)
+    threshold = serializers.FloatField(
+        min_value=0.80,
+        max_value=0.99,
+        error_messages={
+            "min_value": "Match threshold must be between 0.80 and 0.99.",
+            "max_value": "Match threshold must be between 0.80 and 0.99.",
+        },
+    )
+

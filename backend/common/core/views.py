@@ -477,3 +477,28 @@ class AdminRoutingView(APIView):
                 for m in ModelConfig.objects.all()
             },
         })
+
+
+def custom_404_view(request, exception=None):
+    return JsonResponse(
+        {
+            "error": {
+                "code": "NOT_FOUND",
+                "message": "The requested resource was not found.",
+            }
+        },
+        status=404,
+    )
+
+
+def custom_500_view(request):
+    return JsonResponse(
+        {
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected server error occurred.",
+            }
+        },
+        status=500,
+    )
+

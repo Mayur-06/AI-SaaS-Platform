@@ -19,6 +19,7 @@ class Document(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="documents")
+    title = models.CharField(max_length=255, blank=True, default="")
     filename = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     uploaded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="documents_uploaded")
@@ -28,7 +29,8 @@ class Document(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.filename} ({self.organization.name})"
+        name = self.title or self.filename
+        return f"{name} ({self.organization.name})"
 
 
 class DocumentChunk(models.Model):

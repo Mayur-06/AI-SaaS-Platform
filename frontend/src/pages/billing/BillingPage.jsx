@@ -27,6 +27,7 @@ export const BillingPage = () => {
   } = useBillingStore();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('plans');
 
   useEffect(() => {
     if (organization || !user?.is_staff) {
@@ -114,8 +115,8 @@ export const BillingPage = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <Tabs defaultValue="plans" className="space-y-6">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl gap-1">
           <TabsTrigger value="plans" className="flex items-center gap-1.5">
             <CreditCard size={13} />
             <span>Plans</span>
@@ -175,7 +176,7 @@ export const BillingPage = () => {
 
         {/* Tab 4: Semantic Cache Admin */}
         <TabsContent value="cache" className="space-y-4">
-          <CacheStats userRole={role} />
+          <CacheStats userRole={role} isActive={activeTab === 'cache'} />
         </TabsContent>
       </Tabs>
     </div>
