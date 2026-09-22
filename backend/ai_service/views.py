@@ -59,19 +59,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
             raise exceptions.ValidationError("No active organization.")
         raw_content = serializer.validated_data.pop("content", None) or self.request.data.get("content")
         file_obj = serializer.validated_data.pop("file", None) or self.request.FILES.get("file")
+        title = serializer.validated_data.get("title") or self.request.data.get("title") or ""
         if file_obj:
             from django.core.files.storage import default_storage
             filename = file_obj.name
             saved_path = default_storage.save(f"documents/{org.id}/{filename}", file_obj)
-            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path, title=title or filename)
         elif raw_content:
             from django.core.files.base import ContentFile
             from django.core.files.storage import default_storage
             filename = serializer.validated_data.get("filename", "document.txt")
             saved_path = default_storage.save(f"documents/{org.id}/{filename}", ContentFile(raw_content.encode("utf-8")))
-            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user, filename=saved_path, title=title or filename)
         else:
-            instance = serializer.save(organization=org, uploaded_by=self.request.user)
+            instance = serializer.save(organization=org, uploaded_by=self.request.user, title=title)
 
         # Auto-process into vector store immediately upon upload
         try:
@@ -238,6 +239,7 @@ class CacheStatsView(APIView):
         data = {
             "total_entries": stats["total_entries"],
             "valid_entries": stats["valid_entries"],
+            "cache_entries_count": stats["valid_entries"],
             "threshold": cache.threshold,
             "ttl_seconds": get_cache_ttl(org),
         }

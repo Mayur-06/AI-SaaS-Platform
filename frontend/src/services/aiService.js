@@ -36,7 +36,7 @@ export const aiService = {
   async createDocument(data) {
     if (data.file) {
       const formData = new FormData();
-      formData.append('filename', data.title || data.file.name);
+      formData.append('filename', data.file.name);
       formData.append('title', data.title || data.file.name);
       formData.append('file', data.file);
       if (data.content) formData.append('content', data.content);

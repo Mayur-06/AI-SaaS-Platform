@@ -17,9 +17,10 @@ import {
   AlertDialogCancel,
 } from '../ui/AlertDialog';
 
-export const CacheStats = ({ userRole }) => {
+export const CacheStats = ({ userRole, isActive }) => {
   const [stats, setStats] = useState(null);
-  const [threshold, setThreshold] = useState(0.95);
+  const [savedThreshold, setSavedThreshold] = useState(0.95);
+  const [thresholdInput, setThresholdInput] = useState('0.95');
   const [isLoading, setIsLoading] = useState(false);
   const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
 
@@ -33,7 +34,11 @@ export const CacheStats = ({ userRole }) => {
         aiService.getCacheThreshold().catch(() => null),
       ]);
       if (data) setStats(data);
-      if (threshData) setThreshold(threshData.threshold);
+      const serverThresh = threshData?.threshold ?? data?.threshold;
+      if (serverThresh !== undefined && serverThresh !== null) {
+        setSavedThreshold(serverThresh);
+        setThresholdInput(String(serverThresh));
+      }
     } catch (err) {
       console.error('Error fetching cache stats', err);
     } finally {
@@ -42,8 +47,10 @@ export const CacheStats = ({ userRole }) => {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (isActive !== false) {
+      fetchStats();
+    }
+  }, [isActive]);
 
   const handleClearCache = async () => {
     try {
@@ -58,12 +65,27 @@ export const CacheStats = ({ userRole }) => {
 
   const handleSaveThreshold = async (e) => {
     e.preventDefault();
+    const val = parseFloat(thresholdInput);
+    if (isNaN(val) || val < 0.80 || val > 0.99) {
+      toast.error('Match Threshold must be between 0.80 and 0.99.');
+      setThresholdInput(String(savedThreshold));
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      const res = await aiService.updateCacheThreshold(Number(threshold));
-      toast.success(`Similarity threshold updated to ${res.threshold}.`);
+      const res = await aiService.updateCacheThreshold(val);
+      const newThresh = res.threshold ?? val;
+      setSavedThreshold(newThresh);
+      setThresholdInput(String(newThresh));
+      toast.success(`Similarity threshold updated to ${newThresh}.`);
+      await fetchStats();
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to update threshold: ${message}`);
+      setThresholdInput(String(savedThreshold));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -105,7 +127,7 @@ export const CacheStats = ({ userRole }) => {
             style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
             className="text-2xl font-bold text-[#292929]"
           >
-            {stats?.cache_entries_count ?? stats?.total_entries ?? 0}
+            {stats?.valid_entries ?? stats?.cache_entries_count ?? stats?.total_entries ?? 0}
           </div>
           <div className="text-[11px] text-gray-400 font-mono">Retained in vector store</div>
         </div>
@@ -118,7 +140,7 @@ export const CacheStats = ({ userRole }) => {
             style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
             className="text-2xl font-bold text-[#292929]"
           >
-            {threshold}
+            {savedThreshold}
           </div>
           <div className="text-[11px] text-gray-400 font-mono">Cosine similarity required</div>
         </div>
@@ -140,7 +162,7 @@ export const CacheStats = ({ userRole }) => {
       {/* Admin Action Form */}
       {canManage && (
         <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <form onSubmit={handleSaveThreshold} className="flex items-end gap-2.5">
+          <form noValidate onSubmit={handleSaveThreshold} className="flex items-end gap-2.5">
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="cache-threshold"
@@ -155,8 +177,8 @@ export const CacheStats = ({ userRole }) => {
                 step="0.01"
                 min="0.80"
                 max="0.99"
-                value={threshold}
-                onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                value={thresholdInput}
+                onChange={(e) => setThresholdInput(e.target.value)}
                 className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
               />
             </div>

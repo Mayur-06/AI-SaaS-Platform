@@ -31,6 +31,17 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "plan", "monthly_budget", "budget_alert_threshold", "is_active", "created_at"]
         read_only_fields = ["id", "created_at"]
 
+    def validate_budget_alert_threshold(self, value):
+        if value < 1 or value > 100:
+            raise serializers.ValidationError("Budget alert threshold must be between 1 and 100 percent.")
+        return value
+
+    def validate_monthly_budget(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Monthly budget cannot be negative.")
+        return value
+
+
 
 class MembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
