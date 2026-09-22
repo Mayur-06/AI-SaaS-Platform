@@ -14,7 +14,16 @@ _redis_client = None
 def get_redis_client():
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        try:
+            _redis_client = redis.from_url(
+                REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=1.0,
+                socket_timeout=1.0,
+            )
+        except Exception as exc:
+            logger.warning("Could not initialize Redis client: %s", exc)
+            return None
     return _redis_client
 
 

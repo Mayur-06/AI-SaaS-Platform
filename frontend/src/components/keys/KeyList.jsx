@@ -42,7 +42,9 @@ export const KeyList = ({
     setEditingId(null);
   };
 
-  if (!keys || keys.length === 0) {
+  const activeKeys = (keys || []).filter((k) => k && k.is_active !== false);
+
+  if (activeKeys.length === 0) {
     return (
       <Card variant="bordered" className="text-center py-12 border-dashed border-gray-200">
         <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
@@ -67,8 +69,8 @@ export const KeyList = ({
     <Card variant="bordered" className="shadow-sm overflow-hidden p-0">
       {/* Mobile Card List (< md) */}
       <div className="block md:hidden divide-y divide-gray-100">
-        {keys.map((k) => (
-          <div key={k.id} className={`p-4 space-y-2.5 ${!k.is_active ? 'opacity-60 bg-gray-50/40' : ''}`}>
+        {activeKeys.map((k) => (
+          <div key={k.id} className="p-4 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <Key size={16} className="text-gray-400 shrink-0" />
@@ -200,8 +202,8 @@ export const KeyList = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {keys.map((k) => (
-              <tr key={k.id} className={`hover:bg-gray-50/80 transition-colors ${!k.is_active ? 'opacity-60 bg-gray-50/40' : ''}`}>
+            {activeKeys.map((k) => (
+              <tr key={k.id} className="hover:bg-gray-50/80 transition-colors">
                 <td className="px-5 py-3.5">
                   {editingId === k.id ? (
                     <input

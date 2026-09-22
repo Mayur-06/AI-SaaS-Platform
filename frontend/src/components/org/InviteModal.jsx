@@ -148,7 +148,6 @@ export const InviteModal = ({
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin (Manage members, keys & billing)</SelectItem>
                 <SelectItem value="member">Member (Can run AI queries & index docs)</SelectItem>
                 <SelectItem value="viewer">Viewer (Read-only access)</SelectItem>
               </SelectContent>

@@ -377,9 +377,6 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
           <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
             Vector Grounded
           </span>
-          <span className="bg-white border border-gray-200 px-2.5 py-0.5 rounded-md">
-            Source Citations
-          </span>
         </div>
       </Card>
     );

@@ -294,19 +294,21 @@ class AdminRoutingView(APIView):
             p_name = plan.name.lower()
             if p_name == "free":
                 default_primary = ModelConfig.objects.filter(name="gemini-2.5-flash").first() or ModelConfig.objects.first()
-                default_fallbacks = []
-                timeout = 10
+                fb = ModelConfig.objects.filter(name="gemini-2.0-flash").first()
+                default_fallbacks = [fb] if fb else []
+                timeout = 60
             elif p_name == "pro":
                 default_primary = ModelConfig.objects.filter(name="gemini-2.5-flash").first() or ModelConfig.objects.first()
-                fb = ModelConfig.objects.filter(name="gpt-4o-mini").first()
-                default_fallbacks = [fb] if fb else []
-                timeout = 10
-            else:  # enterprise
-                default_primary = ModelConfig.objects.filter(name="gpt-4o-mini").first() or ModelConfig.objects.first()
-                fb1 = ModelConfig.objects.filter(name="gemini-2.5-flash").first()
-                fb2 = ModelConfig.objects.filter(name="gpt-4").first()
+                fb1 = ModelConfig.objects.filter(name="gemini-2.5-pro").first()
+                fb2 = ModelConfig.objects.filter(name="gemini-2.0-flash").first()
                 default_fallbacks = [f for f in [fb1, fb2] if f]
-                timeout = 15
+                timeout = 60
+            else:  # enterprise
+                default_primary = ModelConfig.objects.filter(name="gemini-2.5-pro").first() or ModelConfig.objects.first()
+                fb1 = ModelConfig.objects.filter(name="gemini-2.5-flash").first()
+                fb2 = ModelConfig.objects.filter(name="gemini-2.0-flash").first()
+                default_fallbacks = [f for f in [fb1, fb2] if f]
+                timeout = 90
 
             rule = RoutingRule.objects.filter(plan=plan).first()
             if not rule:

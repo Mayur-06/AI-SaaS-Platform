@@ -8,9 +8,9 @@ from billing.models import ModelConfig, RoutingRule
 logger = logging.getLogger(__name__)
 
 PLAN_PERMITTED_MODELS = {
-    "free": ["gemini-2.5-flash"],
-    "pro": ["gemini-2.5-flash", "gpt-4o-mini"],
-    "enterprise": ["gemini-2.5-flash", "gpt-4o-mini", "gpt-4"],
+    "free": ["gemini-2.5-flash", "gemini-2.0-flash"],
+    "pro": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
 }
 
 
@@ -85,11 +85,11 @@ class ModelRouter:
     def get_route(self) -> Dict[str, Any]:
         if not self.organization or not getattr(self.organization, "plan", None):
             primary = self.configs.filter(provider="gemini").first() or self.configs.first()
-            openai_fallback = self.configs.filter(provider="openai").first()
+            gemini_fallback = self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None)).first()
             return {
                 "primary": primary,
-                "fallbacks": [openai_fallback] if openai_fallback and openai_fallback != primary else [],
-                "timeout": 10,
+                "fallbacks": [gemini_fallback] if gemini_fallback else [],
+                "timeout": 60,
             }
         try:
             rule = (
@@ -102,14 +102,14 @@ class ModelRouter:
                 return {
                     "primary": rule.primary_model,
                     "fallbacks": [fb for fb in rule.fallback_models.filter(is_active=True)],
-                    "timeout": rule.timeout_seconds,
+                    "timeout": max(rule.timeout_seconds, 60),
                 }
         except Exception as exc:
             logger.warning("Failed to fetch routing rule for org %s: %s", self.organization.id, exc)
 
         primary = self.configs.filter(provider="gemini").first() or self.configs.first()
-        fallbacks = self.configs.filter(provider="openai").exclude(id=getattr(primary, "id", None))[:1]
-        return {"primary": primary, "fallbacks": list(fallbacks), "timeout": 10}
+        fallbacks = self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None))[:2]
+        return {"primary": primary, "fallbacks": list(fallbacks), "timeout": 60}
 
     def _get_provider_instance(self, model_config: ModelConfig):
         key = f"{model_config.provider}:{model_config.name}"
@@ -118,8 +118,17 @@ class ModelRouter:
         from config import settings as django_settings
         import os
 
+        gemini_key = getattr(django_settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY")
+        if not gemini_key:
+            from pathlib import Path
+            from dotenv import load_dotenv
+            env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+            if env_file.exists():
+                load_dotenv(dotenv_path=env_file)
+                gemini_key = os.getenv("GEMINI_API_KEY")
+
         api_key_map = {
-            "gemini": getattr(django_settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY"),
+            "gemini": gemini_key,
             "openai": getattr(django_settings, "OPENAI_API_KEY", None) or os.getenv("OPENAI_API_KEY"),
             "anthropic": getattr(django_settings, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY"),
             "groq": getattr(django_settings, "GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY"),
@@ -160,21 +169,30 @@ class ModelRouter:
         route = self.get_route()
         primary = route.get("primary")
         fallbacks = route.get("fallbacks", [])
-        timeout = route.get("timeout", 10)
+        base_timeout = route.get("timeout", 60)
 
         # Allow explicit target_model if requested and active
+        original_primary = primary
         if target_model and target_model != "auto":
             override = ModelConfig.objects.filter(name=target_model, is_active=True).first()
             if override:
                 primary = override
 
-        # Build deduplicated candidate list of active models
-        raw_candidates = ([primary] if primary and primary.is_active else []) + [
-            fb for fb in fallbacks if fb and fb.is_active
-        ]
+        # Build deduplicated candidate list of active models:
+        # 1. Primary candidate (selected target_model or route primary)
+        # 2. Original route primary (if different)
+        # 3. Route fallbacks
+        # 4. All active Gemini models as safety backups
+        gemini_backups = list(ModelConfig.objects.filter(provider="gemini", is_active=True))
+        pool = (
+            ([primary] if primary and primary.is_active else [])
+            + ([original_primary] if original_primary and original_primary.is_active else [])
+            + [fb for fb in fallbacks if fb and fb.is_active]
+            + [bm for bm in gemini_backups if bm and bm.is_active]
+        )
         candidates = []
         seen_ids = set()
-        for candidate in raw_candidates:
+        for candidate in pool:
             if candidate and candidate.id not in seen_ids:
                 seen_ids.add(candidate.id)
                 candidates.append(candidate)
@@ -188,6 +206,14 @@ class ModelRouter:
 
         for candidate in candidates:
             model_key = f"{candidate.provider}:{candidate.name}"
+
+            # Dynamic timeout per model tier:
+            # Pro reasoning models require at least 60s for large document synthesis.
+            # Flash models require at least 45s.
+            if "pro" in candidate.name.lower():
+                cand_timeout = max(base_timeout, 60)
+            else:
+                cand_timeout = max(base_timeout, 45)
 
             # Check circuit breaker
             if self.circuit_breaker.is_open(model_key):
@@ -227,21 +253,21 @@ class ModelRouter:
                 candidate.name in simulate_timeout_models or model_key in simulate_timeout_models
             ):
                 self.circuit_breaker.record_failure(model_key)
-                err_msg = f"{model_key}: Timed out after {timeout}s (simulated)"
+                err_msg = f"{model_key}: Timed out after {cand_timeout}s (simulated)"
                 errors.append(err_msg)
                 cascade_log.append({
                     "model": candidate.name,
                     "provider": candidate.provider,
                     "status": "timeout",
                     "error": err_msg,
-                    "latency_ms": timeout * 1000,
+                    "latency_ms": cand_timeout * 1000,
                 })
                 continue
 
             try:
                 provider = self._get_provider_instance(candidate)
 
-                # Strict timeout enforcement using ThreadPoolExecutor
+                # Timeout enforcement using ThreadPoolExecutor
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
                 try:
                     future = executor.submit(
@@ -250,7 +276,7 @@ class ModelRouter:
                         user_prompt=user_prompt,
                         temperature=temperature,
                     )
-                    answer = future.result(timeout=timeout)
+                    answer = future.result(timeout=cand_timeout)
                 finally:
                     executor.shutdown(wait=False, cancel_futures=True)
 
@@ -283,8 +309,8 @@ class ModelRouter:
                 }
             except concurrent.futures.TimeoutError:
                 latency_ms = int((time.time() - start) * 1000)
-                err_msg = f"{model_key}: Timed out after {timeout}s"
-                logger.warning("Model %s timed out after %ds (attempt %d)", model_key, timeout, attempts)
+                err_msg = f"{model_key}: Timed out after {cand_timeout}s"
+                logger.warning("Model %s timed out after %ds (attempt %d)", model_key, cand_timeout, attempts)
                 self.circuit_breaker.record_failure(model_key)
                 errors.append(err_msg)
                 cascade_log.append({

@@ -1,4 +1,12 @@
-import { apiClient, setAuthTokens, clearAuthTokens, USER_INFO_KEY, ORG_INFO_KEY, REMEMBER_ME_KEY } from './api';
+import {
+  apiClient,
+  setAuthTokens,
+  clearAuthTokens,
+  USER_INFO_KEY,
+  ORG_INFO_KEY,
+  REMEMBER_ME_KEY,
+  REMEMBERED_EMAIL_KEY,
+} from './api';
 
 export const authService = {
   async login(email, password, rememberMe = false) {
@@ -8,13 +16,22 @@ export const authService = {
     });
 
     const { access, refresh, user, organization } = response.data;
-    setAuthTokens(access, refresh);
-    localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
-    localStorage.setItem(ORG_INFO_KEY, JSON.stringify(organization));
+    setAuthTokens(access, refresh, rememberMe);
+
     if (rememberMe) {
+      localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+      localStorage.setItem(ORG_INFO_KEY, JSON.stringify(organization));
       localStorage.setItem(REMEMBER_ME_KEY, 'true');
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      sessionStorage.removeItem(USER_INFO_KEY);
+      sessionStorage.removeItem(ORG_INFO_KEY);
     } else {
+      sessionStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+      sessionStorage.setItem(ORG_INFO_KEY, JSON.stringify(organization));
+      localStorage.removeItem(USER_INFO_KEY);
+      localStorage.removeItem(ORG_INFO_KEY);
       localStorage.removeItem(REMEMBER_ME_KEY);
+      localStorage.removeItem(REMEMBERED_EMAIL_KEY);
     }
 
     return response.data;
@@ -60,7 +77,7 @@ export const authService = {
 
   getStoredUser() {
     try {
-      const data = localStorage.getItem(USER_INFO_KEY);
+      const data = localStorage.getItem(USER_INFO_KEY) || sessionStorage.getItem(USER_INFO_KEY);
       if (!data || data === 'undefined' || data === 'null') return null;
       return JSON.parse(data);
     } catch {
@@ -70,7 +87,7 @@ export const authService = {
 
   getStoredOrg() {
     try {
-      const data = localStorage.getItem(ORG_INFO_KEY);
+      const data = localStorage.getItem(ORG_INFO_KEY) || sessionStorage.getItem(ORG_INFO_KEY);
       if (!data || data === 'undefined' || data === 'null') return null;
       return JSON.parse(data);
     } catch {

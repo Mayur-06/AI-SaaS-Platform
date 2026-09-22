@@ -135,7 +135,7 @@ class DocumentLoader:
 
         if path_lower.endswith(".pdf"):
             return self._load_pdf()
-        elif path_lower.endswith(".txt"):
+        elif path_lower.endswith(".txt") or path_lower.endswith(".md") or path_lower.endswith(".markdown"):
             return self._load_txt()
         elif path_lower.endswith(".csv"):
             return self._load_csv()
@@ -146,9 +146,13 @@ class DocumentLoader:
                 "Legacy .doc files are not supported. Please save as .docx and re-upload."
             )
         else:
-            raise ValueError(
-                f"Unsupported file type. Got: {self.pdf_path}"
-            )
+            # Fallback to plain text load if possible
+            try:
+                return self._load_txt()
+            except Exception:
+                raise ValueError(
+                    f"Unsupported file type. Got: {self.pdf_path}"
+                )
 
     def _load_pdf(self):
         pdf = fitz.open(self.pdf_path)

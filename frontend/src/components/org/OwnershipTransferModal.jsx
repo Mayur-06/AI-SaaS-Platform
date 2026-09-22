@@ -102,7 +102,7 @@ export const OwnershipTransferModal = ({
           <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2.5">
             <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
             <div>
-              <strong className="font-bold">Irreversible Action:</strong> By proceeding, you transfer primary legal ownership of this tenant. Your role will be transitioned to <span className="font-mono uppercase font-bold">ADMIN</span>.
+              <strong className="font-bold">Irreversible Action:</strong> By proceeding, you transfer primary legal ownership of this tenant. Your role will be transitioned to <span className="font-mono uppercase font-bold">VIEWER</span>.
             </div>
           </div>
 
@@ -162,7 +162,7 @@ export const OwnershipTransferModal = ({
             <AlertDialogTitle>Transfer Ownership?</AlertDialogTitle>
             <AlertDialogDescription>
               You are about to transfer primary ownership to{' '}
-              <strong>{selectedEmailStr}</strong>. Your role will become <strong>Admin</strong> immediately.
+              <strong>{selectedEmailStr}</strong>. Your role will become <strong>Viewer</strong> immediately.
               This <strong className="text-red-600">cannot be undone by you</strong> after transfer.
             </AlertDialogDescription>
           </AlertDialogHeader>

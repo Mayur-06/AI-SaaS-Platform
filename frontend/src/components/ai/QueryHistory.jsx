@@ -6,7 +6,6 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle2,
-  CornerDownLeft,
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { Card } from '../ui/Card';
@@ -18,7 +17,6 @@ import { SimpleTooltip } from '../ui/Tooltip';
 export const QueryHistory = ({
   selectedId,
   onSelectQuery,
-  onReusePrompt,
   refreshTrigger,
   isSidebar = true,
   isEmbedded = false,
@@ -178,20 +176,6 @@ export const QueryHistory = ({
 
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400">{totalTokens} tok</span>
-                      {onReusePrompt && (
-                        <SimpleTooltip content="Load into prompt box">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReusePrompt(item.query_text);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#292929] p-1 rounded hover:bg-gray-200 transition-all cursor-pointer"
-                          >
-                            <CornerDownLeft size={11} />
-                          </button>
-                        </SimpleTooltip>
-                      )}
                     </div>
                   </div>
                 </div>

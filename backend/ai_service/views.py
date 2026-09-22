@@ -31,9 +31,18 @@ def get_request_org(request):
         return org
     user = getattr(request, "user", None)
     if user and user.is_authenticated:
+        target_org_id = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+        if target_org_id:
+            from accounts.models import Organization
+            target_org = Organization.objects.filter(id=target_org_id, is_active=True).first()
+            if target_org:
+                return target_org
         membership = user.memberships.filter(is_active=True, organization__is_active=True).select_related("organization").first()
         if membership:
             return membership.organization
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            from accounts.models import Organization
+            return Organization.objects.filter(is_active=True).first()
     return None
 
 
@@ -255,7 +264,17 @@ class CacheClearView(APIView):
             return Response({"detail": "No active organization."}, status=status.HTTP_403_FORBIDDEN)
         cache = SemanticCache(org)
         cache.clear()
-        return Response({"detail": "Cache cleared."}, status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {
+                "status": "success",
+                "message": "Semantic cache purged successfully.",
+                "detail": "Cache cleared.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request):
+        return self.delete(request)
 
 
 class CacheThresholdView(APIView):

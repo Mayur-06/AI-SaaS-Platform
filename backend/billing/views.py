@@ -266,7 +266,12 @@ class APIKeyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         org = get_request_org(self.request)
-        return APIKey.objects.filter(organization=org) if org else APIKey.objects.none()
+        return APIKey.objects.filter(organization=org, is_active=True) if org else APIKey.objects.none()
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+        instance.delete()
 
     def perform_create(self, serializer):
         org = get_request_org(self.request)

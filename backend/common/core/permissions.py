@@ -12,6 +12,8 @@ class IsAuthenticatedAndActive(permissions.IsAuthenticated):
             return False
         user = getattr(request, "user", None)
         if user and hasattr(user, "is_active"):
+            if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+                return user.is_active
             return user.is_active and getattr(user, "is_verified", False)
         return True
 
