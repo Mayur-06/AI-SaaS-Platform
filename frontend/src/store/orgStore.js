@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { orgService } from '../services/orgService';
 import { useAuthStore } from './authStore';
-import { setAuthTokens } from '../services/api';
+import { setAuthTokens, purgeAllCredentials } from '../services/api';
 
 export const useOrgStore = create((set, get) => ({
   organization: null,
@@ -97,7 +97,8 @@ export const useOrgStore = create((set, get) => ({
 
   deleteOrg: async () => {
     await orgService.deleteOrg();
-    set({ organization: null, members: [], invitations: [] });
+    purgeAllCredentials();
     useAuthStore.getState().logout();
+    set({ organization: null, members: [], invitations: [], isLoading: false, error: null });
   },
 }));

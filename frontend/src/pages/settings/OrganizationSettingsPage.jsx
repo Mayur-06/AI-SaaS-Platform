@@ -18,7 +18,7 @@ import { MemberList } from '../../components/org/MemberList';
 import { InvitationList } from '../../components/org/InvitationList';
 import { InviteModal } from '../../components/org/InviteModal';
 import { OwnershipTransferModal } from '../../components/org/OwnershipTransferModal';
-import { extractErrorMessage } from '../../services/api';
+import { extractErrorMessage, purgeAllCredentials } from '../../services/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -139,11 +139,14 @@ export const OrganizationSettingsPage = () => {
   const handleDeleteOrg = async () => {
     try {
       await deleteOrg();
-      toast.success('Organization deactivated and records cleaned up.');
-      navigate('/login', { replace: true });
+      purgeAllCredentials();
+      toast.success('Organization and all credentials permanently deleted.');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 500);
     } catch (err) {
       const { message } = extractErrorMessage(err);
-      toast.error(`Failed to deactivate organization: ${message}`);
+      toast.error(`Failed to delete organization: ${message}`);
     }
   };
 
@@ -357,12 +360,12 @@ export const OrganizationSettingsPage = () => {
                   </Button>
                 </div>
 
-                {/* Deactivate Organization Row */}
+                {/* Delete Organization Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
                   <div>
-                    <strong className="text-red-700 block text-sm">Deactivate Organization</strong>
+                    <strong className="text-red-700 block text-sm">Delete Organization & All Records</strong>
                     <p className="text-gray-500">
-                      Immediately soft-delete this tenant, revoke all API credentials, and disable access for all members.
+                      Permanently delete this organization, all documents, chunks, vectors, queries, credentials, and associated user accounts from the database.
                     </p>
                   </div>
                   <AlertDialog open={isDeleteOrgDialogOpen} onOpenChange={setIsDeleteOrgDialogOpen}>
@@ -373,19 +376,20 @@ export const OrganizationSettingsPage = () => {
                         className="self-start sm:self-auto flex items-center gap-1.5"
                       >
                         <Trash2 size={13} />
-                        <span>Deactivate Organization</span>
+                        <span>Delete Organization</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Deactivate Organization?</AlertDialogTitle>
+                        <AlertDialogTitle>Permanently Delete Organization & All Records?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          <strong className="text-red-600">This action cannot be undone.</strong> This will immediately:
+                          <strong className="text-red-600">This action is permanent and cannot be undone.</strong> This will immediately:
                           <ul className="mt-2 space-y-1 list-disc pl-4 text-gray-500">
-                            <li>Soft-delete this organization</li>
-                            <li>Revoke all active API credentials</li>
-                            <li>Deactivate all member access</li>
-                            <li>Remove all pending invitations</li>
+                            <li>Delete this organization and all configuration records</li>
+                            <li>Delete user accounts and login credentials for members</li>
+                            <li>Delete all uploaded documents, chunks, and vector embeddings</li>
+                            <li>Revoke all API keys, purge semantic cache, and delete query history</li>
+                            <li>Clear all stored credentials and local storage</li>
                           </ul>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
@@ -396,7 +400,7 @@ export const OrganizationSettingsPage = () => {
                           onClick={handleDeleteOrg}
                           disabled={isLoading}
                         >
-                          {isLoading ? 'Deactivating…' : 'Yes, deactivate'}
+                          {isLoading ? 'Deleting…' : 'Yes, delete permanently'}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
