@@ -135,7 +135,7 @@ class RoutingRule(models.Model):
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="routing_rules")
     primary_model = models.ForeignKey(ModelConfig, on_delete=models.PROTECT, related_name="primary_rules")
     fallback_models = models.ManyToManyField(ModelConfig, related_name="fallback_rules", blank=True)
-    timeout_seconds = models.IntegerField(default=10)
+    timeout_seconds = models.IntegerField(default=60)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
