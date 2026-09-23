@@ -55,6 +55,20 @@ def log_usage(
                 saved_cost = Decimal(str(round(max(output_tokens, 30) * 0.000002, 6)))
                 agg.cache_savings = (agg.cache_savings or Decimal("0")) + saved_cost
             agg.save()
+
+            # Record tokens into Redis for sliding-window TPM rate limiting
+            total_toks = (input_tokens or 0) + (output_tokens or 0)
+            if total_toks > 0 and organization:
+                try:
+                    from middleware.redis_utils import record_token_usage
+                    record_token_usage(
+                        str(organization.id),
+                        str(api_key.id) if api_key else None,
+                        total_toks,
+                    )
+                except Exception as rec_exc:
+                    logger.debug("Failed to record token usage in Redis TPM: %s", rec_exc)
+
             return log
     except Exception as exc:
         logger.error("Failed to log usage: %s", exc, exc_info=True)

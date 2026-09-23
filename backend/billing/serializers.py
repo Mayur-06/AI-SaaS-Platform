@@ -40,9 +40,16 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class UsageLogSerializer(serializers.ModelSerializer):
+    api_key_name = serializers.CharField(source="api_key.name", read_only=True, default=None)
+    api_key_prefix = serializers.CharField(source="api_key.key_prefix", read_only=True, default=None)
+
     class Meta:
         model = UsageLog
-        fields = ["id", "endpoint", "model_used", "input_tokens", "output_tokens", "latency_ms", "estimated_cost", "cache_hit", "timestamp"]
+        fields = [
+            "id", "endpoint", "model_used", "input_tokens", "output_tokens",
+            "latency_ms", "estimated_cost", "cache_hit", "timestamp",
+            "api_key_name", "api_key_prefix",
+        ]
         read_only_fields = ["id", "timestamp"]
 
 

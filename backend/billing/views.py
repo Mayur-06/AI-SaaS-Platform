@@ -181,6 +181,32 @@ class BillingUsageView(APIView):
             for d in daily_usage_qs
         ]
 
+        # Calculate per-API-key usage
+        by_key_qs = (
+            month_logs.filter(api_key__isnull=False)
+            .values("api_key__id", "api_key__name", "api_key__key_prefix")
+            .annotate(
+                requests=Count("id"),
+                input_tokens=Sum("input_tokens"),
+                output_tokens=Sum("output_tokens"),
+                total_cost=Sum("estimated_cost"),
+            )
+            .order_by("-total_cost")
+        )
+        by_api_key = [
+            {
+                "key_id": str(k["api_key__id"]),
+                "name": k["api_key__name"],
+                "key_prefix": k["api_key__key_prefix"],
+                "requests": k["requests"],
+                "input_tokens": k["input_tokens"] or 0,
+                "output_tokens": k["output_tokens"] or 0,
+                "total_tokens": (k["input_tokens"] or 0) + (k["output_tokens"] or 0),
+                "total_cost": round(float(k["total_cost"] or 0), 4),
+            }
+            for k in by_key_qs
+        ]
+
         data = {
             "plan": PlanSerializer(plan).data if plan else None,
             "requests_used": requests_used,
@@ -198,6 +224,7 @@ class BillingUsageView(APIView):
             "cache_hit_rate": cache_hit_rate,
             "cache_savings": round(float(cache_savings), 4),
             "daily_usage": daily_usage,
+            "by_api_key": by_api_key,
         }
         response = Response(data)
         if usage_percent >= 80:
@@ -248,12 +275,14 @@ class BillingUsageExportView(APIView):
             return Response(serializer.data, content_type="application/json")
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["timestamp", "endpoint", "model_used", "input_tokens", "output_tokens", "latency_ms", "estimated_cost", "cache_hit"])
-        for log in logs:
+        writer.writerow(["timestamp", "endpoint", "model_used", "input_tokens", "output_tokens", "latency_ms", "estimated_cost", "cache_hit", "api_key_name", "api_key_prefix"])
+        for log in logs.select_related("api_key"):
             writer.writerow([
                 log.timestamp.isoformat(), log.endpoint, log.model_used,
                 log.input_tokens, log.output_tokens, log.latency_ms,
                 log.estimated_cost, log.cache_hit,
+                log.api_key.name if log.api_key else "",
+                log.api_key.key_prefix if log.api_key else "",
             ])
         response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = "attachment; filename=usage_export.csv"

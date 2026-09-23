@@ -83,3 +83,51 @@ def check_rate_limit(org_id, api_key_id, limit):
     allowed = count <= effective_limit
     remaining = max(0, effective_limit - count)
     return allowed, remaining, reset_time
+
+
+def check_token_rate_limit(org_id, api_key_id, limit, estimated_tokens=0):
+    """
+    Checks if token rate limit (TPM) is exceeded for the current 60s window.
+    Returns (allowed, remaining, reset_time, current_tokens).
+    """
+    client = get_redis_client()
+    now = int(time.time())
+    window = 60
+    current_bucket = now // window
+    reset_time = (current_bucket + 1) * window
+    if client is None:
+        return True, limit, reset_time, 0
+
+    key = f"ratelimit:tpm:{org_id}:{api_key_id or 'all'}:{current_bucket}"
+    try:
+        current_val = client.get(key)
+        current_tokens = int(current_val) if current_val else 0
+        if current_tokens + estimated_tokens > limit:
+            return False, max(0, limit - current_tokens), reset_time, current_tokens
+        return True, max(0, limit - current_tokens), reset_time, current_tokens
+    except Exception as exc:
+        logger.debug("Token rate limit Redis check error: %s", exc)
+        return True, limit, reset_time, 0
+
+
+def record_token_usage(org_id, api_key_id, tokens_consumed):
+    """
+    Increments token consumption in the current 60s sliding window.
+    """
+    if not tokens_consumed or tokens_consumed <= 0:
+        return
+    client = get_redis_client()
+    if client is None:
+        return
+    now = int(time.time())
+    window = 60
+    current_bucket = now // window
+    key = f"ratelimit:tpm:{org_id}:{api_key_id or 'all'}:{current_bucket}"
+    try:
+        pipe = client.pipeline()
+        pipe.incrby(key, int(tokens_consumed))
+        pipe.expire(key, window + 10)
+        pipe.execute()
+    except Exception as exc:
+        logger.debug("Token rate limit Redis increment error: %s", exc)
+

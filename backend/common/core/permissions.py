@@ -128,6 +128,77 @@ class CanManageMembers(HasRole):
 class CanUseAI(HasRole):
     allowed_roles = ["owner", "admin", "member"]
 
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            if hasattr(key, "has_scope"):
+                return key.has_scope("rag:query") or key.has_scope("documents:write")
+            return getattr(key, "permissions", "") in ["write", "admin", "rag:query"]
+        return super().has_permission(request, view)
+
 
 class CanViewAI(HasRole):
     allowed_roles = ["owner", "admin", "member", "viewer"]
+
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            if hasattr(key, "has_scope"):
+                return key.has_scope("documents:read") or key.has_scope("rag:query")
+            return getattr(key, "permissions", "") in ["read", "write", "admin", "rag:query", "documents:read"]
+        return super().has_permission(request, view)
+
+
+class HasScope(permissions.BasePermission):
+    """
+    Checks that an APIKey request has the required granular scope,
+    or that an authenticated user has an allowed membership role.
+    """
+    required_scope = None
+    allowed_roles = ["owner", "admin", "member"]
+
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            if hasattr(key, "has_scope") and self.required_scope:
+                return key.has_scope(self.required_scope)
+            return getattr(key, "is_active", False)
+
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
+        org = getattr(request, "organization", None)
+        if not org and hasattr(user, "memberships"):
+            membership = user.memberships.filter(is_active=True, organization__is_active=True).first()
+            if membership:
+                org = membership.organization
+                request.organization = org
+        qs = user.memberships.filter(
+            role__in=self.allowed_roles,
+            is_active=True,
+            organization__is_active=True,
+        )
+        if org:
+            qs = qs.filter(organization=org)
+        return qs.exists()
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
+class CanQueryRAG(HasScope):
+    required_scope = "rag:query"
+    allowed_roles = ["owner", "admin", "member", "viewer"]
+
+
+class CanReadDocuments(HasScope):
+    required_scope = "documents:read"
+    allowed_roles = ["owner", "admin", "member", "viewer"]
+
+
+class CanWriteDocuments(HasScope):
+    required_scope = "documents:write"
+    allowed_roles = ["owner", "admin", "member"]
+

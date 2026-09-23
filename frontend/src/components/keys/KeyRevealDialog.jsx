@@ -20,22 +20,6 @@ export const KeyRevealDialog = ({ fullKey, keyName, onClose }) => {
     }
   };
 
-  const curlExample = `curl -X POST http://localhost:8000/api/ai/query/ \\
-  -H "Authorization: Bearer ${fullKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prompt": "Hello AI SaaS!"}'`;
-
-  const pythonExample = `import requests
-
-url = "http://localhost:8000/api/ai/query/"
-headers = {
-    "Authorization": "Bearer ${fullKey}",
-    "Content-Type": "application/json"
-}
-payload = {"prompt": "Hello AI SaaS!"}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())`;
 
   return (
     <Modal isOpen={true} onClose={onClose} title="API Key Generated" maxWidth="lg">
@@ -70,27 +54,6 @@ print(response.json())`;
               {copied ? <Check size={14} className="text-[#292929]" /> : <Copy size={14} />}
               <span>{copied ? 'Copied' : 'Copy Key'}</span>
             </Button>
-          </div>
-        </div>
-
-        {/* Integration Examples */}
-        <div className="space-y-3 pt-2">
-          <div>
-            <span className="text-xs font-mono font-semibold text-gray-600 block mb-1">
-              cURL Example:
-            </span>
-            <pre className="p-3 bg-[#292929] text-gray-200 rounded-xl text-[11px] font-mono overflow-x-auto selection:bg-[#b2c147] selection:text-[#292929]">
-              {curlExample}
-            </pre>
-          </div>
-
-          <div>
-            <span className="text-xs font-mono font-semibold text-gray-600 block mb-1">
-              Python Integration:
-            </span>
-            <pre className="p-3 bg-[#292929] text-gray-200 rounded-xl text-[11px] font-mono overflow-x-auto selection:bg-[#b2c147] selection:text-[#292929]">
-              {pythonExample}
-            </pre>
           </div>
         </div>
 

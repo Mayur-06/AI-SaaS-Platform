@@ -71,9 +71,11 @@ export const CreateKeyModal = ({
               <SelectValue placeholder="Select permissions" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="write">Write (Standard — Query AI endpoints & use RAG)</SelectItem>
-              <SelectItem value="read">Read Only (Telemetry and metadata inspection)</SelectItem>
-              <SelectItem value="admin">Admin (Full administrative credentials)</SelectItem>
+              <SelectItem value="write">Full Access (RAG Query &amp; Ingestion)</SelectItem>
+              <SelectItem value="rag:query">RAG Query Only (rag:query)</SelectItem>
+              <SelectItem value="documents:write">Ingestion Only (documents:write)</SelectItem>
+              <SelectItem value="documents:read">Documents Read Only (documents:read)</SelectItem>
+              <SelectItem value="admin">Admin Full Control (admin:*)</SelectItem>
             </SelectContent>
           </Select>
         </div>
