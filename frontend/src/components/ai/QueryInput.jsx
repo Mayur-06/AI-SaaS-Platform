@@ -33,6 +33,8 @@ export const QueryInput = ({
   quotaWarning,
   externalPrompt,
   onPromptLoaded,
+  conversationHistory = [],
+  onClearContext,
 }) => {
   const { role, organization } = useAuthStore();
   const isViewer = role === 'viewer';

@@ -1,12 +1,16 @@
 import { apiClient } from './api';
 
 export const aiService = {
-  async queryAI(prompt, model) {
-    const response = await apiClient.post('/ai/query/', {
+  async queryAI(prompt, model, conversationHistory = null) {
+    const payload = {
       prompt,
       question: prompt,
       model,
-    });
+    };
+    if (conversationHistory && conversationHistory.length > 0) {
+      payload.conversation_history = conversationHistory;
+    }
+    const response = await apiClient.post('/ai/query/', payload);
 
     // Extract headers
     const requestId = response.headers['x-request-id'] || response.data.request_id;

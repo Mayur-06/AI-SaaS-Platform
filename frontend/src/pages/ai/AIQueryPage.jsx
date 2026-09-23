@@ -29,6 +29,11 @@ export const AIQueryPage = () => {
   const [docCount, setDocCount] = useState(0);
   const [historyCount, setHistoryCount] = useState(0);
   const [mobileSection, setMobileSection] = useState('query');
+  const [conversationHistory, setConversationHistory] = useState([]);
+
+  const handleClearContext = () => {
+    setConversationHistory([]);
+  };
 
   const handleRunQuery = async (prompt, model) => {
     setQueryStatus('loading');
@@ -40,12 +45,13 @@ export const AIQueryPage = () => {
     setMobileSection('query');
 
     try {
-      const data = await aiService.queryAI(prompt, model);
+      const data = await aiService.queryAI(prompt, model, conversationHistory);
+      const answerText = data.response || data.answer || '';
       const formattedResult = {
         ...data,
         query: prompt,
-        response: data.response || data.answer,
-        answer: data.response || data.answer,
+        response: answerText,
+        answer: answerText,
         model_used: data.model_used || data.model,
         tokens: data.tokens || {
           prompt_tokens: data.input_tokens || 0,
@@ -56,6 +62,12 @@ export const AIQueryPage = () => {
       };
 
       setResponseResult(formattedResult);
+      if (answerText) {
+        setConversationHistory((prev) => [
+          ...prev,
+          { question: prompt, answer: answerText },
+        ]);
+      }
       setQueryStatus('success');
 
       if (data.usage_warning) {
@@ -207,6 +219,8 @@ export const AIQueryPage = () => {
             quotaWarning={quotaWarning}
             externalPrompt={promptToLoad}
             onPromptLoaded={() => setPromptToLoad('')}
+            conversationHistory={conversationHistory}
+            onClearContext={handleClearContext}
           />
 
           {/* 2. Response Card (with telemetry badges & cited chunks) */}
