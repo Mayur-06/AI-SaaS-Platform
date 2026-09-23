@@ -24,7 +24,8 @@ class RAGPipeline:
 
         retrieved_chunks = self.document_store.search(
             query_embedding,
-            top_k=3,
+            query_text=question,
+            top_k=8,
         )
 
         context = "\n\n".join(

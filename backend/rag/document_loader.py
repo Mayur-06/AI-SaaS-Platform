@@ -95,37 +95,33 @@ class DocumentLoader:
         return text.strip()
 
     def remove_headers_footers(self, pages):
+        if len(pages) < 3:
+            return pages
 
         line_counter = Counter()
-
         for page in pages:
-
             lines = [line.strip() for line in page.split("\n") if line.strip()]
-
-            # First 5 lines
             for line in lines[:5]:
                 line_counter[line] += 1
-
-            # Last 5 lines
             for line in lines[-5:]:
                 line_counter[line] += 1
 
         repeated = {
             line
             for line, count in line_counter.items()
-            if count > len(pages) // 2
+            if count >= 3 and count > (len(pages) * 0.6) and len(line) < 120
         }
 
+        if not repeated:
+            return pages
+
         cleaned_pages = []
-
         for page in pages:
-
             lines = [
                 line
                 for line in page.split("\n")
                 if line.strip() not in repeated
             ]
-
             cleaned_pages.append("\n".join(lines))
 
         return cleaned_pages

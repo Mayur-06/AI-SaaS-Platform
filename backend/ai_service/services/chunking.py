@@ -6,7 +6,7 @@ from rag.textchunker import TextChunker
 logger = logging.getLogger(__name__)
 
 
-def extract_and_chunk(file_bytes: bytes, filename: str, chunk_size: int = 500, chunk_overlap: int = 75) -> List[str]:
+def extract_and_chunk(file_bytes: bytes, filename: str, chunk_size: int = 1000, chunk_overlap: int = 150) -> List[str]:
     import os
     import tempfile
     suffix = os.path.splitext(filename)[1]

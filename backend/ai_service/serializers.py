@@ -66,7 +66,8 @@ class AIQueryRequestSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=10000, required=False)
     prompt = serializers.CharField(max_length=10000, required=False)
     model = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    top_k = serializers.IntegerField(min_value=1, max_value=10, default=3)
+    top_k = serializers.IntegerField(min_value=1, max_value=20, default=8)
+    document_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs):
         q = attrs.get("question") or attrs.get("prompt")

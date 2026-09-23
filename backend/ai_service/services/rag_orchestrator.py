@@ -38,8 +38,12 @@ class RAGOrchestrator:
     def _build_prompt(self, question: str, chunks: List[Dict]) -> tuple:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
-            doc_name = chunk.get("doc_title") or chunk.get("doc_id", "unknown")
-            context_parts.append(f"[Document {i}] (source={doc_name})\n{chunk['text']}")
+            doc_name = chunk.get("doc_title") or chunk.get("doc_id", "Document")
+            chunk_idx = chunk.get("chunk_index", i - 1)
+            score_info = f" (relevance: {chunk['score']:.2f})" if "score" in chunk else ""
+            context_parts.append(
+                f"[Source {i}: {doc_name} | Section {chunk_idx + 1}{score_info}]\n{chunk['text']}"
+            )
         context = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
 
         system_prompt = """You are an expert AI assistant providing clear, precise, and well-structured answers based on uploaded knowledge base documents.
@@ -51,6 +55,7 @@ Formatting & Markdown Instructions:
 - Use **bold** text for key concepts, critical rules, metrics, or terms to emphasize important details.
 - Use inline code (`code`) for technical names, parameters, commands, or identifiers, and fenced code blocks (```language ... ```) for code snippets or structured configurations.
 - When referencing specific facts from the uploaded context documents, cite the source document name naturally (e.g. `*Source: [filename]*`).
+- Synthesize information across all relevant provided sections and documents to give a thorough, comprehensive answer.
 - If the question cannot be answered from the provided documents, state so clearly and concisely without hallucinating.
 - Keep the response organized, readable, and direct without unnecessary filler."""
 
@@ -60,7 +65,13 @@ Formatting & Markdown Instructions:
 Question: {question}"""
         return system_prompt, user_prompt
 
-    def _run_query_async(self, question: str, target_model: Optional[str] = None) -> Dict[str, Any]:
+    def _run_query_async(
+        self,
+        question: str,
+        target_model: Optional[str] = None,
+        top_k: int = 8,
+        target_doc_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         query_embedding = None
         if self.embedder is not None:
             try:
@@ -116,7 +127,16 @@ Question: {question}"""
                     "request_id": request_id,
                 }
 
-        chunks = self.document_store.search(query_embedding, top_k=3) if query_embedding is not None else []
+        chunks = (
+            self.document_store.search(
+                query_embedding=query_embedding,
+                query_text=question,
+                top_k=top_k,
+                target_doc_id=target_doc_id,
+            )
+            if (query_embedding is not None or question)
+            else []
+        )
         system_prompt, user_prompt = self._build_prompt(question, chunks)
 
         llm_client = LLMClient(self.organization)
@@ -192,8 +212,16 @@ Question: {question}"""
             "cited_chunks": cited_chunks,
         }
 
-    def query(self, question: str, model: Optional[str] = None) -> Dict[str, Any]:
-        try:
-            return self._run_query_async(question, target_model=model)
-        except RuntimeError:
-            return self._run_query_async(question, target_model=model)
+    def query(
+        self,
+        question: str,
+        model: Optional[str] = None,
+        top_k: int = 8,
+        target_doc_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return self._run_query_async(
+            question,
+            target_model=model,
+            top_k=top_k,
+            target_doc_id=target_doc_id,
+        )

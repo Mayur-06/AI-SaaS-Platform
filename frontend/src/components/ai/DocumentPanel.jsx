@@ -254,7 +254,7 @@ export const DocumentPanel = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-gray-500">
           <span>Previously Uploaded ({documents.length})</span>
-          <span>RAG Grounding Status</span>
+          {/* <span>RAG Grounding Status</span> */}
         </div>
 
         {documents.length === 0 ? (
