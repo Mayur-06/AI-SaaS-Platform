@@ -85,7 +85,10 @@ class ModelRouter:
     def get_route(self) -> Dict[str, Any]:
         if not self.organization or not getattr(self.organization, "plan", None):
             primary = self.configs.filter(provider="gemini").first() or self.configs.first()
-            gemini_fallback = self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None)).first()
+            gemini_fallback = (
+                self.configs.filter(provider="gemini").exclude(id=getattr(primary, "id", None)).first()
+                or self.configs.exclude(id=getattr(primary, "id", None)).first()
+            )
             return {
                 "primary": primary,
                 "fallbacks": [gemini_fallback] if gemini_fallback else [],

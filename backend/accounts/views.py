@@ -190,15 +190,23 @@ class OrganizationView(APIView):
         membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
         if not membership:
             return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
-        perform_delete_organization(membership.organization)
+        perform_delete_organization(membership.organization, deleting_user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-def perform_delete_organization(org):
+def perform_delete_organization(org, deleting_user=None):
     from billing.models import APIKey, UsageLog, UsageAggregate, Invoice
     from ai_service.models import CacheEntry, Document, DocumentChunk, AIQuery
+    from accounts.models import User, Membership
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
     from middleware.redis_utils import get_redis_client
     from django.core.files.storage import default_storage
+
+    r = None
+    try:
+        r = get_redis_client()
+    except Exception as exc:
+        logger.debug("Failed getting redis client: %s", exc)
 
     # 1. Clean up stored document files on disk/storage
     try:
@@ -227,7 +235,6 @@ def perform_delete_organization(org):
 
     # 6. Flush Redis cache keys for this tenant if available
     try:
-        r = get_redis_client()
         if r:
             keys = r.keys(f"semcache:{org.id}:*")
             if keys:
@@ -249,10 +256,49 @@ def perform_delete_organization(org):
     # 9. Delete pending invitations
     org.invitations.all().delete()
 
-    # 10. Delete memberships
+    # 10. Identify all users associated with this organization to purge credentials
+    memberships = list(Membership.objects.filter(organization=org).select_related("user"))
+    users_to_delete = set()
+    for m in memberships:
+        if m.user:
+            other_active = Membership.objects.filter(
+                user=m.user,
+                is_active=True,
+            ).exclude(organization=org).exists()
+            if not other_active and not m.user.is_superuser:
+                users_to_delete.add(m.user)
+
+    if deleting_user and not deleting_user.is_superuser:
+        other_active = Membership.objects.filter(
+            user=deleting_user,
+            is_active=True,
+        ).exclude(organization=org).exists()
+        if not other_active:
+            users_to_delete.add(deleting_user)
+
+    # 11. Delete all memberships for this organization
     org.memberships.all().delete()
 
-    # 11. Full record delete of the organization itself
+    # 12. Purge outstanding tokens, Redis keys, and user records for all associated users
+    for u in users_to_delete:
+        try:
+            OutstandingToken.objects.filter(user=u).delete()
+        except Exception as tok_err:
+            logger.debug("Failed deleting outstanding tokens for user %s: %s", u.id, tok_err)
+        try:
+            if r:
+                u_keys = r.keys(f"*{u.id}*")
+                if u_keys:
+                    r.delete(*u_keys)
+        except Exception as r_err:
+            logger.debug("Failed flushing redis for user %s: %s", u.id, r_err)
+        try:
+            logger.info("Permanently deleting user %s (%s) upon org delete", u.id, u.email)
+            u.delete()
+        except Exception as u_err:
+            logger.warning("Failed to delete user %s: %s", u.id, u_err)
+
+    # 13. Full record delete of the organization itself
     org.delete()
 
 
@@ -320,7 +366,7 @@ class OrganizationDeleteView(APIView):
         membership = request.user.memberships.filter(is_active=True, organization__is_active=True, role="owner").first()
         if not membership:
             return Response({"detail": "You are not the owner."}, status=status.HTTP_403_FORBIDDEN)
-        perform_delete_organization(membership.organization)
+        perform_delete_organization(membership.organization, deleting_user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

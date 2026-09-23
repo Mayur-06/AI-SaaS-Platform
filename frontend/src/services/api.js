@@ -62,6 +62,26 @@ export const clearAuthTokens = () => {
   sessionStorage.removeItem(ORG_INFO_KEY);
 };
 
+export const purgeAllCredentials = () => {
+  clearAuthTokens();
+  try {
+    localStorage.removeItem(REMEMBER_ME_KEY);
+    localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    localStorage.removeItem('ai_saas_org');
+    localStorage.clear();
+  } catch (e) {
+    console.error('Failed to clear localStorage:', e);
+  }
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    console.error('Failed to clear sessionStorage:', e);
+  }
+  if (apiClient.defaults.headers && apiClient.defaults.headers.common) {
+    delete apiClient.defaults.headers.common['Authorization'];
+  }
+};
+
 // Request Interceptor: Inject Bearer Token
 apiClient.interceptors.request.use(
   (config) => {
