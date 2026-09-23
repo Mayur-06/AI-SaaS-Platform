@@ -19,6 +19,14 @@ import {
   DropdownMenuSeparator,
 } from '../ui/DropdownMenu';
 
+const getBadgeVariant = (perm) => {
+  if (perm === 'admin' || perm === 'admin:*') return 'purple';
+  if (perm === 'write') return 'green';
+  if (perm === 'rag:query') return 'blue';
+  if (perm === 'documents:write') return 'orange';
+  return 'gray';
+};
+
 export const KeyList = ({
   keys,
   onRevoke,
@@ -151,17 +159,19 @@ export const KeyList = ({
               <div className="flex items-center gap-1.5">
                 {editingId === k.id ? (
                   <Select value={editPerm} onValueChange={setEditPerm}>
-                    <SelectTrigger className="h-7 text-xs w-24">
+                    <SelectTrigger className="h-7 text-xs w-28">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="write">write</SelectItem>
-                      <SelectItem value="read">read</SelectItem>
+                      <SelectItem value="rag:query">rag:query</SelectItem>
+                      <SelectItem value="documents:write">documents:write</SelectItem>
+                      <SelectItem value="documents:read">documents:read</SelectItem>
                       <SelectItem value="admin">admin</SelectItem>
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Badge variant={k.permissions === 'admin' ? 'purple' : 'gray'}>
+                  <Badge variant={getBadgeVariant(k.permissions)}>
                     {k.permissions}
                   </Badge>
                 )}
@@ -234,12 +244,14 @@ export const KeyList = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="write">write</SelectItem>
-                        <SelectItem value="read">read</SelectItem>
+                        <SelectItem value="rag:query">rag:query</SelectItem>
+                        <SelectItem value="documents:write">documents:write</SelectItem>
+                        <SelectItem value="documents:read">documents:read</SelectItem>
                         <SelectItem value="admin">admin</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge variant={k.permissions === 'admin' ? 'purple' : 'gray'}>
+                    <Badge variant={getBadgeVariant(k.permissions)}>
                       {k.permissions}
                     </Badge>
                   )}

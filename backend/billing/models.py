@@ -42,10 +42,19 @@ class APIKey(models.Model):
     PERMISSION_READ = "read"
     PERMISSION_WRITE = "write"
     PERMISSION_ADMIN = "admin"
+    SCOPE_RAG_QUERY = "rag:query"
+    SCOPE_DOCUMENTS_READ = "documents:read"
+    SCOPE_DOCUMENTS_WRITE = "documents:write"
+    SCOPE_ADMIN = "admin:*"
+
     PERMISSION_CHOICES = [
-        (PERMISSION_READ, "Read"),
-        (PERMISSION_WRITE, "Write"),
-        (PERMISSION_ADMIN, "Admin"),
+        (PERMISSION_WRITE, "Full Access (Read/Write/Query)"),
+        (SCOPE_RAG_QUERY, "RAG Query Only (rag:query)"),
+        (SCOPE_DOCUMENTS_WRITE, "Documents Write Only (documents:write)"),
+        (SCOPE_DOCUMENTS_READ, "Documents Read Only (documents:read)"),
+        (PERMISSION_READ, "Read Only (Legacy)"),
+        (PERMISSION_ADMIN, "Admin (Legacy)"),
+        (SCOPE_ADMIN, "Admin Full Control (admin:*)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -53,7 +62,7 @@ class APIKey(models.Model):
     name = models.CharField(max_length=255)
     key_prefix = models.CharField(max_length=16, editable=False)
     key_hash = models.CharField(max_length=255, editable=False)
-    permissions = models.CharField(max_length=20, choices=PERMISSION_CHOICES, default=PERMISSION_WRITE)
+    permissions = models.CharField(max_length=50, choices=PERMISSION_CHOICES, default=PERMISSION_WRITE)
     rate_limit_override = models.IntegerField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -109,6 +118,26 @@ class APIKey(models.Model):
             rate_limit_override=self.rate_limit_override,
         )
         return new_key, getattr(new_key, "_raw_key", None)
+
+    def has_scope(self, required_scope: str) -> bool:
+        if not self.is_active:
+            return False
+        # Full admin grants all scopes
+        if self.permissions in [self.PERMISSION_ADMIN, self.SCOPE_ADMIN]:
+            return True
+        # Full write grants RAG query and document read/write
+        if self.permissions == self.PERMISSION_WRITE:
+            return required_scope in [self.SCOPE_RAG_QUERY, self.SCOPE_DOCUMENTS_READ, self.SCOPE_DOCUMENTS_WRITE]
+        # rag:query or legacy read grants RAG query and document read
+        if self.permissions in [self.PERMISSION_READ, self.SCOPE_RAG_QUERY]:
+            return required_scope in [self.SCOPE_RAG_QUERY, self.SCOPE_DOCUMENTS_READ]
+        # documents:write grants document write and document read
+        if self.permissions == self.SCOPE_DOCUMENTS_WRITE:
+            return required_scope in [self.SCOPE_DOCUMENTS_WRITE, self.SCOPE_DOCUMENTS_READ]
+        # documents:read grants document reading
+        if self.permissions == self.SCOPE_DOCUMENTS_READ:
+            return required_scope in [self.SCOPE_DOCUMENTS_READ]
+        return self.permissions == required_scope
 
     def __str__(self):
         return f"{self.name} ({self.key_prefix}...)"

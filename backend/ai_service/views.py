@@ -20,6 +20,7 @@ from ai_service.services.document_store import DjangoDocumentStore
 from ai_service.services.usage_tracker import log_usage
 from common.core.permissions import (
     IsAuthenticatedAndActive, IsAdminOrOwner, CanUseAI, CanViewAI, IsSuperAdmin,
+    CanQueryRAG, CanReadDocuments, CanWriteDocuments,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,8 +53,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
-            return [IsAuthenticatedAndActive(), CanViewAI()]
-        return [IsAuthenticatedAndActive(), CanUseAI()]
+            return [IsAuthenticatedAndActive(), CanReadDocuments()]
+        return [IsAuthenticatedAndActive(), CanWriteDocuments()]
 
     def _get_org(self):
         return get_request_org(self.request)
@@ -103,6 +104,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 if chunks:
                     store = DjangoDocumentStore(org)
                     store.add_document(str(instance.id), chunks)
+                    approx_tokens = int(sum(len(c.split()) for c in chunks) * 1.33)
+                    log_usage(
+                        organization=org,
+                        endpoint="/api/ai/documents/upload/",
+                        model_used="embedding:all-MiniLM-L6-v2",
+                        input_tokens=approx_tokens,
+                        output_tokens=0,
+                        latency_ms=0,
+                        estimated_cost=round(approx_tokens * 0.00000002, 6),
+                        cache_hit=False,
+                        request_id=getattr(self.request, "request_id", None),
+                        user=self.request.user if getattr(self.request, "user", None) and self.request.user.is_authenticated else None,
+                        api_key=getattr(self.request, "api_key", None),
+                    )
         except Exception as exc:
             logger.warning("Auto-processing document %s failed: %s", instance.id, exc)
 
@@ -141,6 +156,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
         chunks = extract_and_chunk(file_bytes, document.filename)
         store = DjangoDocumentStore(document.organization)
         count = store.add_document(str(document.id), chunks)
+        approx_tokens = int(sum(len(c.split()) for c in chunks) * 1.33)
+        log_usage(
+            organization=document.organization,
+            endpoint="/api/ai/documents/process/",
+            model_used="embedding:all-MiniLM-L6-v2",
+            input_tokens=approx_tokens,
+            output_tokens=0,
+            latency_ms=0,
+            estimated_cost=round(approx_tokens * 0.00000002, 6),
+            cache_hit=False,
+            request_id=getattr(request, "request_id", None),
+            user=request.user if getattr(request, "user", None) and request.user.is_authenticated else None,
+            api_key=getattr(request, "api_key", None),
+        )
         return Response({"detail": f"Processed {count} chunks.", "chunks_count": count})
 
     @action(detail=True, methods=["post"])
@@ -153,7 +182,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
 
 class AIQueryView(APIView):
-    permission_classes = [IsAuthenticatedAndActive, CanUseAI]
+    permission_classes = [IsAuthenticatedAndActive, CanQueryRAG]
 
     @extend_schema(request=AIQueryRequestSerializer, responses=AIQueryResponseSerializer)
     def post(self, request):
