@@ -89,6 +89,46 @@ class TestScopePermissions:
         assert can_read_doc.has_permission(req_query, None) is True
         assert can_read_doc.has_permission(req_doc, None) is True
 
+    def test_org_and_billing_gating_for_api_keys(self, db):
+        from common.core.permissions import CanAccessOrg, CanAccessMembers, CanAccessBilling, IsAdminOrOwner
+
+        plan = Plan.objects.create(name="Pro", monthly_request_limit=1000, price=29)
+        org = Organization.objects.create(name="GateOrg", plan=plan)
+
+        query_key = APIKey.objects.create(organization=org, name="QueryKey", permissions="rag:query")
+        doc_write_key = APIKey.objects.create(organization=org, name="DocKey", permissions="documents:write")
+        doc_read_key = APIKey.objects.create(organization=org, name="DocReadKey", permissions="documents:read")
+        write_key = APIKey.objects.create(organization=org, name="WriteKey", permissions="write")
+        admin_key = APIKey.objects.create(organization=org, name="AdminKey", permissions="admin")
+        admin_wildcard_key = APIKey.objects.create(organization=org, name="AdminWildcardKey", permissions="admin:*")
+
+        perm_org = CanAccessOrg()
+        perm_members = CanAccessMembers()
+        perm_billing = CanAccessBilling()
+        perm_admin = IsAdminOrOwner()
+
+        def make_req(k):
+            r = MagicMock()
+            r.api_key = k
+            r.organization = org
+            return r
+
+        # Non-admin keys MUST NOT have access to org, members, or billing data
+        for k in [query_key, doc_write_key, doc_read_key, write_key]:
+            req = make_req(k)
+            assert perm_org.has_permission(req, None) is False, f"Key {k.permissions} should not access org info"
+            assert perm_members.has_permission(req, None) is False, f"Key {k.permissions} should not access members"
+            assert perm_billing.has_permission(req, None) is False, f"Key {k.permissions} should not access billing"
+            assert perm_admin.has_permission(req, None) is False, f"Key {k.permissions} should not have admin role"
+
+        # Admin keys MUST have access to org, members, and billing data
+        for k in [admin_key, admin_wildcard_key]:
+            req = make_req(k)
+            assert perm_org.has_permission(req, None) is True, f"Admin key {k.permissions} should access org info"
+            assert perm_members.has_permission(req, None) is True, f"Admin key {k.permissions} should access members"
+            assert perm_billing.has_permission(req, None) is True, f"Admin key {k.permissions} should access billing"
+            assert perm_admin.has_permission(req, None) is True, f"Admin key {k.permissions} should have admin role"
+
 
 class TestTokenRateLimiting:
     def test_tpm_accumulation_and_limit(self):
@@ -164,3 +204,161 @@ class TestMeteredAttribution:
         assert by_key["PipelineKey"]["input_tokens"] == 1500
         assert "ChatbotKey" in by_key
         assert by_key["ChatbotKey"]["total_tokens"] == 600
+
+
+@pytest.mark.django_db
+class TestEndpointsWithScopedKeys:
+    def test_endpoint_responses_by_scope(self, db):
+        from rest_framework.test import APIClient
+        from accounts.models import User, Membership
+        plan = Plan.objects.create(name="Pro", monthly_request_limit=1000, price=29)
+        org = Organization.objects.create(name="E2EOrg", plan=plan)
+        user = User.objects.create_user(email="owner@test.com", password="password123", is_verified=True)
+        Membership.objects.create(organization=org, user=user, role="owner", is_active=True)
+
+        query_key = APIKey.objects.create(organization=org, name="QueryKey", permissions="rag:query")
+        raw_query_key = getattr(query_key, "_raw_key")
+
+        admin_key = APIKey.objects.create(organization=org, name="AdminKey", permissions="admin")
+        raw_admin_key = getattr(admin_key, "_raw_key")
+
+        client = APIClient()
+
+        with patch("middleware.redis_utils.check_rate_limit", return_value=(True, 100, 100)):
+            # 1. Query Key:
+            # Org endpoints should return 403 Forbidden
+            res = client.get("/api/org/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            res = client.get("/api/org/members/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            # Billing endpoints should return 403 Forbidden
+            res = client.get("/api/billing/usage/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            res = client.get("/api/billing/plan/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            res = client.get("/api/keys/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            # AI documents read should return 200 OK
+            res = client.get("/api/ai/documents/", HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 200
+
+            # AI documents write should return 403 Forbidden
+            res = client.post("/api/ai/documents/", {"title": "Test Doc"}, HTTP_AUTHORIZATION=f"Bearer {raw_query_key}")
+            assert res.status_code == 403
+
+            # 2. Document Write Key:
+            doc_write_key = APIKey.objects.create(organization=org, name="DocWriteKey", permissions="documents:write")
+            raw_doc_write_key = getattr(doc_write_key, "_raw_key")
+
+            # Document upload should succeed (201 Created)
+            res = client.post("/api/ai/documents/", {"title": "Ingested Doc"}, HTTP_AUTHORIZATION=f"Bearer {raw_doc_write_key}")
+            assert res.status_code == 201
+
+            # Document read should succeed (200 OK)
+            res = client.get("/api/ai/documents/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_write_key}")
+            assert res.status_code == 200
+
+            # Org & billing access must be forbidden (403 Forbidden)
+            res = client.get("/api/org/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/billing/usage/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/keys/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_write_key}")
+            assert res.status_code == 403
+
+            # 3. Document Read Key:
+            doc_read_key = APIKey.objects.create(organization=org, name="DocReadKey", permissions="documents:read")
+            raw_doc_read_key = getattr(doc_read_key, "_raw_key")
+
+            # Document read should succeed (200 OK)
+            res = client.get("/api/ai/documents/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_read_key}")
+            assert res.status_code == 200
+
+            # Document upload must be forbidden (403 Forbidden)
+            res = client.post("/api/ai/documents/", {"title": "Blocked Doc"}, HTTP_AUTHORIZATION=f"Bearer {raw_doc_read_key}")
+            assert res.status_code == 403
+
+            # Org & billing access must be forbidden (403 Forbidden)
+            res = client.get("/api/org/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_read_key}")
+            assert res.status_code == 403
+            res = client.get("/api/billing/usage/", HTTP_AUTHORIZATION=f"Bearer {raw_doc_read_key}")
+            assert res.status_code == 403
+
+            # 4. Full Access Write Key (write):
+            write_key = APIKey.objects.create(organization=org, name="WriteKey", permissions="write")
+            raw_write_key = getattr(write_key, "_raw_key")
+
+            # AI operations should succeed
+            res = client.get("/api/ai/documents/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 200
+            res = client.post("/api/ai/documents/", {"title": "Write Key Doc"}, HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 201
+
+            # Gated org & billing data must be forbidden (403 Forbidden)
+            res = client.get("/api/org/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/org/members/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/billing/usage/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/billing/plan/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 403
+            res = client.get("/api/keys/", HTTP_AUTHORIZATION=f"Bearer {raw_write_key}")
+            assert res.status_code == 403
+
+            # 5. Admin Key (admin & admin:*):
+            # Org endpoints should return 200 OK
+            res = client.get("/api/org/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+            assert res.data["name"] == "E2EOrg"
+
+            res = client.get("/api/org/members/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+
+            # Billing endpoints should return 200 OK
+            res = client.get("/api/billing/usage/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+
+            res = client.get("/api/billing/plan/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+
+            res = client.get("/api/keys/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+
+            # AI endpoints should also work for admin
+            res = client.get("/api/ai/documents/", HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 200
+            res = client.post("/api/ai/documents/", {"title": "Admin Doc"}, HTTP_AUTHORIZATION=f"Bearer {raw_admin_key}")
+            assert res.status_code == 201
+
+            # 6. Human User Web Session:
+            # Owner session
+            client.force_authenticate(user=user)
+            res = client.get("/api/org/")
+            assert res.status_code == 200
+            res = client.get("/api/org/members/")
+            assert res.status_code == 200
+            res = client.get("/api/billing/usage/")
+            assert res.status_code == 200
+            res = client.get("/api/keys/")
+            assert res.status_code == 200
+
+            # Member user session
+            member_user = User.objects.create_user(email="member@test.com", password="password123", is_verified=True)
+            Membership.objects.create(organization=org, user=member_user, role="member", is_active=True)
+            client.force_authenticate(user=member_user)
+
+            res = client.get("/api/org/")
+            assert res.status_code == 200
+            res = client.get("/api/org/members/")
+            assert res.status_code == 200
+            res = client.get("/api/billing/usage/")
+            assert res.status_code == 200
+            # Regular members cannot manage API keys
+            res = client.get("/api/keys/")
+            assert res.status_code == 403

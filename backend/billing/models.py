@@ -48,13 +48,13 @@ class APIKey(models.Model):
     SCOPE_ADMIN = "admin:*"
 
     PERMISSION_CHOICES = [
-        (PERMISSION_WRITE, "Full Access (Read/Write/Query)"),
+        (PERMISSION_WRITE, "Full Access (RAG Query & Ingestion)"),
         (SCOPE_RAG_QUERY, "RAG Query Only (rag:query)"),
         (SCOPE_DOCUMENTS_WRITE, "Documents Write Only (documents:write)"),
         (SCOPE_DOCUMENTS_READ, "Documents Read Only (documents:read)"),
+        (PERMISSION_ADMIN, "Organization Management & Info (admin)"),
+        (SCOPE_ADMIN, "Organization Management & Info (admin:*)"),
         (PERMISSION_READ, "Read Only (Legacy)"),
-        (PERMISSION_ADMIN, "Admin (Legacy)"),
-        (SCOPE_ADMIN, "Admin Full Control (admin:*)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -122,10 +122,10 @@ class APIKey(models.Model):
     def has_scope(self, required_scope: str) -> bool:
         if not self.is_active:
             return False
-        # Full admin grants all scopes
-        if self.permissions in [self.PERMISSION_ADMIN, self.SCOPE_ADMIN]:
+        # Full admin / org admin grants all tenant scopes
+        if self.permissions in [self.PERMISSION_ADMIN, self.SCOPE_ADMIN, "org:admin"]:
             return True
-        # Full write grants RAG query and document read/write
+        # Full write grants RAG query and document read/write (AI service operations)
         if self.permissions == self.PERMISSION_WRITE:
             return required_scope in [self.SCOPE_RAG_QUERY, self.SCOPE_DOCUMENTS_READ, self.SCOPE_DOCUMENTS_WRITE]
         # rag:query or legacy read grants RAG query and document read

@@ -75,7 +75,7 @@ export const CreateKeyModal = ({
               <SelectItem value="rag:query">RAG Query Only (rag:query)</SelectItem>
               <SelectItem value="documents:write">Ingestion Only (documents:write)</SelectItem>
               <SelectItem value="documents:read">Documents Read Only (documents:read)</SelectItem>
-              <SelectItem value="admin">Admin Full Control (admin:*)</SelectItem>
+              <SelectItem value="admin">Organization Management &amp; Info (admin)</SelectItem>
             </SelectContent>
           </Select>
         </div>
