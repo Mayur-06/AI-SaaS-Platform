@@ -21,7 +21,7 @@ from accounts.serializers import (
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from common.core.permissions import (
     IsAuthenticatedAndActive, IsOrgOwner, IsAdminOrOwner, CanManageMembers,
-    IsOwner, CanUseAI, HasRole, IsOwnerOrReadOnly,
+    IsOwner, CanUseAI, HasRole, IsOwnerOrReadOnly, CanAccessOrg, CanAccessMembers,
 )
 from common.core.exceptions import api_exception_handler
 import secrets
@@ -157,24 +157,41 @@ class AuthVerifyView(APIView):
 
 
 class OrganizationView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, CanAccessOrg]
 
     def get(self, request):
-        membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
-        if not membership:
+        org = getattr(request, "organization", None)
+        role = "admin"
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
+            if membership:
+                org = membership.organization
+                role = membership.role
+        elif getattr(request, "api_key", None):
+            org = request.api_key.organization
+            role = "admin"
+        if not org:
             return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = OrganizationSerializer(membership.organization)
+        serializer = OrganizationSerializer(org)
         data = dict(serializer.data)
-        data["role"] = membership.role
+        data["role"] = role
         return Response(data)
 
     @extend_schema(request=OrganizationSerializer, responses=OrganizationSerializer)
     def put(self, request):
-        membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
-        if not membership:
+        org = getattr(request, "organization", None)
+        role = "admin"
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            membership = request.user.memberships.filter(is_active=True, organization__is_active=True).first()
+            if membership:
+                org = membership.organization
+                role = membership.role
+        elif getattr(request, "api_key", None):
+            org = request.api_key.organization
+            role = "admin"
+        if not org:
             return Response({"detail": "No active organization membership."}, status=status.HTTP_404_NOT_FOUND)
-        org = membership.organization
-        if membership.role not in ["owner", "admin"]:
+        if role not in ["owner", "admin"]:
             return Response({"detail": "Insufficient permissions."}, status=status.HTTP_403_FORBIDDEN)
         serializer = OrganizationSerializer(org, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -389,7 +406,7 @@ class MemberViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
-            return [IsAuthenticatedAndActive()]
+            return [IsAuthenticatedAndActive(), CanAccessMembers()]
         if self.action in ["update", "partial_update", "create"]:
             return [IsAuthenticatedAndActive(), CanManageMembers()]
         return [IsAuthenticatedAndActive(), CanManageMembers()]

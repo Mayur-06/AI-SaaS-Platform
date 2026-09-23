@@ -18,17 +18,19 @@ class IsAuthenticatedAndActive(permissions.IsAuthenticated):
         return True
 
 
+ADMIN_API_PERMISSIONS = {"admin", "admin:*", "org:admin"}
+
+
 class HasRole(permissions.BasePermission):
     allowed_roles = []
 
     def has_permission(self, request, view):
         if getattr(request, "api_key", None):
-            key_perm = getattr(request.api_key, "permissions", "write")
-            if "viewer" in self.allowed_roles:
-                return key_perm in ["read", "write", "admin"]
-            if "member" in self.allowed_roles:
-                return key_perm in ["write", "admin"]
-            return key_perm == "admin"
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            if key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin")):
+                return True
+            return False
 
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
@@ -68,10 +70,9 @@ class IsOwnerOrReadOnly(HasRole):
 
     def has_permission(self, request, view):
         if getattr(request, "api_key", None):
-            key_perm = getattr(request.api_key, "permissions", "write")
-            if request.method in permissions.SAFE_METHODS:
-                return key_perm in ["read", "write", "admin"]
-            return key_perm == "admin"
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
         if request.method in permissions.SAFE_METHODS:
             user = getattr(request, "user", None)
             if not user or not user.is_authenticated:
@@ -102,7 +103,9 @@ class IsSuperAdmin(permissions.BasePermission):
 class IsOrgOwner(permissions.BasePermission):
     def has_permission(self, request, view):
         if getattr(request, "api_key", None):
-            return getattr(request.api_key, "permissions", None) == "admin"
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
@@ -133,7 +136,7 @@ class CanUseAI(HasRole):
             key = request.api_key
             if hasattr(key, "has_scope"):
                 return key.has_scope("rag:query") or key.has_scope("documents:write")
-            return getattr(key, "permissions", "") in ["write", "admin", "rag:query"]
+            return getattr(key, "permissions", "") in ["write", "admin", "admin:*", "org:admin", "rag:query"]
         return super().has_permission(request, view)
 
 
@@ -145,8 +148,65 @@ class CanViewAI(HasRole):
             key = request.api_key
             if hasattr(key, "has_scope"):
                 return key.has_scope("documents:read") or key.has_scope("rag:query")
-            return getattr(key, "permissions", "") in ["read", "write", "admin", "rag:query", "documents:read"]
+            return getattr(key, "permissions", "") in ["read", "write", "admin", "admin:*", "org:admin", "rag:query", "documents:read"]
         return super().has_permission(request, view)
+
+
+class CanAccessOrg(permissions.BasePermission):
+    """
+    Permits viewing and updating organization details.
+    - User sessions: active organization members.
+    - API keys: requires organization admin scope ('admin', 'admin:*', 'org:admin').
+    """
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
+        return user.memberships.filter(is_active=True, organization__is_active=True).exists()
+
+
+class CanAccessMembers(permissions.BasePermission):
+    """
+    Permits viewing organization member lists.
+    - User sessions: active organization members.
+    - API keys: requires organization admin scope ('admin', 'admin:*', 'org:admin').
+    """
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
+        return user.memberships.filter(is_active=True, organization__is_active=True).exists()
+
+
+class CanAccessBilling(permissions.BasePermission):
+    """
+    Permits viewing billing information, plan tiers, and usage logs.
+    - User sessions: active organization members.
+    - API keys: requires organization admin scope ('admin', 'admin:*', 'org:admin').
+    """
+    def has_permission(self, request, view):
+        if getattr(request, "api_key", None):
+            key = request.api_key
+            key_perm = getattr(key, "permissions", "")
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return True
+        return user.memberships.filter(is_active=True, organization__is_active=True).exists()
 
 
 class HasScope(permissions.BasePermission):
@@ -162,7 +222,9 @@ class HasScope(permissions.BasePermission):
             key = request.api_key
             if hasattr(key, "has_scope") and self.required_scope:
                 return key.has_scope(self.required_scope)
-            return getattr(key, "is_active", False)
+            if self.required_scope:
+                return getattr(key, "permissions", "") in [self.required_scope, *ADMIN_API_PERMISSIONS]
+            return getattr(key, "permissions", "") in ADMIN_API_PERMISSIONS
 
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:

@@ -68,6 +68,11 @@ class AIQueryRequestSerializer(serializers.Serializer):
     model = serializers.CharField(max_length=100, required=False, allow_blank=True)
     top_k = serializers.IntegerField(min_value=1, max_value=20, default=8)
     document_id = serializers.UUIDField(required=False, allow_null=True)
+    conversation_history = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=None,
+    )
 
     def validate(self, attrs):
         q = attrs.get("question") or attrs.get("prompt")

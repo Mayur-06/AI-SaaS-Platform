@@ -17,7 +17,7 @@ from billing.serializers import (
     PlanSerializer, APIKeySerializer, InvoiceSerializer, UsageLogSerializer,
     UsageAggregateSerializer, ModelConfigSerializer, RoutingRuleSerializer, UsageExportSerializer,
 )
-from common.core.permissions import IsAuthenticatedAndActive, IsAdminOrOwner
+from common.core.permissions import IsAuthenticatedAndActive, IsAdminOrOwner, CanAccessBilling
 from accounts.models import Membership
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def ensure_default_plans():
 
 
 class BillingPlanView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, CanAccessBilling]
 
     def get(self, request):
         org = get_request_org(request)
@@ -129,7 +129,7 @@ class BillingUpgradeView(APIView):
 
 
 class BillingUsageView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, CanAccessBilling]
 
     def get(self, request):
         org = get_request_org(request)
@@ -249,7 +249,7 @@ class PassthroughCSVRenderer(BaseRenderer):
 
 
 class BillingUsageExportView(APIView):
-    permission_classes = [IsAuthenticatedAndActive]
+    permission_classes = [IsAuthenticatedAndActive, CanAccessBilling]
     renderer_classes = [PassthroughCSVRenderer, JSONRenderer, BrowsableAPIRenderer]
 
     def perform_content_negotiation(self, request, force=False):

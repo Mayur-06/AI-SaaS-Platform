@@ -18,19 +18,54 @@ class RAGPipeline:
         self.chunker = chunker
         self.generator = generator
 
-    def ask(self, question, organization_id=None):
+    def ask(self, question, organization_id=None, conversation_history=None):
 
-        query_embedding = self.embedder.encode(question)
+        search_query = question
+        if conversation_history:
+            last_q = (conversation_history[-1].get("question") or conversation_history[-1].get("query") or "").strip()
+            if last_q:
+                referential_markers = {
+                    "it", "they", "them", "this", "that", "these", "those",
+                    "second", "third", "former", "latter", "previous", "above",
+                    "same", "other", "another"
+                }
+                lower_q = question.lower().strip()
+                import re
+                words = set(re.findall(r"\b\w+\b", lower_q))
+                has_pronoun = bool(words & referential_markers)
+                has_phrase = any(
+                    phrase in lower_q for phrase in [
+                        "what about", "how about", "explain more", "tell me more",
+                        "why is that", "what if", "can you clarify", "elaborate on"
+                    ]
+                )
+                is_fragment = len(lower_q.split()) <= 3
+                if has_pronoun or has_phrase or is_fragment:
+                    search_query = f"{last_q} {question}"
+
+        query_embedding = self.embedder.encode(search_query)
 
         retrieved_chunks = self.document_store.search(
             query_embedding,
-            query_text=question,
+            query_text=search_query,
             top_k=8,
         )
 
         context = "\n\n".join(
             chunk["text"] for chunk in retrieved_chunks
         )
+
+        history_block = ""
+        if conversation_history:
+            turns = []
+            for item in conversation_history[-3:]:
+                q = (item.get("question") or item.get("query") or "").strip()
+                a = (item.get("answer") or item.get("response") or "").strip()
+                if q and a:
+                    a_snippet = a[:400] + ("..." if len(a) > 400 else "")
+                    turns.append(f"User: {q}\nAI: {a_snippet}")
+            if turns:
+                history_block = "Previous Conversation:\n" + "\n\n".join(turns) + "\n\n"
 
         system_prompt = f"""
 You are a helpful and conversational AI assistant.
@@ -63,7 +98,7 @@ Follow these rules:
 """
 
         user_prompt = f"""
-    Context:
+    {history_block}Context:
     {context}
 
     Question:

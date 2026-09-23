@@ -219,6 +219,7 @@ class AIQueryView(APIView):
         try:
             top_k = serializer.validated_data.get("top_k") or 8
             target_doc_id = serializer.validated_data.get("document_id")
+            conversation_history = serializer.validated_data.get("conversation_history")
             orchestrator = RAGOrchestrator(
                 organization=org,
                 user=request.user,
@@ -229,6 +230,7 @@ class AIQueryView(APIView):
                 model=requested_model,
                 top_k=top_k,
                 target_doc_id=target_doc_id,
+                conversation_history=conversation_history,
             )
             result["response"] = result.get("answer")
             result["model_used"] = result.get("model")

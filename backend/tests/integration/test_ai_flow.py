@@ -65,3 +65,18 @@ class TestAIQueryFlow:
         response = api_client.get("/api/ai/documents/")
         assert response.status_code == 200
         assert len(response.data) >= 1
+
+    def test_query_with_conversation_history(self, api_client, org_a, owner_a):
+        _login(api_client, owner_a)
+        payload = {
+            "question": "What happens if they are late?",
+            "conversation_history": [
+                {"question": "What is the payment policy?", "answer": "Payments are Net 30 days."}
+            ]
+        }
+        response = api_client.post("/api/ai/query/", payload, format="json")
+        assert response.status_code in [200, 503]
+        if response.status_code == 200:
+            assert "answer" in response.data
+            assert "model" in response.data
+            assert "request_id" in response.data

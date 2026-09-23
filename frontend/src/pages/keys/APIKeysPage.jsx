@@ -7,15 +7,12 @@ import {
   Key,
   Lock,
   Copy,
-  Terminal,
   Code,
   Check,
   Sparkles,
   UploadCloud,
   BookOpen,
-  FileCode,
   Layers,
-  CheckCircle2,
   Info,
 } from 'lucide-react';
 import { billingService } from '../../services/billingService';
@@ -25,7 +22,6 @@ import { CreateKeyModal } from '../../components/keys/CreateKeyModal';
 import { KeyRevealDialog } from '../../components/keys/KeyRevealDialog';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
 import { SimpleTooltip } from '../../components/ui/Tooltip';
 import {
   AlertDialog,
@@ -58,7 +54,6 @@ export const APIKeysPage = () => {
 
   // Quickstart Code Sample states
   const [selectedOperation, setSelectedOperation] = useState('query'); // 'query' | 'upload' | 'list' | 'sdk'
-  const [selectedLang, setSelectedLang] = useState('python'); // 'python' | 'curl' | 'node'
 
   const apiBaseUrl = typeof window !== 'undefined' && window.location.host === '116.202.210.102:20358'
     ? `${window.location.origin}/api`
@@ -185,8 +180,7 @@ if __name__ == "__main__":
     }
 
     if (selectedOperation === 'query') {
-      if (selectedLang === 'python') {
-        return `import requests
+      return `import requests
 
 API_KEY = "${activeKeySample}"
 BASE_URL = "${apiBaseUrl}"
@@ -213,41 +207,10 @@ print(data.get("answer"))
 print("\\n=== Cited Sources ===")
 for chunk in data.get("cited_chunks", []):
     print(f"- {chunk.get('document_title')} (Section {chunk.get('chunk_index', 0) + 1}) [Score: {chunk.get('score')}]")`;
-      }
-      if (selectedLang === 'curl') {
-        return `curl -X POST "${apiBaseUrl}/ai/query/" \\
-  -H "Authorization: Bearer ${activeKeySample}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "question": "What methods were used to differentiate hiPSCs into muscle progenitor cells?",
-    "model": "gemini-2.5-flash",
-    "top_k": 8
-  }'`;
-      }
-      return `const API_KEY = "${activeKeySample}";
-const BASE_URL = "${apiBaseUrl}";
-
-const response = await fetch(\`\${BASE_URL}/ai/query/\`, {
-  method: "POST",
-  headers: {
-    "Authorization": \`Bearer \${API_KEY}\`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    question: "What methods were used to differentiate hiPSCs into muscle progenitor cells?",
-    model: "gemini-2.5-flash",
-    top_k: 8,
-  }),
-});
-
-const data = await response.json();
-console.log("RAG Answer:", data.answer);
-console.log("Cited Sources:", data.cited_chunks);`;
     }
 
     if (selectedOperation === 'upload') {
-      if (selectedLang === 'python') {
-        return `import requests
+      return `import requests
 from pathlib import Path
 
 API_KEY = "${activeKeySample}"
@@ -267,37 +230,10 @@ with open(FILE_PATH, "rb") as f:
 
 doc = response.json()
 print(f"Uploaded: {doc.get('title')} (ID: {doc.get('id')}) | Status: {doc.get('status')} | Chunks: {doc.get('chunk_count', 0)}")`;
-      }
-      if (selectedLang === 'curl') {
-        return `curl -X POST "${apiBaseUrl}/ai/documents/" \\
-  -H "Authorization: Bearer ${activeKeySample}" \\
-  -F "file=@/path/to/research_paper.pdf" \\
-  -F "title=Stem Cell Regeneration Study"`;
-      }
-      return `import fs from 'fs';
-import FormData from 'form-data';
-import fetch from 'node-fetch';
-
-const form = new FormData();
-form.append('file', fs.createReadStream('research_paper.pdf'));
-form.append('title', 'Stem Cell Regeneration Study');
-
-const response = await fetch('${apiBaseUrl}/ai/documents/', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer ${activeKeySample}',
-    ...form.getHeaders(),
-  },
-  body: form,
-});
-
-const doc = await response.json();
-console.log('Indexed Document:', doc);`;
     }
 
     if (selectedOperation === 'list') {
-      if (selectedLang === 'python') {
-        return `import requests
+      return `import requests
 
 API_KEY = "${activeKeySample}"
 BASE_URL = "${apiBaseUrl}"
@@ -317,22 +253,6 @@ items = documents.get("results", documents) if isinstance(documents, dict) else 
 print(f"=== Knowledge Base ({len(items)} documents) ===")
 for doc in items:
     print(f"- [{doc.get('status', '').upper()}] {doc.get('title')} (ID: {doc.get('id')}) | Chunks: {doc.get('chunk_count', 0)}")`;
-      }
-      if (selectedLang === 'curl') {
-        return `curl -X GET "${apiBaseUrl}/ai/documents/" \\
-  -H "Authorization: Bearer ${activeKeySample}" \\
-  -H "Accept: application/json"`;
-      }
-      return `const response = await fetch("${apiBaseUrl}/ai/documents/", {
-  headers: {
-    "Authorization": "Bearer ${activeKeySample}",
-    "Accept": "application/json",
-  },
-});
-
-const data = await response.json();
-const docs = data.results || data;
-console.log("Documents in Knowledge Base:", docs);`;
     }
 
     return '';
@@ -639,58 +559,27 @@ console.log("Documents in Knowledge Base:", docs);`;
           </button>
         </div>
 
-        {/* Language selector (for query, upload, list) */}
-        {selectedOperation !== 'sdk' && (
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setSelectedLang('python')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
-                  selectedLang === 'python' ? 'bg-white text-[#292929] shadow-xs' : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Code size={13} />
-                <span>Python</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedLang('curl')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
-                  selectedLang === 'curl' ? 'bg-white text-[#292929] shadow-xs' : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Terminal size={13} />
-                <span>cURL</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedLang('node')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
-                  selectedLang === 'node' ? 'bg-white text-[#292929] shadow-xs' : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <FileCode size={13} />
-                <span>Node.js / Fetch</span>
-              </button>
-            </div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 font-mono">
+            <Code size={14} className="text-[#b2c147]" />
+            <span>Python Integration (<code className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">requests</code>)</span>
+          </span>
 
-            <span className="text-[11px] text-gray-500 flex items-center gap-1">
-              <Info size={12} className="text-gray-400" />
-              Auth header: <code className="bg-gray-100 px-1 rounded text-gray-700 font-mono">Authorization: Bearer &lt;KEY&gt;</code>
-            </span>
-          </div>
-        )}
+          <span className="text-[11px] text-gray-500 flex items-center gap-1">
+            <Info size={12} className="text-gray-400" />
+            Auth header: <code className="bg-gray-100 px-1 rounded text-gray-700 font-mono">Authorization: Bearer &lt;KEY&gt;</code>
+          </span>
+        </div>
 
         {/* Code Box */}
         <div className="relative rounded-xl bg-[#292929] p-4 text-xs font-mono text-gray-200 overflow-x-auto shadow-inner">
           <SimpleTooltip content="Copy snippet to clipboard">
             <button
               type="button"
-              onClick={() => copySnippet(getSnippet(), `${selectedOperation}-${selectedLang}`)}
+              onClick={() => copySnippet(getSnippet(), selectedOperation)}
               className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-sans"
             >
-              {copiedSnippet === `${selectedOperation}-${selectedLang}` ? (
+              {copiedSnippet === selectedOperation ? (
                 <>
                   <Check size={13} className="text-[#b2c147]" />
                   <span className="text-[#b2c147] text-[11px] font-semibold">Copied!</span>
@@ -723,9 +612,9 @@ console.log("Documents in Knowledge Base:", docs);`;
           <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 space-y-0.5">
             <span className="text-[10px] uppercase font-bold text-gray-400 font-mono tracking-wider block">Required Scope</span>
             <span className="font-mono text-purple-700 font-semibold text-[11px]">
-              {selectedOperation === 'query' && 'rag:query (or write / admin:*)'}
-              {selectedOperation === 'upload' && 'documents:write (or write / admin:*)'}
-              {selectedOperation === 'list' && 'documents:read (or write / admin:*)'}
+              {selectedOperation === 'query' && 'rag:query (or write / admin)'}
+              {selectedOperation === 'upload' && 'documents:write (or write / admin)'}
+              {selectedOperation === 'list' && 'documents:read (or write / admin)'}
               {selectedOperation === 'sdk' && 'rag:query, documents:write, documents:read'}
             </span>
           </div>

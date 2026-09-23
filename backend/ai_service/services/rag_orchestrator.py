@@ -35,7 +35,36 @@ class RAGOrchestrator:
         self.text_chunker = TextChunker()
 
 
-    def _build_prompt(self, question: str, chunks: List[Dict]) -> tuple:
+    def _get_search_query(self, question: str, history: Optional[List[Dict]] = None) -> str:
+        if not history:
+            return question
+        last_q = (history[-1].get("question") or history[-1].get("query") or "").strip()
+        if not last_q:
+            return question
+
+        referential_markers = {
+            "it", "they", "them", "this", "that", "these", "those",
+            "second", "third", "former", "latter", "previous", "above",
+            "same", "other", "another"
+        }
+        lower_q = question.lower().strip()
+        import re
+        words = set(re.findall(r"\b\w+\b", lower_q))
+
+        has_pronoun = bool(words & referential_markers)
+        has_phrase = any(
+            phrase in lower_q for phrase in [
+                "what about", "how about", "explain more", "tell me more",
+                "why is that", "what if", "can you clarify", "elaborate on"
+            ]
+        )
+        is_fragment = len(lower_q.split()) <= 3
+
+        if has_pronoun or has_phrase or is_fragment:
+            return f"{last_q} {question}"
+        return question
+
+    def _build_prompt(self, question: str, chunks: List[Dict], conversation_history: Optional[List[Dict]] = None) -> tuple:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
             doc_name = chunk.get("doc_title") or chunk.get("doc_id", "Document")
@@ -45,6 +74,18 @@ class RAGOrchestrator:
                 f"[Source {i}: {doc_name} | Section {chunk_idx + 1}{score_info}]\n{chunk['text']}"
             )
         context = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
+
+        history_block = ""
+        if conversation_history:
+            turns = []
+            for item in conversation_history[-3:]:
+                q = (item.get("question") or item.get("query") or "").strip()
+                a = (item.get("answer") or item.get("response") or "").strip()
+                if q and a:
+                    a_snippet = a[:400] + ("..." if len(a) > 400 else "")
+                    turns.append(f"User: {q}\nAI: {a_snippet}")
+            if turns:
+                history_block = "Previous Conversation Context:\n" + "\n\n".join(turns) + "\n\n---\n\n"
 
         system_prompt = """You are an expert AI assistant providing clear, precise, and well-structured answers based on uploaded knowledge base documents.
 
@@ -59,7 +100,7 @@ Formatting & Markdown Instructions:
 - If the question cannot be answered from the provided documents, state so clearly and concisely without hallucinating.
 - Keep the response organized, readable, and direct without unnecessary filler."""
 
-        user_prompt = f"""Context from uploaded documents:
+        user_prompt = f"""{history_block}Context from uploaded documents:
 {context}
 
 Question: {question}"""
@@ -71,19 +112,59 @@ Question: {question}"""
         target_model: Optional[str] = None,
         top_k: int = 8,
         target_doc_id: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # If conversation_history is not provided (None), automatically check recent AIQuery records
+        # within the last 15 minutes. Scoped to the specific api_key if authenticated via API key,
+        # or scoped to the user if authenticated via user session.
+        if conversation_history is None:
+            try:
+                recent_cutoff = timezone.now() - timedelta(minutes=15)
+                query_filter = {
+                    "organization": self.organization,
+                    "created_at__gte": recent_cutoff,
+                }
+                if self.api_key is not None:
+                    query_filter["api_key"] = self.api_key
+                elif self.user is not None and getattr(self.user, "is_authenticated", False):
+                    query_filter["user"] = self.user
+                else:
+                    query_filter = None
+
+                if query_filter:
+                    recent_records = list(
+                        AIQuery.objects.filter(**query_filter).order_by("-created_at")[:2]
+                    )
+                    recent_records.reverse()
+                    conversation_history = [
+                        {"question": r.query_text, "answer": r.response_text}
+                        for r in recent_records
+                    ]
+            except Exception as exc:
+                logger.debug("Failed to fetch recent queries for context: %s", exc)
+                conversation_history = None
+
+        search_query = self._get_search_query(question, conversation_history)
+
         query_embedding = None
         if self.embedder is not None:
             try:
-                query_embedding = self.embedder.encode(question)
+                query_embedding = self.embedder.encode(search_query)
             except Exception as exc:
                 logger.warning("Embedding failed, proceeding without cache lookup: %s", exc)
                 query_embedding = None
 
         request_id = str(__import__("uuid").uuid4())
 
-        if query_embedding is not None or question:
-            cache_result = self.semantic_cache.lookup(query_embedding, question)
+        # For cache lookup: if there is conversation history and the search query was contextualized,
+        # use search_query for cache lookup to avoid false hits on ambiguous short follow-ups.
+        cache_query_text = search_query if (conversation_history and search_query != question) else question
+
+        if query_embedding is not None or cache_query_text:
+            cache_result = self.semantic_cache.lookup(query_embedding, cache_query_text)
             cached_model = cache_result.get("model") if cache_result else None
             is_model_match = (
                 not target_model
@@ -130,14 +211,14 @@ Question: {question}"""
         chunks = (
             self.document_store.search(
                 query_embedding=query_embedding,
-                query_text=question,
+                query_text=search_query,
                 top_k=top_k,
                 target_doc_id=target_doc_id,
             )
-            if (query_embedding is not None or question)
+            if (query_embedding is not None or search_query)
             else []
         )
-        system_prompt, user_prompt = self._build_prompt(question, chunks)
+        system_prompt, user_prompt = self._build_prompt(question, chunks, conversation_history)
 
         llm_client = LLMClient(self.organization)
         result = llm_client.generate(system_prompt, user_prompt, target_model=target_model)
@@ -166,7 +247,7 @@ Question: {question}"""
 
         if query_embedding is not None:
             try:
-                self.semantic_cache.store(question, query_embedding, answer, model, {
+                self.semantic_cache.store(cache_query_text, query_embedding, answer, model, {
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "latency_ms": latency_ms,
@@ -218,10 +299,12 @@ Question: {question}"""
         model: Optional[str] = None,
         top_k: int = 8,
         target_doc_id: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         return self._run_query_async(
             question,
             target_model=model,
             top_k=top_k,
             target_doc_id=target_doc_id,
+            conversation_history=conversation_history,
         )
