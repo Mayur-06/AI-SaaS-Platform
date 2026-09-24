@@ -116,7 +116,7 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
                     {p.latency_ms !== undefined && (
                       <span className="text-gray-400">{p.latency_ms}ms</span>
                     )}
-                    <Badge variant={p.status === 'healthy' ? 'green' : 'red'}>
+                    <Badge variant={p.status === 'healthy' ? 'green' : p.status === 'not_configured' ? 'gray' : 'red'}>
                       {p.status || 'unknown'}
                     </Badge>
                   </div>
