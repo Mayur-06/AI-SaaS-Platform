@@ -257,19 +257,27 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
     }
 
     if (!success) {
+      let textArea = null;
       try {
-        const textArea = document.createElement('textarea');
+        textArea = document.createElement('textarea');
         textArea.value = textToCopy;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
+        textArea.setAttribute('readonly', '');
+        textArea.setAttribute('aria-hidden', 'true');
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
         success = document.execCommand('copy');
-        document.body.removeChild(textArea);
       } catch (err) {
         console.error('Fallback copy failed:', err);
+      } finally {
+        // Guard against browser extensions (e.g. Grammarly) that may have
+        // moved the node — removeChild only if it's still our direct child.
+        if (textArea && textArea.parentNode === document.body) {
+          document.body.removeChild(textArea);
+        }
       }
     }
 

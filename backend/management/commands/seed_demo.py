@@ -16,11 +16,11 @@ class Command(BaseCommand):
             )
             pro_plan, _ = Plan.objects.get_or_create(
                 name="pro",
-                defaults={"monthly_request_limit": 1000, "requests_per_minute": 60, "price": 29, "cache_ttl_seconds": 86400},
+                defaults={"monthly_request_limit": 5000, "requests_per_minute": 60, "price": 49, "cache_ttl_seconds": 86400},
             )
             enterprise_plan, _ = Plan.objects.get_or_create(
                 name="enterprise",
-                defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 99, "cache_ttl_seconds": 604800},
+                defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 299, "cache_ttl_seconds": 604800},
             )
 
             gemini_flash_model, _ = ModelConfig.objects.get_or_create(

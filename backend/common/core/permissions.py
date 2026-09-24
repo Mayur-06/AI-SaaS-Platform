@@ -200,7 +200,7 @@ class CanAccessBilling(permissions.BasePermission):
         if getattr(request, "api_key", None):
             key = request.api_key
             key_perm = getattr(key, "permissions", "")
-            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin"))
+            return key_perm in ADMIN_API_PERMISSIONS or (hasattr(key, "has_scope") and key.has_scope("admin")) or key_perm in ["write", "admin"]
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
@@ -252,7 +252,7 @@ class HasScope(permissions.BasePermission):
 
 class CanQueryRAG(HasScope):
     required_scope = "rag:query"
-    allowed_roles = ["owner", "admin", "member", "viewer"]
+    allowed_roles = ["owner", "admin", "member"]
 
 
 class CanReadDocuments(HasScope):

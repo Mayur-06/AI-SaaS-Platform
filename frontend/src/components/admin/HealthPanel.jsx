@@ -110,7 +110,7 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
                   className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200/70"
                 >
                   <span className="font-semibold text-gray-700 font-mono">
-                    {name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}
+                    ✨ {name}
                   </span>
                   <div className="flex items-center gap-2 font-mono">
                     {p.latency_ms !== undefined && (

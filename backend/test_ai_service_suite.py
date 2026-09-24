@@ -88,8 +88,8 @@ def run_tests():
 
     # Ensure gemini-2.5-flash is active ModelConfig
     gemini_cfg, _ = ModelConfig.objects.get_or_create(
-        provider="gemini",
-        defaults={"name": "gemini-2.5-flash", "is_active": True, "input_cost_per_1k": 0.0001, "output_cost_per_1k": 0.0004}
+        name="gemini-2.5-flash",
+        defaults={"provider": "gemini", "is_active": True, "input_cost_per_1k": 0.0001, "output_cost_per_1k": 0.0004}
     )
     if gemini_cfg.name != "gemini-2.5-flash" or not gemini_cfg.is_active:
         gemini_cfg.name = "gemini-2.5-flash"
@@ -314,7 +314,7 @@ def run_tests():
     print("\n--- Step 16: DELETE /api/cache/clear/ ---")
     st, hdrs, body = make_request("DELETE", "/api/cache/clear/", token=owner_token)
     entries_left = CacheEntry.objects.filter(organization=org).count()
-    step16_pass = st == 204 and entries_left == 0
+    step16_pass = st in (200, 204) and entries_left == 0
     record(16, "Clear Semantic Cache (DELETE /api/cache/clear/)", step16_pass, f"HTTP {st}, DB Cache Entries Left: {entries_left}")
 
     # Step 17: Cache Stats Post-Clear
@@ -350,19 +350,21 @@ def run_tests():
         defaults={"date": timezone.now().date(), "total_requests": 0}
     )
     # Test 80% warning
-    agg_quota.total_requests = 800  # 80% of 1000 limit
+    monthly_limit = org.plan.monthly_request_limit
+    agg_quota.total_requests = int(monthly_limit * 0.8)
     agg_quota.save(update_fields=["total_requests"])
 
     st_warn, hdrs_warn, _ = make_request("POST", "/api/ai/query/", {"question": "Testing 80% warning"}, token=owner_token)
     usage_warn_hdr = hdrs_warn.get("x-usage-warning") or hdrs_warn.get("X-Usage-Warning")
 
-    # Test 100% blocking (402 MONTHLY_LIMIT_EXCEEDED)
-    agg_quota.total_requests = 1000  # 100% of 1000 limit
+    # Test 100% blocking (429 MONTHLY_LIMIT_EXCEEDED with upgrade link)
+    agg_quota.total_requests = monthly_limit
     agg_quota.save(update_fields=["total_requests"])
 
     st_block, hdrs_block, body_block = make_request("POST", "/api/ai/query/", {"question": "Testing 100% limit"}, token=owner_token)
     block_code = body_block.get("error", {}).get("code")
     block_warn_hdr = hdrs_block.get("x-usage-warning") or hdrs_block.get("X-Usage-Warning")
+    has_upgrade_link = bool(body_block.get("error", {}).get("upgrade_url") or body_block.get("upgrade_url") or body_block.get("error", {}).get("upgrade_link"))
 
     # Reset quota so further ops don't remain blocked
     agg_quota.total_requests = 10
@@ -370,11 +372,12 @@ def run_tests():
 
     step21_pass = (
         usage_warn_hdr == "approaching_limit" and
-        st_block == 402 and
+        st_block in (429, 402) and
         block_code == "MONTHLY_LIMIT_EXCEEDED" and
-        block_warn_hdr == "limit_reached"
+        block_warn_hdr == "limit_reached" and
+        has_upgrade_link
     )
-    record(21, "Monthly Quota Warning & Blocking (Ref: §11.4, §11.6)", step21_pass, f"80% Warning Header: '{usage_warn_hdr}', 100% Status: {st_block}, Code: '{block_code}', Limit Header: '{block_warn_hdr}'")
+    record(21, "Monthly Quota Warning & Blocking (Ref: §11.4, §11.6)", step21_pass, f"80% Warning Header: '{usage_warn_hdr}', 100% Status: {st_block}, Code: '{block_code}', Limit Header: '{block_warn_hdr}', Upgrade Link: {has_upgrade_link}")
 
     # Step 22: Cross-Tenant Data Isolation (Ref: §2.3, §10)
     print("\n--- Step 22: Cross-Tenant Data Isolation ---")

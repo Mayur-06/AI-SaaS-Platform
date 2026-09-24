@@ -36,10 +36,10 @@ def run_all_scenarios():
     plan, _ = Plan.objects.get_or_create(
         name="pro",
         defaults={
-            "monthly_request_limit": 1000,
+            "monthly_request_limit": 5000,
             "requests_per_minute": 60,
             "cache_ttl_seconds": 86400,
-            "price": 29,
+            "price": 49,
         }
     )
 

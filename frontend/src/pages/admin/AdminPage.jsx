@@ -77,16 +77,18 @@ export const AdminPage = () => {
           </p>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => loadData(currentPage)}
-          disabled={isLoading}
-          className="self-start sm:self-auto flex items-center gap-1.5"
-        >
-          <RotateCw size={14} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
-          <span>Refresh Fleet Telemetry</span>
-        </Button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => loadData(currentPage)}
+            disabled={isLoading}
+            className="flex items-center gap-1.5"
+          >
+            <RotateCw size={14} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+            <span>Refresh Fleet Telemetry</span>
+          </Button>
+        </div>
       </div>
 
       {error && (

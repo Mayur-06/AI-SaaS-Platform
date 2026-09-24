@@ -129,7 +129,14 @@ export const AppRoutes = () => {
         <Route path="/ai" element={<AIQueryPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/keys" element={<APIKeysPage />} />
-        <Route path="/settings" element={<OrganizationSettingsPage />} />
+        <Route
+          path="/settings"
+          element={
+            <TenantDashboardRoute>
+              <OrganizationSettingsPage />
+            </TenantDashboardRoute>
+          }
+        />
         <Route
           path="/admin"
           element={

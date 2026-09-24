@@ -294,7 +294,9 @@ Question: {question}"""
             source_doc_ids=source_doc_ids,
         )
 
-        if query_embedding is not None:
+        # Only store in semantic cache if actual document chunks were retrieved and used,
+        # preventing caching of negative responses (e.g. "no documents found")
+        if query_embedding is not None and chunks and source_doc_ids:
             try:
                 self.semantic_cache.store(cache_query_text, query_embedding, answer, model, {
                     "input_tokens": input_tokens,

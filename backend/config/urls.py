@@ -24,8 +24,12 @@ urlpatterns = [
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+from django.urls import re_path
+from django.views.static import serve
+
+urlpatterns += [
+    re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
+]
 
 handler404 = "common.core.views.custom_404_view"
 handler500 = "common.core.views.custom_500_view"

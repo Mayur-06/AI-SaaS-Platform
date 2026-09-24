@@ -95,11 +95,11 @@ def run_tests():
     )
     pro_plan, _ = Plan.objects.get_or_create(
         name="pro",
-        defaults={"requests_per_minute": 60, "monthly_request_limit": 1000, "price": 49.00}
+        defaults={"requests_per_minute": 60, "monthly_request_limit": 5000, "price": 49.00}
     )
     enterprise_plan, _ = Plan.objects.get_or_create(
         name="enterprise",
-        defaults={"requests_per_minute": 300, "monthly_request_limit": 10000, "price": 499.00}
+        defaults={"requests_per_minute": 300, "monthly_request_limit": 999999, "price": 299.00}
     )
 
     super_user, _ = User.objects.get_or_create(

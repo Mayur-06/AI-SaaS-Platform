@@ -109,11 +109,37 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// Helper: sleep for ms milliseconds
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Response Interceptor: Refresh token & Centralized Error Extraction
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // ── 429 Rate-limit automatic retry with exponential backoff ──────────────
+    // Retries up to 4 times, honouring the server's Retry-After header when
+    // present, otherwise uses exponential backoff: 2s → 4s → 8s → 16s.
+    if (error.response?.status === 429) {
+      originalRequest._rateLimitRetries = (originalRequest._rateLimitRetries || 0) + 1;
+      const MAX_RATE_RETRIES = 4;
+
+      if (originalRequest._rateLimitRetries <= MAX_RATE_RETRIES) {
+        const retryAfterHeader = error.response.headers['retry-after'];
+        const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+        const waitMs = !isNaN(retryAfterSec) && retryAfterSec > 0
+          ? retryAfterSec * 1000
+          : Math.pow(2, originalRequest._rateLimitRetries) * 1000; // 2s, 4s, 8s, 16s
+
+        console.warn(
+          `[API] Rate limited (429). Retry ${originalRequest._rateLimitRetries}/${MAX_RATE_RETRIES} in ${waitMs / 1000}s…`,
+        );
+        await sleep(waitMs);
+        return apiClient(originalRequest);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Centralized 401 Unauthorized handling & automatic token refresh
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
@@ -255,8 +281,13 @@ export function extractErrorMessage(error) {
     }
 
     if (error.response.status === 429) {
-      code = code || 'RATE_LIMIT_EXCEEDED';
-      message = message || 'Rate limit exceeded. Please wait a moment before trying again.';
+      if (code === 'MONTHLY_LIMIT_EXCEEDED' || data?.error?.code === 'MONTHLY_LIMIT_EXCEEDED' || data?.code === 'MONTHLY_LIMIT_EXCEEDED') {
+        code = 'MONTHLY_LIMIT_EXCEEDED';
+        message = message || 'Monthly quota exceeded. Please upgrade your plan.';
+      } else {
+        code = code || 'RATE_LIMIT_EXCEEDED';
+        message = message || 'Rate limit exceeded. Please wait a moment before trying again.';
+      }
     } else if (error.response.status === 402) {
       code = code || 'MONTHLY_LIMIT_EXCEEDED';
       message = message || 'Monthly quota exceeded. Please upgrade your plan.';

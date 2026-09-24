@@ -26,7 +26,7 @@ export const FaqSection = () => {
     {
       id: 'models',
       q: 'Which AI models are supported and how does auto-fallback work?',
-      a: 'Hapy is model-agnostic. We support leading models including Google Gemini, OpenAI GPT, and Anthropic Claude. If a primary provider experiences downtime or rate limits, our routing engine automatically falls back to an alternate model so your workflows never halt.',
+      a: 'Hapy is powered by Google Gemini. Our intelligent routing engine automatically selects the optimal Gemini model for each request and falls back to alternates so your workflows never halt.',
     },
     {
       id: 'roles',

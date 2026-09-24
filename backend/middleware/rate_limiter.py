@@ -6,8 +6,8 @@ from rest_framework.exceptions import APIException
 logger = logging.getLogger(__name__)
 
 RATE_LIMIT_LIMITS = {
-    "free": 10,
-    "pro": 60,
+    "free": 60,        # Raised from 10 — a single page load fires ~6 GET requests
+    "pro": 120,
     "enterprise": 300,
 }
 
@@ -15,6 +15,21 @@ TPM_LIMITS = {
     "free": 10_000,
     "pro": 100_000,
     "enterprise": 1_000_000,
+}
+
+# Read-only UI bootstrap endpoints that should NOT count against the RPM quota.
+# These are fired automatically on every page load and navigation, not by user actions.
+_GET_EXEMPT_PATHS = {
+    "/api/org/",
+    "/api/ai/documents/",
+    "/api/ai/history/",
+    "/api/billing/plan/",
+    "/api/billing/usage/",
+    "/api/billing/invoices/",
+    "/api/billing/keys/",
+    "/api/keys/",
+    "/api/cache/stats/",
+    "/api/cache/threshold/",
 }
 
 
@@ -40,6 +55,13 @@ class RateLimitMiddleware:
         if user and user.is_authenticated and user.is_staff:
             return self.get_response(request)
 
+        # Read-only UI bootstrap GETs are exempt from RPM counting to prevent
+        # normal page loads from triggering 429s on the free tier.
+        is_exempt_get = (
+            request.method == "GET"
+            and request.path in _GET_EXEMPT_PATHS
+        )
+
         organization = getattr(request, "organization", None)
         api_key = getattr(request, "api_key", None)
         api_key_id = api_key.id if api_key else None
@@ -58,51 +80,55 @@ class RateLimitMiddleware:
 
         tpm_limit = TPM_LIMITS.get(plan_name, 10_000)
 
-        # 1. Check Requests Per Minute (RPM)
-        try:
-            from middleware.redis_utils import check_rate_limit, check_token_rate_limit
-            allowed, remaining, reset_time = check_rate_limit(
-                str(organization.id) if organization else "anonymous",
-                str(api_key_id) if api_key_id else None,
-                effective_limit,
-            )
-        except Exception as exc:
-            logger.debug("Rate limiter Redis error: %s", exc)
-            return self.get_response(request)
+        # 1. Check Requests Per Minute (RPM) — skip for exempt read-only endpoints
+        remaining = effective_limit
+        reset_time = None
+        if not is_exempt_get:
+            try:
+                from middleware.redis_utils import check_rate_limit
+                allowed, remaining, reset_time = check_rate_limit(
+                    str(organization.id) if organization else "anonymous",
+                    str(api_key_id) if api_key_id else None,
+                    effective_limit,
+                )
+            except Exception as exc:
+                logger.debug("Rate limiter Redis error: %s", exc)
+                return self.get_response(request)
 
-        if not allowed:
-            import time
-            retry_after = max(1, reset_time - int(time.time()))
-            exc = RateLimitExceeded(f"Rate limit exceeded. Retry after {retry_after}s.")
-            response = JsonResponse(
-                {
-                    "error": {
-                        "code": "RATE_LIMIT_EXCEEDED",
-                        "message": str(exc.detail),
-                        "request_id": getattr(request, "request_id", None),
-                    }
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-            response["Retry-After"] = str(retry_after)
-            response["X-RateLimit-Limit"] = str(effective_limit)
-            response["X-RateLimit-Remaining"] = "0"
-            response["X-RateLimit-Reset"] = str(reset_time)
-            return response
+            if not allowed:
+                import time
+                retry_after = max(1, reset_time - int(time.time()))
+                exc = RateLimitExceeded(f"Rate limit exceeded. Retry after {retry_after}s.")
+                response = JsonResponse(
+                    {
+                        "error": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": str(exc.detail),
+                            "request_id": getattr(request, "request_id", None),
+                        }
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+                response["Retry-After"] = str(retry_after)
+                response["X-RateLimit-Limit"] = str(effective_limit)
+                response["X-RateLimit-Remaining"] = "0"
+                response["X-RateLimit-Reset"] = str(reset_time)
+                return response
 
         # 2. Check Tokens Per Minute (TPM) for AI consumption endpoints
+        import time as _time
         token_rem = tpm_limit
-        token_reset = reset_time
+        token_reset = reset_time or int(_time.time()) + 60
         if organization:
             try:
+                from middleware.redis_utils import check_token_rate_limit
                 allowed_tokens, token_rem, token_reset, _ = check_token_rate_limit(
                     str(organization.id),
                     str(api_key_id) if api_key_id else None,
                     tpm_limit,
                 )
                 if not allowed_tokens and request.path.startswith("/api/ai/"):
-                    import time
-                    retry_after = max(1, token_reset - int(time.time()))
+                    retry_after = max(1, token_reset - int(_time.time()))
                     response = JsonResponse(
                         {
                             "error": {
@@ -116,7 +142,7 @@ class RateLimitMiddleware:
                     response["Retry-After"] = str(retry_after)
                     response["X-RateLimit-Limit"] = str(effective_limit)
                     response["X-RateLimit-Remaining"] = str(max(0, remaining))
-                    response["X-RateLimit-Reset"] = str(reset_time)
+                    response["X-RateLimit-Reset"] = str(reset_time or token_reset)
                     response["X-RateLimit-Limit-Tokens"] = str(tpm_limit)
                     response["X-RateLimit-Remaining-Tokens"] = "0"
                     response["X-RateLimit-Reset-Tokens"] = str(token_reset)
@@ -127,7 +153,8 @@ class RateLimitMiddleware:
         response = self.get_response(request)
         response["X-RateLimit-Limit"] = str(effective_limit)
         response["X-RateLimit-Remaining"] = str(max(0, remaining))
-        response["X-RateLimit-Reset"] = str(reset_time)
+        if reset_time:
+            response["X-RateLimit-Reset"] = str(reset_time)
         if organization:
             response["X-RateLimit-Limit-Tokens"] = str(tpm_limit)
             response["X-RateLimit-Remaining-Tokens"] = str(max(0, token_rem))

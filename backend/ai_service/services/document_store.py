@@ -152,8 +152,8 @@ class DjangoDocumentStore:
                 d_sim = float(dense_scores[idx])
                 s_sim = float(sparse_scores[idx])
 
-                # Reject if below min_similarity and no keyword matches
-                if d_sim < min_similarity and s_sim <= 0.0:
+                # Reject only if negative/zero dense similarity and no keyword matches
+                if d_sim <= 0.0 and s_sim <= 0.0:
                     continue
 
                 d_rank = dense_ranks.get(idx, 9999)
@@ -175,7 +175,7 @@ class DjangoDocumentStore:
             candidate_pool = []
             for idx, item in enumerate(chunk_data):
                 sc = float(primary_scores[idx])
-                if sc >= (min_similarity if has_dense else 0.01):
+                if sc > 0.0:
                     candidate_pool.append({
                         "rrf": sc,
                         "score": sc,
@@ -183,8 +183,17 @@ class DjangoDocumentStore:
                     })
             candidate_pool.sort(key=lambda x: x["score"], reverse=True)
 
-        if not candidate_pool:
-            return []
+        # Fallback for general questions (e.g. "what is the document about", "summarize", "explain topics"):
+        # If candidate_pool is empty, populate with initial document chunks (introductory material)
+        if not candidate_pool and chunk_data:
+            candidate_pool = [
+                {
+                    "rrf": 0.01,
+                    "score": 0.01,
+                    "item": item,
+                }
+                for item in chunk_data[:top_k]
+            ]
 
         # 5. Contextual Stitching & Adjacent Chunk Merging
         pool_to_stitch = candidate_pool[: max(top_k * 2, top_k + 4)]
@@ -247,6 +256,7 @@ class DjangoDocumentStore:
 
     def add_document(self, doc_id: str, chunks: List[str]) -> int:
         from django.db import transaction
+        import time as _time
         try:
             document = Document.objects.get(id=doc_id, organization=self.organization)
         except Document.DoesNotExist:
@@ -256,7 +266,23 @@ class DjangoDocumentStore:
         document.status = Document.STATUS_PROCESSING
         document.save(update_fields=["status"])
 
-        embeddings = self.embedder.encode_batch(chunks)
+        # Process chunks in batches to stay within Gemini free-tier TPM limits
+        # (10,000 tokens/min). Each batch of 20 chunks ≈ ~2,000–4,000 tokens.
+        BATCH_SIZE = 20
+        BATCH_DELAY_SECONDS = 2.0
+
+        all_embeddings = []
+        for batch_start in range(0, len(chunks), BATCH_SIZE):
+            batch = chunks[batch_start: batch_start + BATCH_SIZE]
+            batch_embeddings = self.embedder.encode_batch(batch)
+            all_embeddings.append(batch_embeddings)
+            # Pause between batches (skip after the last one)
+            if batch_start + BATCH_SIZE < len(chunks):
+                _time.sleep(BATCH_DELAY_SECONDS)
+
+        import numpy as np
+        embeddings = np.concatenate(all_embeddings, axis=0) if len(all_embeddings) > 1 else all_embeddings[0]
+
         chunk_objects = []
         for idx, (chunk_text, emb) in enumerate(zip(chunks, embeddings)):
             chunk_objects.append(DocumentChunk(
@@ -272,6 +298,7 @@ class DjangoDocumentStore:
             document.status = Document.STATUS_READY
             document.save(update_fields=["status"])
         return len(chunk_objects)
+
 
     def delete_document(self, document_name: str) -> int:
         try:

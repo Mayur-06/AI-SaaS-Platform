@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../services/api';
 import { AuthLayout } from './AuthLayout';
@@ -10,6 +11,8 @@ export const PasswordResetForm = () => {
   const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -239,17 +242,27 @@ export const PasswordResetForm = () => {
             <label htmlFor="new-password" className="text-sm font-semibold text-[#292929]">
               New password
             </label>
-            <input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => {
-                setNewPassword(e.target.value);
-                clearFieldError('newPassword');
-              }}
-              placeholder="Min 8 characters"
-              className={getInputClass(!!fieldErrors.newPassword)}
-            />
+            <div className="relative">
+              <input
+                id="new-password"
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  clearFieldError('newPassword');
+                }}
+                placeholder="Min 8 characters"
+                className={`${getInputClass(!!fieldErrors.newPassword)} pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+              >
+                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {fieldErrors.newPassword && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.newPassword}</p>
             )}
@@ -259,17 +272,27 @@ export const PasswordResetForm = () => {
             <label htmlFor="confirm-reset-password" className="text-sm font-semibold text-[#292929]">
               Confirm new password
             </label>
-            <input
-              id="confirm-reset-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                clearFieldError('confirmPassword');
-              }}
-              placeholder="Confirm new password"
-              className={getInputClass(!!fieldErrors.confirmPassword)}
-            />
+            <div className="relative">
+              <input
+                id="confirm-reset-password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  clearFieldError('confirmPassword');
+                }}
+                placeholder="Confirm new password"
+                className={`${getInputClass(!!fieldErrors.confirmPassword)} pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {fieldErrors.confirmPassword && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</p>
             )}

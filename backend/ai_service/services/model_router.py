@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 PLAN_PERMITTED_MODELS = {
     "free": ["gemini-2.5-flash"],
-    "pro": ["gemini-2.5-flash", "gemini-2.5-pro"],
-    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro"],
+    "pro": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini"],
+    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini", "gpt-4"],
 }
 
 

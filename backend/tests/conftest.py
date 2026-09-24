@@ -22,10 +22,10 @@ def free_plan(db):
 def pro_plan(db):
     return Plan.objects.create(
         name="pro",
-        monthly_request_limit=1000,
+        monthly_request_limit=5000,
         requests_per_minute=60,
         cache_ttl_seconds=86400,
-        price=29,
+        price=49,
     )
 
 
@@ -36,7 +36,7 @@ def enterprise_plan(db):
         monthly_request_limit=999999,
         requests_per_minute=300,
         cache_ttl_seconds=604800,
-        price=99,
+        price=299,
     )
 
 
