@@ -44,17 +44,20 @@ export const AppLayout = () => {
 
   const planName = currentPlan?.name || organization?.plan?.name || 'Free';
 
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/ai', label: 'AI Query & RAG', icon: BrainCircuit },
-    { to: '/billing', label: 'Billing & Usage', icon: CreditCard },
-    { to: '/keys', label: 'API Keys', icon: Key },
-    { to: '/settings', label: 'Org Settings', icon: Settings },
-  ];
+  const navItems = [];
 
   if (user?.is_staff) {
     navItems.push({ to: '/admin', label: 'Admin Console', icon: ShieldAlert });
+  } else {
+    navItems.push({ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard });
   }
+
+  navItems.push(
+    { to: '/ai', label: 'AI Query & RAG', icon: BrainCircuit },
+    { to: '/billing', label: 'Billing & Usage', icon: CreditCard },
+    { to: '/keys', label: 'API Keys', icon: Key },
+    { to: '/settings', label: 'Org Settings', icon: Settings }
+  );
 
   // Get user avatar initials
   const initials = (user?.email || 'U')
@@ -79,22 +82,22 @@ export const AppLayout = () => {
 
         {/* Org & Context Info */}
         <div className="mt-4 pt-4 border-t border-white/5 space-y-1">
-          {organization ? (
-            <>
-              <div className="text-xs font-semibold text-gray-300 truncate">
-                {organization.name}
-              </div>
-              <div className="text-[11px] text-gray-400 capitalize">
-                {planName} Plan
-              </div>
-            </>
-          ) : user?.is_staff ? (
+          {user?.is_staff ? (
             <>
               <div className="text-xs font-semibold text-gray-300">
                 Superadmin Mode
               </div>
               <div className="text-[11px] text-purple-400 font-mono">
                 Platform Admin
+              </div>
+            </>
+          ) : organization ? (
+            <>
+              <div className="text-xs font-semibold text-gray-300 truncate">
+                {organization.name}
+              </div>
+              <div className="text-[11px] text-gray-400 capitalize">
+                {planName} Plan
               </div>
             </>
           ) : (
@@ -178,7 +181,16 @@ export const AppLayout = () => {
         </Link>
         {/* Mobile Context & Drawer Trigger */}
         <div className="flex items-center gap-2.5">
-          {organization && (
+          {user?.is_staff ? (
+            <div className="text-right max-w-[120px] sm:max-w-[160px] truncate">
+              <div className="text-[11px] font-semibold text-purple-300 truncate leading-tight">
+                Superadmin
+              </div>
+              <div className="text-[9px] text-purple-400 font-mono tracking-wider leading-tight">
+                Platform Admin
+              </div>
+            </div>
+          ) : organization ? (
             <div className="text-right max-w-[120px] sm:max-w-[160px] truncate">
               <div className="text-[11px] font-semibold text-gray-200 truncate leading-tight">
                 {organization.name}
@@ -187,7 +199,7 @@ export const AppLayout = () => {
                 {planName}
               </div>
             </div>
-          )}
+          ) : null}
 
           <Avatar className="h-7 w-7">
             <AvatarFallback variant="brand" className="text-[10px]">{initials}</AvatarFallback>

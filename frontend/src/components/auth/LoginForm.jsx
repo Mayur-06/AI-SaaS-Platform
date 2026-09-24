@@ -59,7 +59,7 @@ export const LoginForm = () => {
 
     try {
       const data = await login(email.trim(), password, rememberMe);
-      if (data?.user?.is_staff && !data?.organization) {
+      if (data?.user?.is_staff) {
         navigate('/admin');
       } else {
         navigate('/dashboard');

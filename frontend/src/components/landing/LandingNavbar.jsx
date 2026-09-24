@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 
 export const LandingNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-gray-100 transition-all">
@@ -51,10 +51,10 @@ export const LandingNavbar = () => {
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <Link
-              to="/dashboard"
+              to={user?.is_staff ? "/admin" : "/dashboard"}
               className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-lg shadow-sm transition-all no-underline"
             >
-              Go to Dashboard →
+              {user?.is_staff ? "Admin Console →" : "Go to Dashboard →"}
             </Link>
           ) : (
             <>
@@ -129,11 +129,11 @@ export const LandingNavbar = () => {
           <div className="pt-4 border-t border-gray-100 flex flex-col gap-2">
             {isAuthenticated ? (
               <Link
-                to="/dashboard"
+                to={user?.is_staff ? "/admin" : "/dashboard"}
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full text-center py-2.5 text-sm font-semibold text-[#292929] bg-[#b2c147] hover:brightness-105 rounded-lg no-underline"
               >
-                Go to Dashboard →
+                {user?.is_staff ? "Admin Console →" : "Go to Dashboard →"}
               </Link>
             ) : (
               <>

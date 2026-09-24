@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { RotateCw, ShieldAlert } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
+import { RotateCw } from 'lucide-react';
 import { useBillingStore } from '../../store/billingStore';
 import { useAuthStore } from '../../store/authStore';
 import { KpiCard } from '../../components/dashboard/KpiCard';
@@ -12,11 +12,13 @@ export const DashboardPage = () => {
   const { currentPlan, usage, fetchBillingData, isLoading } = useBillingStore();
   const [refreshing, setRefreshing] = useState(false);
 
+  if (user?.is_staff) {
+    return <Navigate to="/admin" replace />;
+  }
+
   useEffect(() => {
-    if (organization || !user?.is_staff) {
-      fetchBillingData();
-    }
-  }, [fetchBillingData, organization, user]);
+    fetchBillingData();
+  }, [fetchBillingData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -36,23 +38,6 @@ export const DashboardPage = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Superadmin Mode Notice Banner (if applicable) */}
-      {!organization && user?.is_staff && (
-        <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <ShieldAlert size={18} className="text-purple-700 shrink-0" />
-            <div>
-              <strong className="font-bold">Superadmin Mode:</strong> You are viewing the tenant dashboard without an active organization context.
-            </div>
-          </div>
-          <Link to="/admin" className="no-underline">
-            <Button variant="dark" size="sm" className="whitespace-nowrap">
-              Open Admin Console →
-            </Button>
-          </Link>
-        </div>
-      )}
-
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
@@ -65,21 +50,12 @@ export const DashboardPage = () => {
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Real-time analytics and LLM telemetry for{' '}
             <strong className="text-[#292929] font-semibold">
-              {organization?.name || (user?.is_staff ? 'Superadmin Preview' : 'Your Organization')}
+              {organization?.name || 'Your Organization'}
             </strong>
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {user?.is_staff && (
-            <Link to="/admin" className="no-underline">
-              <Button variant="dark" size="sm" className="flex items-center gap-1.5">
-                <ShieldAlert size={14} />
-                <span>Admin Console</span>
-              </Button>
-            </Link>
-          )}
-
           <Button
             variant="secondary"
             size="sm"

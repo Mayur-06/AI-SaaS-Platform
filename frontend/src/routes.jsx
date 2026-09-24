@@ -50,16 +50,35 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// Route Guard: Tenant dashboard route (superadmin is redirected to /admin)
+const TenantDashboardRoute = ({ children }) => {
+  const { user, isAuthenticated, isLoading } = useAuthStore();
+
+  if (isLoading) {
+    return <FullPageSpinner />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.is_staff) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+};
+
 // Route Guard: Public only (redirect logged-in users away from /login or /register)
 const PublicOnlyRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return <FullPageSpinner />;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user?.is_staff ? '/admin' : '/dashboard'} replace />;
   }
 
   return children;
@@ -99,7 +118,14 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <TenantDashboardRoute>
+              <DashboardPage />
+            </TenantDashboardRoute>
+          }
+        />
         <Route path="/ai" element={<AIQueryPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/keys" element={<APIKeysPage />} />
