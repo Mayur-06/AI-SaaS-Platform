@@ -95,6 +95,8 @@ Follow these rules:
    appropriate.
 
 6. Format your answer using clean, professional Markdown (use headings `###`, bullet points `-`, bold `**key terms**`, and inline `code` where appropriate). Be conversational, concise, and structured.
+
+7. Factual answers must rely strictly on the currently provided document context. If a document or fact was mentioned in previous conversation history but is not present in the current context, treat it as deleted or no longer accessible; do not confirm or hallucinate its contents.
 """
 
         user_prompt = f"""
@@ -110,6 +112,8 @@ Follow these rules:
             user_prompt=user_prompt,
         )
 
+        source_doc_ids = list({str(c["doc_id"]) for c in retrieved_chunks if "doc_id" in c})
+
         return {
             "answer": answer,
             "model": getattr(self.generator, "model_name", "unknown"),
@@ -117,4 +121,5 @@ Follow these rules:
             "input_tokens": len(system_prompt.split()) + len(user_prompt.split()),
             "output_tokens": len(answer.split()),
             "latency_ms": 0,
+            "source_doc_ids": source_doc_ids,
         }

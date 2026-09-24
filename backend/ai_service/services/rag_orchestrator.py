@@ -64,6 +64,38 @@ class RAGOrchestrator:
             return f"{last_q} {question}"
         return question
 
+    def _sanitize_conversation_history(
+        self, history: Optional[List[Dict[str, Any]]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Safely prunes conversation turns whose underlying documents have been deleted.
+        Ensures context from removed documents is never leaked into prompt context
+        or follow-up query reformulations.
+        """
+        if not history:
+            return []
+
+        active_doc_ids = set(
+            str(did)
+            for did in Document.objects.filter(
+                organization=self.organization,
+                status=Document.STATUS_READY,
+            ).values_list("id", flat=True)
+        )
+
+        clean_history = []
+        for turn in history:
+            ref_docs = turn.get("source_doc_ids")
+            # If source_doc_ids was tracked and non-empty:
+            if ref_docs is not None and len(ref_docs) > 0:
+                has_active_doc = any(str(did) in active_doc_ids for did in ref_docs)
+                if not has_active_doc:
+                    # All source documents referenced by this turn were deleted; prune this turn
+                    continue
+            clean_history.append(turn)
+
+        return clean_history
+
     def _build_prompt(self, question: str, chunks: List[Dict], conversation_history: Optional[List[Dict]] = None) -> tuple:
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
@@ -89,6 +121,12 @@ class RAGOrchestrator:
 
         system_prompt = """You are an expert AI assistant providing clear, precise, and well-structured answers based on uploaded knowledge base documents.
 
+Factual Grounding & Document Availability Rules:
+1. Your factual answers MUST be derived ONLY from the "Context from uploaded documents" provided in this prompt.
+2. The "Previous Conversation Context" (if present) is provided solely for conversational continuity, flow, and pronoun resolution.
+3. If a document or fact was mentioned in previous conversation turns but is NOT present in the current uploaded context, treat it as deleted or unavailable. You must state clearly that you do not have access to that document or information anymore. Do NOT recall, confirm, or hallucinate its details.
+4. If the question cannot be answered from the provided documents, state so clearly and concisely without hallucinating.
+
 Formatting & Markdown Instructions:
 - Format your response using clean, professional Markdown.
 - Use clear headers (`### Section Title`) to structure different parts of your answer logically.
@@ -97,7 +135,6 @@ Formatting & Markdown Instructions:
 - Use inline code (`code`) for technical names, parameters, commands, or identifiers, and fenced code blocks (```language ... ```) for code snippets or structured configurations.
 - When referencing specific facts from the uploaded context documents, cite the source document name naturally (e.g. `*Source: [filename]*`).
 - Synthesize information across all relevant provided sections and documents to give a thorough, comprehensive answer.
-- If the question cannot be answered from the provided documents, state so clearly and concisely without hallucinating.
 - Keep the response organized, readable, and direct without unnecessary filler."""
 
         user_prompt = f"""{history_block}Context from uploaded documents:
@@ -140,12 +177,19 @@ Question: {question}"""
                     )
                     recent_records.reverse()
                     conversation_history = [
-                        {"question": r.query_text, "answer": r.response_text}
+                        {
+                            "question": r.query_text,
+                            "answer": r.response_text,
+                            "source_doc_ids": r.source_doc_ids or [],
+                        }
                         for r in recent_records
                     ]
             except Exception as exc:
                 logger.debug("Failed to fetch recent queries for context: %s", exc)
                 conversation_history = None
+
+        # Sanitize conversation history against active documents
+        conversation_history = self._sanitize_conversation_history(conversation_history)
 
         search_query = self._get_search_query(question, conversation_history)
 
@@ -195,6 +239,7 @@ Question: {question}"""
                     estimated_cost=0,
                     cache_hit=True,
                     request_id=request_id,
+                    source_doc_ids=cache_result.get("source_doc_ids", []),
                 )
                 return {
                     "answer": cache_result["answer"],
@@ -206,6 +251,7 @@ Question: {question}"""
                     "estimated_cost": 0,
                     "cache_hit": True,
                     "request_id": request_id,
+                    "source_doc_ids": cache_result.get("source_doc_ids", []),
                 }
 
         chunks = (
@@ -230,6 +276,8 @@ Question: {question}"""
         output_tokens = result["output_tokens"]
         estimated_cost = result["estimated_cost"]
 
+        source_doc_ids = list({str(c["doc_id"]) for c in chunks if c.get("doc_id")})
+
         AIQuery.objects.create(
             organization=self.organization,
             user=self.user,
@@ -243,6 +291,7 @@ Question: {question}"""
             estimated_cost=estimated_cost,
             cache_hit=False,
             request_id=request_id,
+            source_doc_ids=source_doc_ids,
         )
 
         if query_embedding is not None:
@@ -291,6 +340,7 @@ Question: {question}"""
             "request_id": request_id,
             "chunks_retrieved": len(chunks),
             "cited_chunks": cited_chunks,
+            "source_doc_ids": source_doc_ids,
         }
 
     def query(

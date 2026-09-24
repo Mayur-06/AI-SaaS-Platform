@@ -125,6 +125,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             logger.warning("Auto-processing document %s failed: %s", instance.id, exc)
 
     def perform_destroy(self, instance):
+        org = instance.organization
         if instance.filename:
             try:
                 from django.core.files.storage import default_storage
@@ -133,6 +134,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
             except Exception as exc:
                 logger.warning("Failed to delete document file %s: %s", instance.filename, exc)
         instance.delete()
+        if org:
+            try:
+                from ai_service.services.semantic_cache import SemanticCache
+                SemanticCache(org).clear()
+            except Exception as exc:
+                logger.warning("Failed to clear semantic cache on document destruction: %s", exc)
 
     @action(detail=True, methods=["post"])
     def process(self, request, pk=None):

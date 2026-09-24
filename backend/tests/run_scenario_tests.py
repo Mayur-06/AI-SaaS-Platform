@@ -348,8 +348,200 @@ def run_all_scenarios():
         assert "AI: API Key Answer 1" in user_prompt
         print("  -> PASSED (9b): API Key caller without history receives key-scoped auto-context.")
 
+    # ---------------------------------------------------------
+    # Scenario 10: Automatic DB history prunes context when document is deleted
+    # ---------------------------------------------------------
+    print("\n[Scenario 10] Testing DB history auto-pruning when referenced document is deleted...")
+    from ai_service.models import Document
+    AIQuery.objects.filter(organization=org_a).delete()
+    doc_confidential = Document.objects.create(
+        organization=org_a,
+        title="Confidential Policy",
+        filename="confidential.txt",
+        status=Document.STATUS_READY,
+    )
+    AIQuery.objects.create(
+        organization=org_a,
+        user=user_a,
+        query_text="What is in the confidential policy?",
+        response_text="The confidential policy contains proprietary trade secrets.",
+        model_used="gemini-2.5-flash",
+        source_doc_ids=[str(doc_confidential.id)],
+        created_at=timezone.now() - timedelta(minutes=2),
+    )
+
+    # Delete the confidential document
+    doc_confidential.delete()
+
+    with patch("ai_service.services.rag_orchestrator.LLMClient") as MockLLM:
+        mock_instance = MagicMock()
+        mock_instance.generate.return_value = {
+            "answer": "I do not have access to that document.",
+            "model": "gemini-2.5-flash",
+            "provider": "gemini",
+            "latency_ms": 40,
+            "input_tokens": 15,
+            "output_tokens": 8,
+            "estimated_cost": 0.0001,
+        }
+        MockLLM.return_value = mock_instance
+
+        # Query with conversation_history=None: auto-lookup should prune the deleted document's turn
+        orchestrator.query("Tell me more about those trade secrets")
+        called_args = mock_instance.generate.call_args
+        user_prompt = called_args[0][1]
+
+        assert "Previous Conversation Context:" not in user_prompt, "Context from deleted document must NOT appear in prompt"
+        assert "What is in the confidential policy?" not in user_prompt, "Query text from deleted document must NOT appear"
+        assert "proprietary trade secrets" not in user_prompt, "Answer text from deleted document must NOT appear"
+        print("  -> PASSED: Context from deleted document was successfully excluded from auto-fetched history.")
+
+    # ---------------------------------------------------------
+    # Scenario 11: Explicit client conversation_history prunes deleted document turns
+    # ---------------------------------------------------------
+    print("\n[Scenario 11] Testing explicit conversation_history pruning for deleted document...")
+    doc_temp = Document.objects.create(
+        organization=org_a,
+        title="Temporary Pricing",
+        filename="pricing.txt",
+        status=Document.STATUS_READY,
+    )
+    client_history = [
+        {
+            "question": "What is the beta price?",
+            "answer": "The beta price is $10/mo.",
+            "source_doc_ids": [str(doc_temp.id)],
+        }
+    ]
+    # Delete the temporary document
+    doc_temp.delete()
+
+    with patch("ai_service.services.rag_orchestrator.LLMClient") as MockLLM:
+        mock_instance = MagicMock()
+        mock_instance.generate.return_value = {
+            "answer": "Standard pricing applies.",
+            "model": "gemini-2.5-flash",
+            "provider": "gemini",
+            "latency_ms": 40,
+            "input_tokens": 20,
+            "output_tokens": 5,
+            "estimated_cost": 0.0001,
+        }
+        MockLLM.return_value = mock_instance
+
+        orchestrator.query("Can you give me a discount on that?", conversation_history=client_history)
+        called_args = mock_instance.generate.call_args
+        user_prompt = called_args[0][1]
+
+        assert "Previous Conversation Context:" not in user_prompt, "Deleted document turn must be pruned from client history"
+        assert "What is the beta price?" not in user_prompt
+        assert "The beta price is $10/mo." not in user_prompt
+        print("  -> PASSED: Explicit client conversation_history properly pruned deleted document turns.")
+
+    # ---------------------------------------------------------
+    # Scenario 12: Referential query reformulation ignores deleted document questions
+    # ---------------------------------------------------------
+    print("\n[Scenario 12] Testing referential query rewriting guard against deleted documents...")
+    doc_payroll = Document.objects.create(
+        organization=org_a,
+        title="Executive Payroll",
+        filename="payroll.txt",
+        status=Document.STATUS_READY,
+    )
+    deleted_history = [
+        {
+            "question": "What is the CEO compensation?",
+            "answer": "Base salary is $500k.",
+            "source_doc_ids": [str(doc_payroll.id)],
+        }
+    ]
+    doc_payroll.delete()
+
+    # Sanitize history
+    clean_history = orchestrator._sanitize_conversation_history(deleted_history)
+    assert len(clean_history) == 0, "Deleted document history turn must be pruned"
+
+    # Referential follow-up query
+    follow_up = "Can you elaborate on that?"
+    search_q = orchestrator._get_search_query(follow_up, clean_history)
+    assert search_q == follow_up, "Query rewriter must NOT merge with deleted document question"
+    assert "CEO compensation" not in search_q, "Deleted document question must not contaminate search query"
+    print(f"  -> PASSED: Referential query rewriting guarded; search query remains standalone: '{search_q}'.")
+
+    # ---------------------------------------------------------
+    # Scenario 13: Semantic cache invalidation on Document deletion
+    # ---------------------------------------------------------
+    print("\n[Scenario 13] Testing Semantic Cache invalidation upon Document deletion...")
+    doc_cached = Document.objects.create(
+        organization=org_a,
+        title="Refund Policy",
+        filename="refund.txt",
+        status=Document.STATUS_READY,
+    )
+    dummy_vec = [0.05] * 384
+    cache_entry = orchestrator.semantic_cache.store(
+        "What is the refund window?",
+        dummy_vec,
+        "Refunds are permitted within 14 days.",
+        "gemini-2.5-flash",
+    )
+    assert cache_entry is not None
+
+    # Check cache hit before delete
+    hit = orchestrator.semantic_cache.lookup(dummy_vec, "What is the refund window?")
+    assert hit is not None, "Cache should hit before document deletion"
+    assert hit["answer"] == "Refunds are permitted within 14 days."
+
+    # Delete the document (triggers post_delete signal which flushes cache)
+    doc_cached.delete()
+
+    # Verify cache is cleared
+    miss = orchestrator.semantic_cache.lookup(dummy_vec, "What is the refund window?")
+    assert miss is None, "Cache lookup MUST be None (miss) after document deletion"
+    from ai_service.models import CacheEntry
+    assert CacheEntry.objects.filter(organization=org_a).count() == 0, "CacheEntry rows must be flushed on doc deletion"
+    print("  -> PASSED: Semantic cache invalidated immediately upon Document deletion; zero stale cache leakage.")
+
+    # ---------------------------------------------------------
+    # Scenario 14: Multi-turn mixed document history preserves active doc context
+    # ---------------------------------------------------------
+    print("\n[Scenario 14] Testing mixed document history (prunes deleted, preserves active)...")
+    doc_active = Document.objects.create(
+        organization=org_a,
+        title="Public FAQ",
+        filename="faq.txt",
+        status=Document.STATUS_READY,
+    )
+    doc_to_delete = Document.objects.create(
+        organization=org_a,
+        title="Retracted Memo",
+        filename="memo.txt",
+        status=Document.STATUS_READY,
+    )
+    mixed_history = [
+        {
+            "question": "What did the memo announce?",
+            "answer": "The memo announced a merger.",
+            "source_doc_ids": [str(doc_to_delete.id)],
+        },
+        {
+            "question": "What are support business hours?",
+            "answer": "Support is open 24/7.",
+            "source_doc_ids": [str(doc_active.id)],
+        },
+    ]
+
+    # Delete only the memo
+    doc_to_delete.delete()
+
+    sanitized = orchestrator._sanitize_conversation_history(mixed_history)
+    assert len(sanitized) == 1, "Only active document turn should survive"
+    assert sanitized[0]["question"] == "What are support business hours?"
+    assert sanitized[0]["answer"] == "Support is open 24/7."
+    print("  -> PASSED: Mixed history accurately pruned deleted doc turn while preserving active doc turn.")
+
     print("\n" + "=" * 60)
-    print("ALL 9 SCENARIO TESTS (INCLUDING API KEY CONTEXT) PASSED!")
+    print("ALL 14 SCENARIO TESTS (INCLUDING DOCUMENT DELETION SAFETY) PASSED!")
     print("=" * 60)
 
 if __name__ == "__main__":
