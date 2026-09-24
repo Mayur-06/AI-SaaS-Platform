@@ -8,9 +8,9 @@ from billing.models import ModelConfig, RoutingRule
 logger = logging.getLogger(__name__)
 
 PLAN_PERMITTED_MODELS = {
-    "free": ["gemini-2.5-flash", "gemini-2.0-flash"],
-    "pro": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
-    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+    "free": ["gemini-2.5-flash"],
+    "pro": ["gemini-2.5-flash", "gemini-2.5-pro"],
+    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro"],
 }
 
 
