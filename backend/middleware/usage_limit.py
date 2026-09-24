@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class MonthlyLimitExceeded(APIException):
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
-    default_detail = "Monthly request limit exceeded. Upgrade your plan at /api/billing/upgrade/."
+    default_detail = "Monthly request limit exceeded. Upgrade to Pro for 5,000 requests/month at /billing."
     default_code = "monthly_limit_exceeded"
 
 
@@ -51,7 +51,7 @@ class UsageLimitMiddleware:
                         {
                             "error": {
                                 "code": "MONTHLY_LIMIT_EXCEEDED",
-                                "message": f"Monthly limit of {monthly_limit} requests reached. Upgrade your plan at {upgrade_url}.",
+                                "message": f"Monthly limit of {monthly_limit} requests reached. Upgrade to Pro for 5,000 requests/month at {upgrade_link}.",
                                 "monthly_limit": monthly_limit,
                                 "requests_used": agg.total_requests,
                                 "remaining": remaining,

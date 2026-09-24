@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bot, Copy, Check, AlertCircle, FileText, Sparkles, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bot, Copy, Check, AlertCircle, FileText, Sparkles, ChevronDown, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -356,6 +357,17 @@ export const ResponseCard = ({ data, errorInfo, isLoading }) => {
           {errorInfo.rateLimitReset && (
             <div>
               <strong>Rate Limit Resets In:</strong> {errorInfo.rateLimitReset} seconds
+            </div>
+          )}
+          {(errorInfo.code === 'MONTHLY_LIMIT_EXCEEDED' || errorInfo.upgradeLink) && (
+            <div className="pt-2">
+              <Link
+                to={errorInfo.upgradeLink || '/billing'}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#b2c147] text-[#292929] font-bold text-xs rounded-lg hover:brightness-105 transition-all no-underline shadow-xs"
+              >
+                <span>Upgrade to Pro for 5,000 requests/month</span>
+                <ArrowUpRight size={14} />
+              </Link>
             </div>
           )}
         </div>

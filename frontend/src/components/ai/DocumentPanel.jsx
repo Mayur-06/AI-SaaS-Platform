@@ -81,7 +81,7 @@ export const DocumentPanel = ({
   const handleCreateDocument = async (e) => {
     e.preventDefault();
     if (!file) {
-      setErrorMessage('Please select a document file (.pdf,txt or .md) to upload.');
+      setErrorMessage('Please select a document file (.pdf, .docx, .txt or .md) to upload.');
       return;
     }
 
@@ -195,14 +195,14 @@ export const DocumentPanel = ({
               Upload Document
             </span>
             <span className="text-[11px] text-gray-500 font-mono">
-              .pdf,.md
+              .pdf, .docx, .txt, .md
             </span>
           </div>
 
           <div className="relative border-2 border-dashed border-[#b2c147]/60 hover:border-[#b2c147] bg-[#b2c147]/5 rounded-xl p-5 text-center transition-colors cursor-pointer group">
             <input
               type="file"
-              accept=".md,.pdf,.txt"
+              accept=".pdf,.docx,.txt,.md,.markdown"
               onChange={handleFileChange}
               disabled={isLoading}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -215,7 +215,7 @@ export const DocumentPanel = ({
                 {file ? file.name : 'Click to select or drag and drop document'}
               </span>
               <span className="text-[11px] text-gray-500 font-mono">
-                {file ? `${(file.size / 1024).toFixed(1)} KB — ready to upload` : 'Supports PDF, TXT and Markdown files'}
+                {file ? `${(file.size / 1024).toFixed(1)} KB — ready to upload` : 'Supports PDF, DOCX, TXT and Markdown files'}
               </span>
             </div>
           </div>

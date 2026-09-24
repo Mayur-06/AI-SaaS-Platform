@@ -52,8 +52,8 @@ class APIKey(models.Model):
         (SCOPE_RAG_QUERY, "RAG Query Only (rag:query)"),
         (SCOPE_DOCUMENTS_WRITE, "Documents Write Only (documents:write)"),
         (SCOPE_DOCUMENTS_READ, "Documents Read Only (documents:read)"),
-        (PERMISSION_ADMIN, "Organization Management & Info (admin)"),
-        (SCOPE_ADMIN, "Organization Management & Info (admin:*)"),
+        (PERMISSION_ADMIN, "Organization Admin (Tenant Management)"),
+        (SCOPE_ADMIN, "Organization Admin (admin:*)"),
         (PERMISSION_READ, "Read Only (Legacy)"),
     ]
 

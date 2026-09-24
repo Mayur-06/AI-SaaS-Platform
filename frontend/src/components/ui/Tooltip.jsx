@@ -30,14 +30,12 @@ TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 const SimpleTooltip = ({ content, children, side = 'top', sideOffset = 4 }) => {
   if (!content) return children;
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side={side} sideOffset={sideOffset}>
-          {content}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} sideOffset={sideOffset}>
+        {content}
+      </TooltipContent>
+    </Tooltip>
   );
 };
 

@@ -279,17 +279,16 @@ export const AIQueryPage = () => {
               </div>
             </div>
 
-            {/* Hub Body — panels are always mounted, toggled by CSS to prevent
-                Radix portal teardown crashing removeChild on tab switch */}
+            {/* Hub Body */}
             <div className="p-4 sm:p-5">
-              <div className={sidebarTab === 'knowledge' ? 'block' : 'hidden'}>
+              {sidebarTab === 'knowledge' && (
                 <DocumentPanel
                   isEmbedded={true}
                   onDocumentsChange={(docs) => setDocCount(docs.length)}
                 />
-              </div>
+              )}
 
-              <div className={sidebarTab === 'history' ? 'block' : 'hidden'}>
+              {sidebarTab === 'history' && (
                 <QueryHistory
                   isEmbedded={true}
                   selectedId={selectedHistoryId}
@@ -297,9 +296,9 @@ export const AIQueryPage = () => {
                   refreshTrigger={refreshHistoryTrigger}
                   onHistoryChange={(items) => setHistoryCount(items.length)}
                 />
-              </div>
+              )}
 
-              <div className={sidebarTab === 'split' ? 'block' : 'hidden'}>
+              {sidebarTab === 'split' && (
                 <div className="space-y-6">
                   <DocumentPanel
                     isEmbedded={true}
@@ -317,7 +316,7 @@ export const AIQueryPage = () => {
                     />
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </Card>
         </div>

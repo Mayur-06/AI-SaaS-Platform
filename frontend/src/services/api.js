@@ -119,9 +119,12 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // ── 429 Rate-limit automatic retry with exponential backoff ──────────────
-    // Retries up to 4 times, honouring the server's Retry-After header when
-    // present, otherwise uses exponential backoff: 2s → 4s → 8s → 16s.
-    if (error.response?.status === 429) {
+    // Retries up to 4 times for transient rate-limits (RPM / TPM), honouring the
+    // server's Retry-After header. Does NOT retry MONTHLY_LIMIT_EXCEEDED since quota
+    // cannot be recovered by waiting seconds.
+    const errCode = error.response?.data?.error?.code || error.response?.data?.code;
+    const isMonthlyQuota = errCode === 'MONTHLY_LIMIT_EXCEEDED' || error.response?.status === 402;
+    if (error.response?.status === 429 && !isMonthlyQuota) {
       originalRequest._rateLimitRetries = (originalRequest._rateLimitRetries || 0) + 1;
       const MAX_RATE_RETRIES = 4;
 
@@ -280,24 +283,27 @@ export function extractErrorMessage(error) {
       }
     }
 
+    const upgradeUrl = data?.error?.upgrade_url || data?.upgrade_url || data?.error?.upgrade_link || data?.upgrade_link || null;
+    const upgradeLink = data?.error?.upgrade_link || data?.upgrade_link || (upgradeUrl ? '/billing' : null);
+
     if (error.response.status === 429) {
       if (code === 'MONTHLY_LIMIT_EXCEEDED' || data?.error?.code === 'MONTHLY_LIMIT_EXCEEDED' || data?.code === 'MONTHLY_LIMIT_EXCEEDED') {
         code = 'MONTHLY_LIMIT_EXCEEDED';
-        message = message || 'Monthly quota exceeded. Please upgrade your plan.';
+        message = message || 'Monthly limit reached. Upgrade to Pro for 5,000 requests/month.';
       } else {
         code = code || 'RATE_LIMIT_EXCEEDED';
         message = message || 'Rate limit exceeded. Please wait a moment before trying again.';
       }
     } else if (error.response.status === 402) {
       code = code || 'MONTHLY_LIMIT_EXCEEDED';
-      message = message || 'Monthly quota exceeded. Please upgrade your plan.';
+      message = message || 'Monthly limit reached. Upgrade to Pro for 5,000 requests/month.';
     }
 
     if (typeof message !== 'string') {
       message = String(message || 'An unexpected error occurred.');
     }
 
-    return { message, code, requestId, rateLimitReset, usageWarning };
+    return { message, code, requestId, rateLimitReset, usageWarning, upgradeUrl, upgradeLink };
   }
 
   const rawMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');

@@ -21,6 +21,7 @@ export const CacheStats = ({ userRole, isActive }) => {
   const [stats, setStats] = useState(null);
   const [savedThreshold, setSavedThreshold] = useState(null);
   const [thresholdInput, setThresholdInput] = useState('');
+  const [thresholdError, setThresholdError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
 
@@ -71,23 +72,26 @@ export const CacheStats = ({ userRole, isActive }) => {
     e.preventDefault();
     const val = parseFloat(thresholdInput);
     if (isNaN(val) || val < 0.80 || val > 0.99) {
-      toast.error('Match Threshold must be between 0.80 and 0.99.');
-      if (savedThreshold !== null) {
-        setThresholdInput(String(savedThreshold));
-      }
+      const errMsg = 'Match Threshold must be between 0.80 and 0.99.';
+      setThresholdError(errMsg);
+      toast.error(errMsg);
       return;
     }
 
+    // Clear stale validation error on valid entry attempt
+    setThresholdError(null);
     setIsLoading(true);
     try {
       const res = await aiService.updateCacheThreshold(val);
       const newThresh = res.threshold ?? val;
       setSavedThreshold(newThresh);
       setThresholdInput(String(newThresh));
+      setThresholdError(null);
       toast.success(`Similarity threshold updated to ${newThresh}.`);
       await fetchStats();
     } catch (err) {
       const { message } = extractErrorMessage(err);
+      setThresholdError(message || 'Failed to update threshold');
       toast.error(`Failed to update threshold: ${message}`);
       if (savedThreshold !== null) {
         setThresholdInput(String(savedThreshold));
@@ -179,21 +183,33 @@ export const CacheStats = ({ userRole, isActive }) => {
                 <Sliders size={13} className="text-gray-400" />
                 <span>Match Threshold (0.80 - 0.99)</span>
               </label>
-              <input
-                id="cache-threshold"
-                type="number"
-                step="0.01"
-                min="0.80"
-                max="0.99"
-                placeholder={savedThreshold !== null ? String(savedThreshold) : '0.95'}
-                value={thresholdInput}
-                onChange={(e) => setThresholdInput(e.target.value)}
-                className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 focus:ring-[#b2c147]"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="cache-threshold"
+                  type="number"
+                  step="0.01"
+                  min="0.80"
+                  max="0.99"
+                  placeholder={savedThreshold !== null ? String(savedThreshold) : '0.95'}
+                  value={thresholdInput}
+                  onChange={(e) => {
+                    setThresholdInput(e.target.value);
+                    if (thresholdError) setThresholdError(null);
+                  }}
+                  className={`w-36 px-3 py-2 border rounded-lg text-sm bg-white text-[#292929] focus:outline-none focus:ring-2 ${
+                    thresholdError
+                      ? 'border-red-500 focus:ring-red-400/30'
+                      : 'border-gray-200 focus:ring-[#b2c147]'
+                  }`}
+                />
+                <Button type="submit" variant="secondary" size="md" disabled={isLoading}>
+                  Save Threshold
+                </Button>
+              </div>
+              {thresholdError && (
+                <p className="text-xs text-red-600 mt-0.5">{thresholdError}</p>
+              )}
             </div>
-            <Button type="submit" variant="secondary" size="md" disabled={isLoading}>
-              Save Threshold
-            </Button>
           </form>
 
           <AlertDialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
