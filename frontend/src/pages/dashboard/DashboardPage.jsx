@@ -28,7 +28,11 @@ export const DashboardPage = () => {
   const requestLimit = usage?.monthly_limit ?? currentPlan?.monthly_request_limit ?? 100;
   const remainingQuota = Math.max(0, requestLimit - requestsUsed);
   const cacheHitRate = usage ? `${usage.cache_hit_rate}%` : '0%';
-  const totalCost = usage ? `$${Number(usage.total_cost || 0).toFixed(4)}` : '$0.00';
+  const totalCost = usage
+    ? (Number(usage.total_cost || 0) > 0 && Number(usage.total_cost || 0) < 0.0001
+        ? `$${Number(usage.total_cost).toFixed(6)}`
+        : `$${Number(usage.total_cost || 0).toFixed(4)}`)
+    : '$0.00';
 
   return (
     <div className="space-y-8 animate-fade-in">

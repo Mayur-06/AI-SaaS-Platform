@@ -158,7 +158,7 @@ class BillingUsageView(APIView):
             cache_savings = agg.cache_savings
         else:
             cached_output_tokens = month_logs.filter(cache_hit=True).aggregate(total=Sum("output_tokens"))["total"] or 0
-            cache_savings = round(cached_output_tokens * 0.000002, 4)
+            cache_savings = round((cached_output_tokens / 10000.0) * 0.02, 4)
 
         # Calculate daily usage
         from django.db.models import Count, F

@@ -52,7 +52,9 @@ def log_usage(
             agg.total_cost = (agg.total_cost or Decimal("0")) + cost_dec
             if cache_hit:
                 agg.cache_hits = (agg.cache_hits or 0) + 1
-                saved_cost = Decimal(str(round(max(output_tokens, 30) * 0.000002, 6)))
+                # Savings calculated per 10,000 output tokens avoided ($0.02 per 10k tokens)
+                SAVED_RATE_PER_10K = 0.02
+                saved_cost = Decimal(str(round((max(output_tokens, 30) / 10000.0) * SAVED_RATE_PER_10K, 6)))
                 agg.cache_savings = (agg.cache_savings or Decimal("0")) + saved_cost
             agg.save()
 

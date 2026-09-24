@@ -286,10 +286,19 @@ class ModelRouter:
                 latency_ms = int((time.time() - start) * 1000)
                 self.circuit_breaker.reset(model_key)
 
-                input_tokens = len(system_prompt.split()) + len(user_prompt.split())
-                output_tokens = len(answer.split())
-                input_cost = (input_tokens / 1000) * float(candidate.input_cost_per_1k)
-                output_cost = (output_tokens / 1000) * float(candidate.output_cost_per_1k)
+                # Accurate token estimation (~1.33 tokens per word for English text)
+                raw_input_words = len(system_prompt.split()) + len(user_prompt.split())
+                input_tokens = int(raw_input_words * 1.33) if raw_input_words > 0 else 0
+
+                raw_output_words = len(answer.split())
+                output_tokens = int(raw_output_words * 1.33) if raw_output_words > 0 else 0
+
+                # Pricing calculated per 10,000 tokens (10k tokens = 10 * rate_per_1k)
+                input_cost_per_10k = float(candidate.input_cost_per_1k) * 10
+                output_cost_per_10k = float(candidate.output_cost_per_1k) * 10
+                input_cost = (input_tokens / 10000.0) * input_cost_per_10k
+                output_cost = (output_tokens / 10000.0) * output_cost_per_10k
+                estimated_cost = round(input_cost + output_cost, 6)
 
                 cascade_log.append({
                     "model": candidate.name,
