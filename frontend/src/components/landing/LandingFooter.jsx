@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export const LandingFooter = () => {
+  const { user } = useAuthStore();
   return (
     <footer className="bg-[#292929] text-white border-t border-white/10 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -60,8 +62,11 @@ export const LandingFooter = () => {
             </h4>
             <ul className="space-y-2.5 text-sm text-gray-400">
               <li>
-                <Link to="/dashboard" className="hover:text-white transition-colors no-underline">
-                  Dashboard
+                <Link
+                  to={user?.is_staff ? "/admin" : "/dashboard"}
+                  className="hover:text-white transition-colors no-underline"
+                >
+                  {user?.is_staff ? "Admin Console" : "Dashboard"}
                 </Link>
               </li>
               <li>

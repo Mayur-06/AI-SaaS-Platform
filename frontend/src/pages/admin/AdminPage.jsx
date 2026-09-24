@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, RotateCw, AlertCircle, Building2, Activity, Shuffle } from 'lucide-react';
+import { ShieldAlert, RotateCw, AlertCircle, Building2, Activity } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { PlatformMetrics } from '../../components/admin/PlatformMetrics';
 import { HealthPanel } from '../../components/admin/HealthPanel';
 import { TenantTable } from '../../components/admin/TenantTable';
-import { RoutingConfig } from '../../components/admin/RoutingConfig';
 import { extractErrorMessage } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
@@ -74,20 +73,22 @@ export const AdminPage = () => {
             Superadmin Infrastructure Console
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Fleet telemetry, service health probes, multi-tenant accounts, and global LLM routing.
+            Fleet telemetry, service health probes, and multi-tenant accounts.
           </p>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => loadData(currentPage)}
-          disabled={isLoading}
-          className="self-start sm:self-auto flex items-center gap-1.5"
-        >
-          <RotateCw size={14} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
-          <span>Refresh Fleet Telemetry</span>
-        </Button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => loadData(currentPage)}
+            disabled={isLoading}
+            className="flex items-center gap-1.5"
+          >
+            <RotateCw size={14} className={isLoading ? 'animate-spin text-[#b2c147]' : ''} />
+            <span>Refresh Fleet Telemetry</span>
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -99,7 +100,7 @@ export const AdminPage = () => {
 
       {/* Tabs Navigation */}
       <Tabs defaultValue="fleet" className="space-y-6">
-        <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full max-w-xl gap-1">
+        <TabsList className="grid grid-cols-1 sm:grid-cols-2 w-full max-w-md gap-1">
           <TabsTrigger value="fleet" className="flex items-center gap-1.5">
             <Building2 size={13} />
             <span>Fleet &amp; Tenants ({tenantCount})</span>
@@ -107,10 +108,6 @@ export const AdminPage = () => {
           <TabsTrigger value="health" className="flex items-center gap-1.5">
             <Activity size={13} />
             <span>Service Health</span>
-          </TabsTrigger>
-          <TabsTrigger value="routing" className="flex items-center gap-1.5">
-            <Shuffle size={13} />
-            <span>Model Routing</span>
           </TabsTrigger>
         </TabsList>
 
@@ -133,11 +130,6 @@ export const AdminPage = () => {
             onRefresh={handleRefreshHealth}
             isLoading={isLoading}
           />
-        </TabsContent>
-
-        {/* Tab 3: Model Routing & Circuit Breakers */}
-        <TabsContent value="routing" className="space-y-4">
-          <RoutingConfig />
         </TabsContent>
       </Tabs>
     </div>

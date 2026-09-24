@@ -36,17 +36,22 @@ def get_request_org(request):
 
 
 def ensure_default_plans():
-    Plan.objects.get_or_create(
+    """
+    Upsert plan defaults so the database always reflects the current
+    code-level limits. Using update_or_create instead of get_or_create
+    ensures existing rows are corrected when limits change in code.
+    """
+    Plan.objects.update_or_create(
         name=Plan.PLAN_FREE,
-        defaults={"monthly_request_limit": 100, "requests_per_minute": 10, "price": 0, "cache_ttl_seconds": 3600},
+        defaults={"monthly_request_limit": 100, "requests_per_minute": 60, "price": 0, "cache_ttl_seconds": 3600},
     )
-    Plan.objects.get_or_create(
+    Plan.objects.update_or_create(
         name=Plan.PLAN_PRO,
-        defaults={"monthly_request_limit": 1000, "requests_per_minute": 60, "price": 29, "cache_ttl_seconds": 86400},
+        defaults={"monthly_request_limit": 5000, "requests_per_minute": 120, "price": 49, "cache_ttl_seconds": 86400},
     )
-    Plan.objects.get_or_create(
+    Plan.objects.update_or_create(
         name=Plan.PLAN_ENTERPRISE,
-        defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 99, "cache_ttl_seconds": 604800},
+        defaults={"monthly_request_limit": 999999, "requests_per_minute": 300, "price": 299, "cache_ttl_seconds": 604800},
     )
 
 
@@ -158,7 +163,7 @@ class BillingUsageView(APIView):
             cache_savings = agg.cache_savings
         else:
             cached_output_tokens = month_logs.filter(cache_hit=True).aggregate(total=Sum("output_tokens"))["total"] or 0
-            cache_savings = round(cached_output_tokens * 0.000002, 4)
+            cache_savings = round((cached_output_tokens / 10000.0) * 0.02, 4)
 
         # Calculate daily usage
         from django.db.models import Count, F

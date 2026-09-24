@@ -14,6 +14,7 @@ export const PricingSection = () => {
       cacheTtl: '1 hour semantic cache',
       features: [
         '100 requests per month',
+        '60 req / min rate limit',
         'Org-isolated RAG vector search',
         'Standard semantic caching (1h TTL)',
         'Up to 3 team members',
@@ -25,13 +26,14 @@ export const PricingSection = () => {
     {
       name: 'Pro',
       badge: 'Most Popular',
-      priceMonthly: 29,
+      priceMonthly: 49,
       desc: 'Designed for fast-growing businesses analyzing reports daily.',
-      requests: '1,000 monthly requests',
-      rateLimit: '60 requests / minute',
+      requests: '5,000 monthly requests',
+      rateLimit: '120 requests / minute',
       cacheTtl: '24 hours semantic cache',
       features: [
-        '1,000 requests per month',
+        '5,000 requests per month',
+        '120 req / min rate limit',
         'Org-isolated RAG vector search',
         'Extended semantic cache (24h TTL)',
         'Model auto-fallback routing',
@@ -44,13 +46,14 @@ export const PricingSection = () => {
     {
       name: 'Enterprise',
       badge: 'High Volume',
-      priceMonthly: 99,
+      priceMonthly: 299,
       desc: 'Unlimited scale and premium throughput for mission-critical apps.',
       requests: '999,999 monthly requests',
       rateLimit: '300 requests / minute',
       cacheTtl: '168 hours semantic cache',
       features: [
         '999,999 requests per month',
+        '300 req / min rate limit',
         'Org-isolated RAG vector search',
         'Max cache retention (7 days TTL)',
         'Custom model weights & overrides',

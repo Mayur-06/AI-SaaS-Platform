@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, AlertOctagon, TrendingUp, DollarSign, Wallet } from 'lucide-react';
+import { AlertTriangle, AlertOctagon, DollarSign, Wallet } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -67,22 +67,8 @@ export const UsageBreakdown = ({ usage }) => {
         <ProgressBar value={percent} max={100} size="md" />
       </div>
 
-      {/* 3 Metric Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-        <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
-            <TrendingUp size={13} className="text-gray-400" />
-            <span>Projected Spend</span>
-          </div>
-          <div
-            style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
-            className="text-2xl font-bold text-[#292929]"
-          >
-            ${Number(usage.projected_monthly_spend || 0).toFixed(2)}
-          </div>
-          <div className="text-[11px] text-gray-400 font-mono">Estimated by end of cycle</div>
-        </div>
-
+      {/* 2 Metric Tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
         <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-mono text-gray-500 uppercase tracking-wider">
             <Wallet size={13} className="text-gray-400" />
@@ -106,9 +92,11 @@ export const UsageBreakdown = ({ usage }) => {
             style={{ fontFamily: '"Cabinet Grotesk", Inter, sans-serif' }}
             className="text-2xl font-bold text-emerald-700"
           >
-            ${Number(usage.total_cost || 0).toFixed(4)}
+            ${Number(usage.total_cost || 0) > 0 && Number(usage.total_cost || 0) < 0.0001
+              ? Number(usage.total_cost).toFixed(6)
+              : Number(usage.total_cost || 0).toFixed(4)}
           </div>
-          <div className="text-[11px] text-gray-400 font-mono">Direct LLM inference costs</div>
+          <div className="text-[11px] text-gray-400 font-mono">Direct LLM &amp; embedding costs</div>
         </div>
       </div>
     </Card>

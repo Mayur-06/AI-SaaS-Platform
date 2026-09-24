@@ -66,6 +66,7 @@ class AIQuery(models.Model):
     estimated_cost = models.DecimalField(max_digits=10, decimal_places=6, default=0)
     cache_hit = models.BooleanField(default=False)
     request_id = models.CharField(max_length=36, null=True, blank=True)
+    source_doc_ids = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

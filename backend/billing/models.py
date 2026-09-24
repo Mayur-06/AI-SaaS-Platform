@@ -52,8 +52,8 @@ class APIKey(models.Model):
         (SCOPE_RAG_QUERY, "RAG Query Only (rag:query)"),
         (SCOPE_DOCUMENTS_WRITE, "Documents Write Only (documents:write)"),
         (SCOPE_DOCUMENTS_READ, "Documents Read Only (documents:read)"),
-        (PERMISSION_ADMIN, "Organization Management & Info (admin)"),
-        (SCOPE_ADMIN, "Organization Management & Info (admin:*)"),
+        (PERMISSION_ADMIN, "Organization Admin (Tenant Management)"),
+        (SCOPE_ADMIN, "Organization Admin (admin:*)"),
         (PERMISSION_READ, "Read Only (Legacy)"),
     ]
 
@@ -128,9 +128,12 @@ class APIKey(models.Model):
         # Full write grants RAG query and document read/write (AI service operations)
         if self.permissions == self.PERMISSION_WRITE:
             return required_scope in [self.SCOPE_RAG_QUERY, self.SCOPE_DOCUMENTS_READ, self.SCOPE_DOCUMENTS_WRITE]
-        # rag:query or legacy read grants RAG query and document read
-        if self.permissions in [self.PERMISSION_READ, self.SCOPE_RAG_QUERY]:
+        # rag:query grants RAG query and document read
+        if self.permissions == self.SCOPE_RAG_QUERY:
             return required_scope in [self.SCOPE_RAG_QUERY, self.SCOPE_DOCUMENTS_READ]
+        # legacy read grants document reading only (blocked from AI generation queries)
+        if self.permissions == self.PERMISSION_READ:
+            return required_scope in [self.SCOPE_DOCUMENTS_READ]
         # documents:write grants document write and document read
         if self.permissions == self.SCOPE_DOCUMENTS_WRITE:
             return required_scope in [self.SCOPE_DOCUMENTS_WRITE, self.SCOPE_DOCUMENTS_READ]

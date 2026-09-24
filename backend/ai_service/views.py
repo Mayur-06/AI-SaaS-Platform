@@ -25,6 +25,9 @@ from common.core.permissions import (
 
 logger = logging.getLogger(__name__)
 
+# Embedding cost rate calculated per 10,000 tokens ($0.0002 per 10k tokens = $0.02 / 1M tokens)
+EMBEDDING_COST_PER_10K_TOKENS = 0.0002
+
 
 def get_request_org(request):
     org = getattr(request, "organization", None)
@@ -112,7 +115,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
                         input_tokens=approx_tokens,
                         output_tokens=0,
                         latency_ms=0,
-                        estimated_cost=round(approx_tokens * 0.00000002, 6),
+                        estimated_cost=round((approx_tokens / 10000.0) * EMBEDDING_COST_PER_10K_TOKENS, 6),
                         cache_hit=False,
                         request_id=getattr(self.request, "request_id", None),
                         user=self.request.user if getattr(self.request, "user", None) and self.request.user.is_authenticated else None,
@@ -122,6 +125,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             logger.warning("Auto-processing document %s failed: %s", instance.id, exc)
 
     def perform_destroy(self, instance):
+        org = instance.organization
         if instance.filename:
             try:
                 from django.core.files.storage import default_storage
@@ -130,6 +134,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
             except Exception as exc:
                 logger.warning("Failed to delete document file %s: %s", instance.filename, exc)
         instance.delete()
+        if org:
+            try:
+                from ai_service.services.semantic_cache import SemanticCache
+                SemanticCache(org).clear()
+            except Exception as exc:
+                logger.warning("Failed to clear semantic cache on document destruction: %s", exc)
 
     @action(detail=True, methods=["post"])
     def process(self, request, pk=None):
@@ -164,7 +174,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             input_tokens=approx_tokens,
             output_tokens=0,
             latency_ms=0,
-            estimated_cost=round(approx_tokens * 0.00000002, 6),
+            estimated_cost=round((approx_tokens / 10000.0) * EMBEDDING_COST_PER_10K_TOKENS, 6),
             cache_hit=False,
             request_id=getattr(request, "request_id", None),
             user=request.user if getattr(request, "user", None) and request.user.is_authenticated else None,

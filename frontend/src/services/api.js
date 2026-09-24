@@ -109,11 +109,40 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// Helper: sleep for ms milliseconds
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Response Interceptor: Refresh token & Centralized Error Extraction
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // ── 429 Rate-limit automatic retry with exponential backoff ──────────────
+    // Retries up to 4 times for transient rate-limits (RPM / TPM), honouring the
+    // server's Retry-After header. Does NOT retry MONTHLY_LIMIT_EXCEEDED since quota
+    // cannot be recovered by waiting seconds.
+    const errCode = error.response?.data?.error?.code || error.response?.data?.code;
+    const isMonthlyQuota = errCode === 'MONTHLY_LIMIT_EXCEEDED' || error.response?.status === 402;
+    if (error.response?.status === 429 && !isMonthlyQuota) {
+      originalRequest._rateLimitRetries = (originalRequest._rateLimitRetries || 0) + 1;
+      const MAX_RATE_RETRIES = 4;
+
+      if (originalRequest._rateLimitRetries <= MAX_RATE_RETRIES) {
+        const retryAfterHeader = error.response.headers['retry-after'];
+        const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+        const waitMs = !isNaN(retryAfterSec) && retryAfterSec > 0
+          ? retryAfterSec * 1000
+          : Math.pow(2, originalRequest._rateLimitRetries) * 1000; // 2s, 4s, 8s, 16s
+
+        console.warn(
+          `[API] Rate limited (429). Retry ${originalRequest._rateLimitRetries}/${MAX_RATE_RETRIES} in ${waitMs / 1000}s…`,
+        );
+        await sleep(waitMs);
+        return apiClient(originalRequest);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Centralized 401 Unauthorized handling & automatic token refresh
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
@@ -254,19 +283,27 @@ export function extractErrorMessage(error) {
       }
     }
 
+    const upgradeUrl = data?.error?.upgrade_url || data?.upgrade_url || data?.error?.upgrade_link || data?.upgrade_link || null;
+    const upgradeLink = data?.error?.upgrade_link || data?.upgrade_link || (upgradeUrl ? '/billing' : null);
+
     if (error.response.status === 429) {
-      code = code || 'RATE_LIMIT_EXCEEDED';
-      message = message || 'Rate limit exceeded. Please wait a moment before trying again.';
+      if (code === 'MONTHLY_LIMIT_EXCEEDED' || data?.error?.code === 'MONTHLY_LIMIT_EXCEEDED' || data?.code === 'MONTHLY_LIMIT_EXCEEDED') {
+        code = 'MONTHLY_LIMIT_EXCEEDED';
+        message = message || 'Monthly limit reached. Upgrade to Pro for 5,000 requests/month.';
+      } else {
+        code = code || 'RATE_LIMIT_EXCEEDED';
+        message = message || 'Rate limit exceeded. Please wait a moment before trying again.';
+      }
     } else if (error.response.status === 402) {
       code = code || 'MONTHLY_LIMIT_EXCEEDED';
-      message = message || 'Monthly quota exceeded. Please upgrade your plan.';
+      message = message || 'Monthly limit reached. Upgrade to Pro for 5,000 requests/month.';
     }
 
     if (typeof message !== 'string') {
       message = String(message || 'An unexpected error occurred.');
     }
 
-    return { message, code, requestId, rateLimitReset, usageWarning };
+    return { message, code, requestId, rateLimitReset, usageWarning, upgradeUrl, upgradeLink };
   }
 
   const rawMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');

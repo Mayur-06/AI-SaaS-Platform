@@ -110,13 +110,13 @@ export const HealthPanel = ({ health, onRefresh, isLoading }) => {
                   className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200/70"
                 >
                   <span className="font-semibold text-gray-700 font-mono">
-                    {name.includes('gemini') ? '✨' : name.includes('gpt') ? '🤖' : '🧠'} {name}
+                    ✨ {name}
                   </span>
                   <div className="flex items-center gap-2 font-mono">
                     {p.latency_ms !== undefined && (
                       <span className="text-gray-400">{p.latency_ms}ms</span>
                     )}
-                    <Badge variant={p.status === 'healthy' ? 'green' : 'red'}>
+                    <Badge variant={p.status === 'healthy' ? 'green' : p.status === 'not_configured' ? 'gray' : 'red'}>
                       {p.status || 'unknown'}
                     </Badge>
                   </div>

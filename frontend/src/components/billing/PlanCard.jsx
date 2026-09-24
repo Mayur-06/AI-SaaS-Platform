@@ -65,7 +65,25 @@ export const PlanCard = ({
               <Check size={11} strokeWidth={3} />
             </div>
             <span>
-              <strong className="text-[#292929]">{plan.requests_per_minute}</strong> req/min rate limit
+              <strong className="text-[#292929]">
+                {plan.requests_per_minute ?? '—'}
+              </strong>{' '}
+              req / min rate limit
+            </span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <div className="w-4 h-4 rounded-full bg-[#b2c147]/20 text-[#292929] flex items-center justify-center shrink-0 mt-0.5">
+              <Check size={11} strokeWidth={3} />
+            </div>
+            <span>
+              <strong className="text-[#292929]">
+                {plan.name?.toLowerCase() === 'enterprise'
+                  ? '1M'
+                  : plan.name?.toLowerCase() === 'pro'
+                  ? '100K'
+                  : '10K'}
+              </strong>{' '}
+              tokens / min (TPM)
             </span>
           </li>
           <li className="flex items-start gap-2.5">
@@ -83,6 +101,7 @@ export const PlanCard = ({
             <span>Org-isolated RAG vector retrieval</span>
           </li>
         </ul>
+
       </div>
 
       {/* Action Footer */}

@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class MonthlyLimitExceeded(APIException):
-    status_code = status.HTTP_402_PAYMENT_REQUIRED
-    default_detail = "Monthly request limit exceeded."
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_detail = "Monthly request limit exceeded. Upgrade to Pro for 5,000 requests/month at /billing."
     default_code = "monthly_limit_exceeded"
 
 
@@ -45,18 +45,24 @@ class UsageLimitMiddleware:
                 )
                 if agg.total_requests >= monthly_limit:
                     remaining = max(0, monthly_limit - agg.total_requests)
+                    upgrade_url = "/api/billing/upgrade/"
+                    upgrade_link = "/billing"
                     response = JsonResponse(
                         {
                             "error": {
                                 "code": "MONTHLY_LIMIT_EXCEEDED",
-                                "message": f"Monthly limit of {monthly_limit} requests reached.",
+                                "message": f"Monthly limit of {monthly_limit} requests reached. Upgrade to Pro for 5,000 requests/month at {upgrade_link}.",
                                 "monthly_limit": monthly_limit,
                                 "requests_used": agg.total_requests,
                                 "remaining": remaining,
+                                "upgrade_url": upgrade_url,
+                                "upgrade_link": upgrade_link,
                                 "request_id": getattr(request, "request_id", None),
-                            }
+                            },
+                            "upgrade_url": upgrade_url,
+                            "upgrade_link": upgrade_link,
                         },
-                        status=status.HTTP_402_PAYMENT_REQUIRED,
+                        status=status.HTTP_429_TOO_MANY_REQUESTS,
                     )
                     response["X-Usage-Warning"] = "limit_reached"
                     return response

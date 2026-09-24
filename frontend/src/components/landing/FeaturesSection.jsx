@@ -18,7 +18,7 @@ export const FeaturesSection = () => {
     {
       icon: Shuffle,
       title: 'Dynamic Model Fallback',
-      desc: 'Intelligent multi-model routing cascades requests between Gemini, GPT, and Claude to guarantee 99.9% uptime and prevent rate limits.',
+      desc: 'Intelligent multi-model routing cascades requests across Gemini models to guarantee 99.9% uptime and prevent rate limits.',
       highlight: 'Auto-Routing & Breakers',
     },
     {
