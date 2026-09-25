@@ -31,7 +31,27 @@ export const BillingPage = () => {
 
   useEffect(() => {
     if (organization || !user?.is_staff) {
-      fetchBillingData();
+      fetchBillingData(true);
+
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchBillingData(true);
+        }
+      }, 15000);
+
+      const handleSync = () => {
+        if (document.visibilityState === 'visible') {
+          fetchBillingData(true);
+        }
+      };
+      window.addEventListener('focus', handleSync);
+      document.addEventListener('visibilitychange', handleSync);
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('focus', handleSync);
+        document.removeEventListener('visibilitychange', handleSync);
+      };
     }
   }, [fetchBillingData, organization, user]);
 
