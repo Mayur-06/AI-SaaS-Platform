@@ -68,10 +68,18 @@ class AdminHealthView(APIView):
                             provider_status["error"] = "GEMINI_API_KEY not configured"
                         else:
                             import google.generativeai as genai
+                            from rag.providers.gemini import Gemini
                             genai.configure(api_key=settings.GEMINI_API_KEY)
-                            model = genai.GenerativeModel(mc.name)
+                            raw_name = (mc.name or "gemini-2.5-flash").strip()
+                            resolved_model = Gemini.MODEL_ALIASES.get(raw_name, raw_name)
+                            if resolved_model.startswith("models/"):
+                                resolved_model = resolved_model[len("models/"):]
+                            resolved_model = Gemini.MODEL_ALIASES.get(resolved_model, resolved_model)
+                            model = genai.GenerativeModel(resolved_model)
                             model.generate_content("hi", generation_config=genai.GenerationConfig(max_output_tokens=1))
                             provider_status["status"] = "healthy"
+                            if resolved_model != mc.name:
+                                provider_status["resolved_model"] = resolved_model
                             provider_status["latency_ms"] = round((time.time() - start) * 1000, 1)
                     elif mc.provider == "openai":
                         if not getattr(settings, "OPENAI_API_KEY", ""):

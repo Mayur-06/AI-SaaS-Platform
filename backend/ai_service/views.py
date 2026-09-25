@@ -210,8 +210,10 @@ class AIQueryView(APIView):
         permitted = PLAN_PERMITTED_MODELS.get(plan_name, ["gemini-2.5-flash"])
 
         if requested_model and requested_model != "auto":
-            if requested_model not in permitted:
-                required_tier = "Enterprise" if requested_model == "gpt-4" else "Pro"
+            from rag.providers.gemini import Gemini
+            resolved = Gemini.MODEL_ALIASES.get(requested_model, requested_model)
+            if requested_model not in permitted and resolved not in permitted:
+                required_tier = "Pro"
                 return Response(
                     {
                         "error": {

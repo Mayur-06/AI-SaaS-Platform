@@ -87,19 +87,19 @@ def model_config_gemini(db):
 
 
 @pytest.fixture
-def model_config_gpt4o(db):
+def model_config_gemini_pro(db):
     return ModelConfig.objects.create(
-        name="gpt-4o-mini",
-        provider="openai",
-        input_cost_per_1k=0.00015,
-        output_cost_per_1k=0.0006,
+        name="gemini-2.5-pro",
+        provider="gemini",
+        input_cost_per_1k=0.00025,
+        output_cost_per_1k=0.001,
     )
 
 
 @pytest.fixture
-def routing_rule_free(db, free_plan, model_config_gemini, model_config_gpt4o):
+def routing_rule_free(db, free_plan, model_config_gemini, model_config_gemini_pro):
     rule = RoutingRule.objects.create(plan=free_plan, primary_model=model_config_gemini, timeout_seconds=10)
-    rule.fallback_models.set([model_config_gpt4o])
+    rule.fallback_models.set([model_config_gemini_pro])
     return rule
 
 

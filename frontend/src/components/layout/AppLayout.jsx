@@ -129,7 +129,7 @@ const SidebarContent = ({ user, organization, planName, role, navItems, onNavCli
       <button
         type="button"
         onClick={onLogout}
-        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+        className="w-full flex items-center justify-center gap-2 px-3 py-3 text-xs font-semibold text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer min-h-[44px]"
       >
         <LogOut size={14} />
         <span>Sign Out</span>
@@ -239,7 +239,7 @@ export const AppLayout = () => {
             <SheetTrigger asChild>
               <button
                 type="button"
-                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none cursor-pointer"
+                className="p-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Toggle navigation drawer"
               >
                 <Menu size={22} />

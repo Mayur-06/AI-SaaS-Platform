@@ -1,3 +1,8 @@
+import os, sys
+from pathlib import Path
+_BACKEND_DIR = str(Path(__file__).resolve().parent.parent.parent)
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 import os
 import sys
 import json
@@ -24,8 +29,9 @@ def banner(title):
 # TEST 1: Document Upload (Using Ingestion Only Key)
 # =============================================================================
 banner("TEST 1: Upload Document via Ingestion Key (Scope: documents:write)")
-print(f"Key: {INGESTION_KEY[:14]}...")
-doc_path = Path("Platform_API_Integration_Guide.md")
+doc_path = Path(_BACKEND_DIR).parent / "plans" / "Platform_API_Integration_Guide.md"
+if not doc_path.exists():
+    doc_path = Path("plans/Platform_API_Integration_Guide.md")
 
 with open(doc_path, "rb") as f:
     files = {"file": (doc_path.name, f, "application/octet-stream")}

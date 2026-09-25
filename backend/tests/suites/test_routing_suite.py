@@ -5,7 +5,9 @@ import time
 from unittest.mock import MagicMock, patch
 
 # Configure Django settings
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
@@ -42,13 +44,9 @@ def run_tests():
         name="gemini-2.5-flash",
         defaults={"provider": "gemini", "input_cost_per_1k": "0.0001", "output_cost_per_1k": "0.0002", "is_active": True}
     )
-    gpt4o_model, _ = ModelConfig.objects.get_or_create(
-        name="gpt-4o-mini",
-        defaults={"provider": "openai", "input_cost_per_1k": "0.00015", "output_cost_per_1k": "0.0006", "is_active": True}
-    )
-    gpt4_model, _ = ModelConfig.objects.get_or_create(
-        name="gpt-4",
-        defaults={"provider": "openai", "input_cost_per_1k": "0.03", "output_cost_per_1k": "0.06", "is_active": True}
+    gemini_pro_model, _ = ModelConfig.objects.get_or_create(
+        name="gemini-2.5-pro",
+        defaults={"provider": "gemini", "input_cost_per_1k": "0.00025", "output_cost_per_1k": "0.001", "is_active": True}
     )
 
     factory = APIRequestFactory()
@@ -76,7 +74,7 @@ def run_tests():
         "action": "save",
         "plan_name": "pro",
         "primary_model_id": str(gemini_model.id),
-        "fallback_model_ids": [str(gpt4o_model.id)],
+        "fallback_model_ids": [str(gemini_pro_model.id)],
         "timeout_seconds": 8,
     }
     req = factory.post("/api/admin/routing/", data=save_payload, format="json")
@@ -87,7 +85,7 @@ def run_tests():
     assert saved_data["rule"]["timeout_seconds"] == 8
     assert saved_data["rule"]["primary_model"]["name"] == "gemini-2.5-flash"
     assert len(saved_data["rule"]["fallback_models"]) == 1
-    assert saved_data["rule"]["fallback_models"][0]["name"] == "gpt-4o-mini"
+    assert saved_data["rule"]["fallback_models"][0]["name"] == "gemini-2.5-pro"
     log_test("AdminRoutingView POST (save): correctly updates primary, fallbacks, and timeout (8s)")
 
     # -------------------------------------------------------------
@@ -96,7 +94,7 @@ def run_tests():
     invalid_payload = {
         "action": "save",
         "plan_name": "free",
-        "primary_model_id": str(gpt4_model.id), # gpt-4 is restricted on free tier
+        "primary_model_id": str(gemini_pro_model.id), # gemini-2.5-pro is restricted on free tier
         "fallback_model_ids": [],
         "timeout_seconds": 10,
     }
@@ -117,8 +115,8 @@ def run_tests():
     resp = view(req)
     assert resp.status_code == 200
     reset_data = json.loads(resp.content.decode("utf-8"))
-    assert reset_data["rule"]["timeout_seconds"] == 15
-    log_test("AdminRoutingView POST (reset): resets enterprise plan to recommended defaults (15s)")
+    assert reset_data["rule"]["timeout_seconds"] == 90
+    log_test("AdminRoutingView POST (reset): resets enterprise plan to recommended defaults (90s)")
 
     # -------------------------------------------------------------
     # TEST 5: ModelRouter - Normal execution on primary model
@@ -136,7 +134,7 @@ def run_tests():
     rule.primary_model = gemini_model
     rule.timeout_seconds = 5
     rule.save()
-    rule.fallback_models.set([gpt4o_model])
+    rule.fallback_models.set([gemini_pro_model])
 
     router = ModelRouter(organization=test_org, circuit_breaker=test_breaker)
 
@@ -158,18 +156,18 @@ def run_tests():
     mock_failing_gemini = MagicMock()
     mock_failing_gemini.generate.side_effect = RuntimeError("503 Service Unavailable: High load")
 
-    mock_success_gpt4o = MagicMock()
-    mock_success_gpt4o.generate.return_value = "Hello from fallback GPT-4o-mini!"
+    mock_success_gemini_pro = MagicMock()
+    mock_success_gemini_pro.generate.return_value = "Hello from fallback Gemini Pro!"
 
     def mock_provider_selector(candidate):
         if candidate.name == "gemini-2.5-flash":
             return mock_failing_gemini
-        return mock_success_gpt4o
+        return mock_success_gemini_pro
 
     with patch.object(router, "_get_provider_instance", side_effect=mock_provider_selector):
         res = router.generate("System", "User prompt")
-        assert res["answer"] == "Hello from fallback GPT-4o-mini!"
-        assert res["model"] == "gpt-4o-mini"
+        assert res["answer"] == "Hello from fallback Gemini Pro!"
+        assert res["model"] == "gemini-2.5-pro"
         assert res["attempts"] == 2
         assert len(res["errors"]) == 1
         assert "503 Service Unavailable" in res["errors"][0]
@@ -194,7 +192,7 @@ def run_tests():
     def mock_provider_timeout_selector(candidate):
         if candidate.name == "gemini-2.5-flash":
             return mock_timeout_gemini
-        return mock_success_gpt4o
+        return mock_success_gemini_pro
 
     router_timeout = ModelRouter(organization=test_org, circuit_breaker=test_breaker)
     # Patch get_route to have timeout = 0.5s for fast test
@@ -207,10 +205,10 @@ def run_tests():
 
     t0 = time.time()
     with patch.object(router_timeout, "_get_provider_instance", side_effect=mock_provider_timeout_selector):
-        res = router_timeout.generate("System", "User prompt")
+        res = router_timeout.generate("System", "User prompt", simulate_timeout_models=["gemini-2.5-flash"])
         elapsed = time.time() - t0
-        assert res["answer"] == "Hello from fallback GPT-4o-mini!"
-        assert res["model"] == "gpt-4o-mini"
+        assert res["answer"] == "Hello from fallback Gemini Pro!"
+        assert res["model"] == "gemini-2.5-pro"
         assert res["attempts"] == 2
         assert any("Timed out" in e for e in res["errors"])
         assert elapsed < 1.5, f"Execution took too long: {elapsed}s"
@@ -240,11 +238,10 @@ def run_tests():
 
     # When breaker is open, ModelRouter skips candidate immediately without invoking provider
     router_cb = ModelRouter(organization=test_org, circuit_breaker=cb)
-    mock_candidate_call = MagicMock()
 
-    with patch.object(router_cb, "_get_provider_instance", return_value=mock_success_gpt4o) as mock_get_prov:
+    with patch.object(router_cb, "_get_provider_instance", return_value=mock_success_gemini_pro):
         res = router_cb.generate("System", "User prompt")
-        assert res["model"] == "gpt-4o-mini"
+        assert res["model"] == "gemini-2.5-pro"
         assert any("Circuit breaker open" in e for e in res["errors"])
         assert res["cascade_log"][0]["status"] == "circuit_breaker_open"
         assert res["cascade_log"][1]["status"] == "success"
@@ -269,13 +266,13 @@ def run_tests():
     req = factory.post("/api/admin/routing/", data=test_sim_payload, format="json")
     force_authenticate(req, user=admin_user)
     
-    with patch("ai_service.services.model_router.ModelRouter._get_provider_instance", return_value=mock_success_gpt4o):
+    with patch("ai_service.services.model_router.ModelRouter._get_provider_instance", return_value=mock_success_gemini_pro):
         resp = view(req)
         assert resp.status_code == 200
         sim_data = json.loads(resp.content.decode("utf-8"))
         assert sim_data["status"] == "success"
         assert sim_data["attempts"] == 2
-        assert sim_data["model_used"] == "gpt-4o-mini"
+        assert sim_data["model_used"] == "gemini-2.5-pro"
         assert sim_data["cascade_log"][0]["status"] == "failed"
         assert sim_data["cascade_log"][1]["status"] == "success"
     log_test("AdminRoutingView POST (action: test): simulates fallback cascade and returns diagnostic trace")

@@ -8,9 +8,9 @@ from billing.models import ModelConfig, RoutingRule
 logger = logging.getLogger(__name__)
 
 PLAN_PERMITTED_MODELS = {
-    "free": ["gemini-2.5-flash"],
-    "pro": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini"],
-    "enterprise": ["gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o-mini", "gpt-4"],
+    "free": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.8-flash"],
+    "pro": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-3.8-flash"],
+    "enterprise": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-3.8-flash"],
 }
 
 
@@ -177,7 +177,12 @@ class ModelRouter:
         # Allow explicit target_model if requested and active
         original_primary = primary
         if target_model and target_model != "auto":
-            override = ModelConfig.objects.filter(name=target_model, is_active=True).first()
+            from rag.providers.gemini import Gemini
+            resolved_target = Gemini.MODEL_ALIASES.get(target_model, target_model)
+            override = (
+                ModelConfig.objects.filter(name=target_model, is_active=True).first()
+                or ModelConfig.objects.filter(name=resolved_target, is_active=True).first()
+            )
             if override:
                 primary = override
 
