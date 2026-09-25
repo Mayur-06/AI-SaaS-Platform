@@ -436,7 +436,7 @@ const steps = [
 |---|---|---|---|
 | 1 | `FileText` | RAG Knowledge Base | Upload docs, get cited answers |
 | 2 | `Zap` | Semantic Caching | 62%+ cache hit rate, near-zero latency |
-| 3 | `Shuffle` | Multi-Model Routing | Auto-fallback across Gemini, GPT, Claude |
+| 3 | `Shuffle` | Multi-Model Routing | Auto-fallback across Gemini models |
 | 4 | `BarChart2` | Usage Analytics | Real-time request, token & cost tracking |
 | 5 | `Users` | Team & Roles | Owner → Admin → Member → Viewer |
 | 6 | `Key` | API Access | REST API with org-scoped keys |

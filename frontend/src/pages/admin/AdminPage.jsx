@@ -55,6 +55,40 @@ export const AdminPage = () => {
 
   useEffect(() => {
     loadData(1);
+
+    // Periodic heartbeat to refresh platform metrics & provider health
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        Promise.all([
+          adminService.getMetrics().catch(() => null),
+          adminService.getHealth().catch(() => null),
+        ]).then(([m, h]) => {
+          if (m) setMetrics(m);
+          if (h) setHealth(h);
+        });
+      }
+    }, 15000);
+
+    // Immediate sync when tab gains focus
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        Promise.all([
+          adminService.getMetrics().catch(() => null),
+          adminService.getHealth().catch(() => null),
+        ]).then(([m, h]) => {
+          if (m) setMetrics(m);
+          if (h) setHealth(h);
+        });
+      }
+    };
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+    };
   }, []);
 
   return (

@@ -19,11 +19,15 @@ class Gemini:
 
     MODEL_ALIASES = {
         "gemini-2.0-flash": "gemini-2.5-flash",
+        "gemini-2.0-flash-exp": "gemini-2.5-flash",
+        "models/gemini-2.0-flash": "gemini-2.5-flash",
+        "models/gemini-2.0-flash-exp": "gemini-2.5-flash",
         "gemini-1.5-flash": "gemini-2.5-flash",
+        "models/gemini-1.5-flash": "gemini-2.5-flash",
         "gemini-1.5-pro": "gemini-2.5-pro",
-        "gpt-4": "gemini-2.5-pro",
-        "gpt-4o-mini": "gemini-2.5-flash",
-        "gpt-3.5-turbo": "gemini-2.5-flash",
+        "models/gemini-1.5-pro": "gemini-2.5-pro",
+        "gemini-3.8-flash": "gemini-3.8-flash",
+        "models/gemini-3.8-flash": "gemini-3.8-flash",
     }
 
     def __init__(self, model_name="gemini-2.5-flash", api_key=None):
@@ -51,6 +55,10 @@ class Gemini:
                 "GEMINI_API_KEY not found in .env or settings"
             )
 
+        clean_name = (model_name or "gemini-2.5-flash").strip()
+        model_name = self.MODEL_ALIASES.get(clean_name, clean_name)
+        if model_name.startswith("models/"):
+            model_name = model_name[len("models/"):]
         model_name = self.MODEL_ALIASES.get(model_name, model_name)
 
         genai.configure(api_key=api_key)

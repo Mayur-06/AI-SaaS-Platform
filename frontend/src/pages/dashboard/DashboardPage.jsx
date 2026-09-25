@@ -17,7 +17,30 @@ export const DashboardPage = () => {
   }
 
   useEffect(() => {
-    fetchBillingData();
+    // Fetch latest stats immediately on entry
+    fetchBillingData(true);
+
+    // Auto-sync heartbeat every 15 seconds when tab is active
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchBillingData(true);
+      }
+    }, 15000);
+
+    // Immediate sync when tab becomes focused or visible
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        fetchBillingData(true);
+      }
+    };
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+    };
   }, [fetchBillingData]);
 
   const handleRefresh = async () => {

@@ -8,11 +8,16 @@ export const useBillingStore = create((set, get) => ({
   invoices: [],
   isLoading: false,
   error: null,
+  lastFetched: null,
 
   fetchBillingData: async (force = false) => {
     const state = get();
     if (state.isLoading) return;
-    if (!force && state.currentPlan && state.usage) return;
+    const now = Date.now();
+    // Cache for 5 seconds unless forced or data is missing
+    if (!force && state.currentPlan && state.usage && state.lastFetched && (now - state.lastFetched < 5000)) {
+      return;
+    }
     set({ isLoading: true, error: null });
     try {
       const [planData, usageData, invoiceData] = await Promise.all([
@@ -27,6 +32,7 @@ export const useBillingStore = create((set, get) => ({
         usage: usageData,
         invoices: invoiceData?.results || [],
         isLoading: false,
+        lastFetched: Date.now(),
       });
     } catch (err) {
       set({ error: err.message || 'Failed to fetch billing data', isLoading: false });
@@ -48,7 +54,7 @@ export const useBillingStore = create((set, get) => ({
   fetchUsage: async () => {
     try {
       const usage = await billingService.getUsage();
-      set({ usage });
+      set({ usage, lastFetched: Date.now() });
     } catch (err) {
       console.error('Failed to refresh usage:', err);
     }
@@ -57,7 +63,7 @@ export const useBillingStore = create((set, get) => ({
   fetchInvoices: async () => {
     try {
       const res = await billingService.getInvoices();
-      set({ invoices: res.results });
+      set({ invoices: res.results || [] });
     } catch (err) {
       console.error('Failed to refresh invoices:', err);
     }

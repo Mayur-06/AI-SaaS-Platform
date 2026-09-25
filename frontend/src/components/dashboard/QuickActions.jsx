@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Send, Check, Copy } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
+import { useBillingStore } from '../../store/billingStore';
 import { extractErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -30,6 +31,7 @@ export const QuickActions = ({ onQueryComplete }) => {
       const res = await aiService.queryAI(prompt);
       setResult(res);
       setPrompt('');
+      useBillingStore.getState().fetchUsage();
       if (onQueryComplete) onQueryComplete();
     } catch (err) {
       const { message, code } = extractErrorMessage(err);

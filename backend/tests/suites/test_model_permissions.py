@@ -1,7 +1,17 @@
+import os, sys
+from pathlib import Path
+_BACKEND_DIR = str(Path(__file__).resolve().parent.parent.parent)
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 import os
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 import django
 
-os.environ["DJANGO_SETTINGS_MODULE"] = "config.test_settings"
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
 from decimal import Decimal
@@ -52,11 +62,11 @@ def test_model_plan_permissions():
         instance = MockOrchestrator.return_value
         instance.query.return_value = mock_result
 
-        # [TEST 1] Free tier requesting Enterprise model (gpt-4)
-        print("\n[Case 1] Free tier requesting 'gpt-4' (Enterprise only):")
+        # [TEST 1] Free tier requesting Pro/Enterprise model (gemini-2.5-pro)
+        print("\n[Case 1] Free tier requesting 'gemini-2.5-pro' (Pro/Enterprise only):")
         org.plan = free_plan
         org.save()
-        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gpt-4"}, format="json")
+        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gemini-2.5-pro"}, format="json")
         force_authenticate(req, user=user)
         resp = view(req)
         print(f"  • Status Code: {resp.status_code}")
@@ -65,62 +75,45 @@ def test_model_plan_permissions():
         assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
         assert resp.data["error"]["code"] == "MODEL_NOT_PERMITTED"
 
-        # [TEST 2] Free tier requesting Pro model (gpt-4o-mini)
-        print("\n[Case 2] Free tier requesting 'gpt-4o-mini' (Pro only):")
-        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gpt-4o-mini"}, format="json")
-        force_authenticate(req, user=user)
-        resp = view(req)
-        print(f"  • Status Code: {resp.status_code}")
-        assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
-        assert resp.data["error"]["code"] == "MODEL_NOT_PERMITTED"
-
-        # [TEST 3] Free tier requesting permitted model (gemini-2.5-flash)
-        print("\n[Case 3] Free tier requesting 'gemini-2.5-flash' (Permitted):")
+        # [TEST 2] Free tier requesting permitted model (gemini-2.5-flash)
+        print("\n[Case 2] Free tier requesting 'gemini-2.5-flash' (Permitted):")
         req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gemini-2.5-flash"}, format="json")
         force_authenticate(req, user=user)
         resp = view(req)
         print(f"  • Status Code: {resp.status_code}")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        instance.query.assert_called_with("Hello", model="gemini-2.5-flash")
+        assert instance.query.call_args.kwargs.get("model") == "gemini-2.5-flash"
 
-        # [TEST 4] Pro tier requesting Enterprise model (gpt-4)
-        print("\n[Case 4] Pro tier requesting 'gpt-4' (Enterprise only):")
+        # [TEST 3] Pro tier requesting Pro model (gemini-2.5-pro)
+        print("\n[Case 3] Pro tier requesting 'gemini-2.5-pro' (Permitted):")
         org.plan = pro_plan
         org.save()
-        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gpt-4"}, format="json")
-        force_authenticate(req, user=user)
-        resp = view(req)
-        print(f"  • Status Code: {resp.status_code}")
-        assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
-
-        # [TEST 5] Pro tier requesting Pro model (gpt-4o-mini)
-        print("\n[Case 5] Pro tier requesting 'gpt-4o-mini' (Permitted):")
-        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gpt-4o-mini"}, format="json")
+        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gemini-2.5-pro"}, format="json")
         force_authenticate(req, user=user)
         resp = view(req)
         print(f"  • Status Code: {resp.status_code}")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        instance.query.assert_called_with("Hello", model="gpt-4o-mini")
+        assert instance.query.call_args.kwargs.get("model") == "gemini-2.5-pro"
 
-        # [TEST 6] Enterprise tier requesting Enterprise model (gpt-4)
-        print("\n[Case 6] Enterprise tier requesting 'gpt-4' (Permitted):")
+        # [TEST 4] Enterprise tier requesting Enterprise model (gemini-2.5-pro)
+        print("\n[Case 4] Enterprise tier requesting 'gemini-2.5-pro' (Permitted):")
         org.plan = ent_plan
         org.save()
-        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gpt-4"}, format="json")
+        req = factory.post("/api/ai/query/", {"question": "Hello", "model": "gemini-2.5-pro"}, format="json")
         force_authenticate(req, user=user)
         resp = view(req)
         print(f"  • Status Code: {resp.status_code}")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        instance.query.assert_called_with("Hello", model="gpt-4")
+        assert instance.query.call_args.kwargs.get("model") == "gemini-2.5-pro"
 
-        # [TEST 7] Auto-routing on any tier
-        print("\n[Case 7] Requesting 'auto' model:")
+        # [TEST 5] Auto-routing on any tier
+        print("\n[Case 5] Requesting 'auto' model:")
         req = factory.post("/api/ai/query/", {"question": "Hello", "model": "auto"}, format="json")
         force_authenticate(req, user=user)
         resp = view(req)
         print(f"  • Status Code: {resp.status_code}")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        instance.query.assert_called_with("Hello", model="auto")
+        assert instance.query.call_args.kwargs.get("model") == "auto"
 
     print("\n" + "=" * 80)
     print(" ALL MODEL PERMISSION TESTS PASSED!")

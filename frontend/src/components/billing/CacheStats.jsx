@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Database, Sliders, Trash2, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiService } from '../../services/aiService';
+import { useBillingStore } from '../../store/billingStore';
 import { extractErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -59,6 +60,7 @@ export const CacheStats = ({ userRole, isActive }) => {
       const res = await aiService.clearCache();
       toast.success(res?.message || res?.detail || 'Semantic cache purged successfully.');
       setIsPurgeDialogOpen(false);
+      useBillingStore.getState().fetchUsage();
       await fetchStats();
     } catch (err) {
       const { message } = extractErrorMessage(err);

@@ -8,6 +8,7 @@ import { DocumentPanel } from '../../components/ai/DocumentPanel';
 import { aiService } from '../../services/aiService';
 import { extractErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useBillingStore } from '../../store/billingStore';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
@@ -74,6 +75,8 @@ export const AIQueryPage = () => {
         setQuotaWarning(data.usage_warning);
       }
       setRefreshHistoryTrigger((prev) => prev + 1);
+      // Immediately refresh billing and usage telemetry in the background
+      useBillingStore.getState().fetchUsage();
     } catch (err) {
       const extracted = extractErrorMessage(err);
       setErrorInfo(extracted);

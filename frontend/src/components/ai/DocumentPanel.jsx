@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuthStore } from '../../store/authStore';
+import { useBillingStore } from '../../store/billingStore';
 import { extractErrorMessage } from '../../services/api';
 import { toast } from 'sonner';
 import { Card } from '../ui/Card';
@@ -100,6 +101,7 @@ export const DocumentPanel = ({
       setTitle('');
       setFile(null);
       await fetchDocuments();
+      useBillingStore.getState().fetchUsage();
     } catch (err) {
       const { message } = extractErrorMessage(err);
       setErrorMessage(`Error adding document: ${message}`);
@@ -114,6 +116,7 @@ export const DocumentPanel = ({
       await aiService.deleteDocument(pendingDeleteDoc.id);
       toast.success('Document removed from knowledge base.');
       await fetchDocuments();
+      useBillingStore.getState().fetchUsage();
     } catch (err) {
       const { message } = extractErrorMessage(err);
       toast.error(`Failed to delete document: ${message}`);
