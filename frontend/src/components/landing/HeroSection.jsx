@@ -45,7 +45,7 @@ export const HeroSection = () => {
             {/* Primary & Secondary CTAs */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-10">
               <Link
-                to={isAuthenticated ? (user?.is_staff ? "/admin" : "/dashboard") : "/register"}
+                to={isAuthenticated ? (user?.is_staff ? "/admin-console" : "/dashboard") : "/register"}
                 className="inline-flex items-center justify-center px-6 py-3.5 text-base font-bold text-[#292929] bg-[#b2c147] hover:brightness-105 active:scale-[0.98] rounded-xl shadow-sm transition-all no-underline text-center"
               >
                 {isAuthenticated ? (user?.is_staff ? "Admin Console →" : "Go to Dashboard →") : "Start for Free →"}

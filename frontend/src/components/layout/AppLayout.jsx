@@ -72,6 +72,21 @@ const SidebarContent = ({ user, organization, planName, role, navItems, onNavCli
     <nav className="flex-1 px-3 py-5 space-y-1.5 overflow-y-auto">
       {navItems.map((item) => {
         const Icon = item.icon;
+        if (item.external) {
+          return (
+            <a
+              key={item.to}
+              href={item.to}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavClick}
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 no-underline text-gray-400 hover:text-white hover:bg-white/5"
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </a>
+          );
+        }
         return (
           <NavLink
             key={item.to}
@@ -154,7 +169,7 @@ export const AppLayout = () => {
   const navItems = [];
 
   if (user?.is_staff) {
-    navItems.push({ to: '/admin', label: 'Admin Console', icon: ShieldAlert });
+    navItems.push({ to: '/admin-console', label: 'Admin Console', icon: ShieldAlert });
   } else {
     navItems.push({ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard });
   }

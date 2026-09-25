@@ -63,7 +63,7 @@ const TenantDashboardRoute = ({ children }) => {
   }
 
   if (user?.is_staff) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/admin-console" replace />;
   }
 
   return children;
@@ -78,7 +78,7 @@ const PublicOnlyRoute = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={user?.is_staff ? '/admin' : '/dashboard'} replace />;
+    return <Navigate to={user?.is_staff ? '/admin-console' : '/dashboard'} replace />;
   }
 
   return children;
@@ -138,7 +138,7 @@ export const AppRoutes = () => {
           }
         />
         <Route
-          path="/admin"
+          path="/admin-console"
           element={
             <AdminRoute>
               <AdminPage />

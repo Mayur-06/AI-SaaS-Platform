@@ -73,7 +73,7 @@ export const BillingPage = () => {
           Subscription tiers, quotas, and invoices are scoped to individual tenant accounts. You are currently logged in as a <strong>Platform Superadmin</strong> without an active tenant organization context.
         </p>
         <div className="pt-2">
-          <Link to="/admin" className="no-underline">
+          <Link to="/admin-console" className="no-underline">
             <Button variant="dark" size="md">
               Go to Superadmin Console →
             </Button>
