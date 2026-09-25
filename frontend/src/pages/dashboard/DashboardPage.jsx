@@ -13,7 +13,7 @@ export const DashboardPage = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   if (user?.is_staff) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/admin-console" replace />;
   }
 
   useEffect(() => {

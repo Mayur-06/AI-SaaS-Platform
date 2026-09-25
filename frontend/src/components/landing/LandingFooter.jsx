@@ -63,7 +63,7 @@ export const LandingFooter = () => {
             <ul className="space-y-2.5 text-sm text-gray-400">
               <li>
                 <Link
-                  to={user?.is_staff ? "/admin" : "/dashboard"}
+                  to={user?.is_staff ? "/admin-console" : "/dashboard"}
                   className="hover:text-white transition-colors no-underline"
                 >
                   {user?.is_staff ? "Admin Console" : "Dashboard"}

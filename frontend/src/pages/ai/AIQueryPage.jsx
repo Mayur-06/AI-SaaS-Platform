@@ -145,7 +145,7 @@ export const AIQueryPage = () => {
           AI Queries and RAG Knowledge Bases are scoped to tenant organizations. You are currently logged in as a <strong>Platform Superadmin</strong> without an active tenant organization context.
         </p>
         <div className="pt-2">
-          <Link to="/admin" className="no-underline">
+          <Link to="/admin-console" className="no-underline">
             <Button variant="dark" size="md">
               Go to Superadmin Console →
             </Button>
